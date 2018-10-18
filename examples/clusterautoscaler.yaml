@@ -4,8 +4,6 @@ kind: "ClusterAutoscaler"
 metadata:
   name: "example"
 spec:
-  minReplicas: 1
-  maxRelicas: 3
   scanInterval: 10s
   scaleDown:
     enabled: true

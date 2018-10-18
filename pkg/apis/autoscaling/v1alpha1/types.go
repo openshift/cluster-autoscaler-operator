@@ -24,8 +24,6 @@ type ClusterAutoscaler struct {
 // TODO(bison): Which of these should be optional?
 
 type ClusterAutoscalerSpec struct {
-	MinReplicas  int32           `json:"minReplicas"`
-	MaxReplicas  int32           `json:"maxReplicas"`
 	ScanInterval string          `json:"scanInterval"`
 	ScaleDown    ScaleDownConfig `json:"scaleDown"`
 }
