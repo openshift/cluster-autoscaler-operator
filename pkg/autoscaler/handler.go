@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/openshift/cluster-autoscaler-operator/pkg/apis/autoscaling/v1alpha1"
-
 	"github.com/operator-framework/operator-sdk/pkg/sdk"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sirupsen/logrus"
@@ -49,9 +48,14 @@ func (h *Handler) Handle(ctx context.Context, event sdk.Event) error {
 func newAutoScalerPod(ca *v1alpha1.ClusterAutoscaler) *corev1.Pod {
 	const caImage = "quay.io/bison/cluster-autoscaler:a554b4f5"
 	const caServiceAccount = "cluster-autoscaler"
+	const criticalPod = "scheduler.alpha.kubernetes.io/critical-pod"
 
 	labels := map[string]string{
 		"app": "cluster-autoscaler",
+	}
+
+	annotations := map[string]string{
+		criticalPod: "",
 	}
 
 	// TODO: Error handling.
@@ -72,7 +76,8 @@ func newAutoScalerPod(ca *v1alpha1.ClusterAutoscaler) *corev1.Pod {
 					Kind:    "ClusterAutoscaler",
 				}),
 			},
-			Labels: labels,
+			Labels:      labels,
+			Annotations: annotations,
 		},
 		Spec: corev1.PodSpec{
 			ServiceAccountName: caServiceAccount,
@@ -82,6 +87,12 @@ func newAutoScalerPod(ca *v1alpha1.ClusterAutoscaler) *corev1.Pod {
 					Image:   caImage,
 					Command: []string{"/cluster-autoscaler"},
 					Args:    args,
+				},
+			},
+			Tolerations: []corev1.Toleration{
+				{
+					Key:      "CriticalAddonsOnly",
+					Operator: corev1.TolerationOpExists,
 				},
 			},
 		},
