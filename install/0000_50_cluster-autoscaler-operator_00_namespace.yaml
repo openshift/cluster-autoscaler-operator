@@ -1,0 +1,8 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: openshift-cluster-autoscaler
+  labels:
+    name: openshift-cluster-autoscaler
+    openshift.io/run-level: "1"
