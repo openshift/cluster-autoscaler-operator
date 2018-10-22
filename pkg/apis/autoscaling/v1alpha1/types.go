@@ -21,15 +21,32 @@ type ClusterAutoscaler struct {
 	Status            ClusterAutoscalerStatus `json:"status,omitempty"`
 }
 
-// TODO(bison): Which of these should be optional?
-
 type ClusterAutoscalerSpec struct {
-	ScanInterval string          `json:"scanInterval"`
-	ScaleDown    ScaleDownConfig `json:"scaleDown"`
+	ResourceLimits       *ResourceLimits  `json:"resourceLimits,omitempty"`
+	ScaleDown            *ScaleDownConfig `json:"scaleDown,omitempty"`
+	MaxPodGracePeriod    *int32           `json:"maxPodGracePeriod,omitempty"`
+	PodPriorityThreshold *int32           `json:"PodPriorityThreshold,omitempty"`
 }
 
 type ClusterAutoscalerStatus struct {
 	// Fill me
+}
+
+type ResourceLimits struct {
+	MaxNodesTotal *int32         `json:"maxNodesTotal,omitempty"`
+	Cores         *ResourceRange `json:"cores,omitempty"`
+	Memory        *ResourceRange `json:"memory,omitempty"`
+	GPUS          []GPULimit     `json:"gpus,omitempty"`
+}
+
+type GPULimit struct {
+	Type string `json:"type"`
+	ResourceRange
+}
+
+type ResourceRange struct {
+	Min int32 `json:"min"`
+	Max int32 `json:"max"`
 }
 
 type ScaleDownConfig struct {

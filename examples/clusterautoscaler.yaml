@@ -4,7 +4,21 @@ kind: "ClusterAutoscaler"
 metadata:
   name: "example"
 spec:
-  scanInterval: 10s
+  resourceLimits:
+    maxNodesTotal: 100
+    cores:
+      min: 8
+      max: 64
+    memory:
+      min: 4
+      max: 32
+    gpus:
+      - type: nvidia.com/gpu
+        min: 2
+        max: 16
+      - type: amd.com/gpu
+        min: 0
+        max: 4
   scaleDown:
     enabled: true
     delayAfterAdd: 10s
