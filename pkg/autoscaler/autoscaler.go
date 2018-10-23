@@ -14,12 +14,12 @@ func AutoscalerArgs(ca *v1alpha1.ClusterAutoscaler) []string {
 	}
 
 	if ca.Spec.MaxPodGracePeriod != nil {
-		mpgp := fmt.Sprintf("--max-graceful-termination-sec=%s", ca.Spec.MaxPodGracePeriod)
+		mpgp := fmt.Sprintf("--max-graceful-termination-sec=%d", *ca.Spec.MaxPodGracePeriod)
 		args = append(args, mpgp)
 	}
 
 	if ca.Spec.PodPriorityThreshold != nil {
-		ppt := fmt.Sprintf("--expendable-pods-priority-cutoff=%s", ca.Spec.PodPriorityThreshold)
+		ppt := fmt.Sprintf("--expendable-pods-priority-cutoff=%d", *ca.Spec.PodPriorityThreshold)
 		args = append(args, ppt)
 	}
 

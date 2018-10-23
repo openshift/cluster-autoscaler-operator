@@ -25,7 +25,7 @@ type ClusterAutoscalerSpec struct {
 	ResourceLimits       *ResourceLimits  `json:"resourceLimits,omitempty"`
 	ScaleDown            *ScaleDownConfig `json:"scaleDown,omitempty"`
 	MaxPodGracePeriod    *int32           `json:"maxPodGracePeriod,omitempty"`
-	PodPriorityThreshold *int32           `json:"PodPriorityThreshold,omitempty"`
+	PodPriorityThreshold *int32           `json:"podPriorityThreshold,omitempty"`
 }
 
 type ClusterAutoscalerStatus struct {
