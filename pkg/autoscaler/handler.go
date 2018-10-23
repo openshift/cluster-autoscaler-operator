@@ -4,20 +4,26 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"strconv"
 
 	"github.com/openshift/cluster-autoscaler-operator/pkg/apis/autoscaling/v1alpha1"
+	"github.com/operator-framework/operator-sdk/pkg/k8sclient"
 	"github.com/operator-framework/operator-sdk/pkg/sdk"
 	"github.com/prometheus/client_golang/prometheus"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
 const (
 	caImage          = "quay.io/bison/cluster-autoscaler:a554b4f5"
 	criticalPod      = "scheduler.alpha.kubernetes.io/critical-pod"
 	caServiceAccount = "cluster-autoscaler"
+
+	minSizeLabel = "sigs.k8s.io/cluster-api-autoscaler-node-group-min-size"
+	maxSizeLabel = "sigs.k8s.io/cluster-api-autoscaler-node-group-max-size"
 )
 
 func NewHandler(m *Metrics) sdk.Handler {
@@ -57,6 +63,53 @@ func (h *Handler) Handle(ctx context.Context, event sdk.Event) error {
 		}
 
 		// TODO: Update ClusterAutoscaler status.
+
+	case *v1alpha1.MachineAutoscaler:
+		if event.Deleted {
+			return h.deleteMachine(o)
+		}
+
+		return h.updateMachine(o)
+	}
+
+	return nil
+}
+
+func (h *Handler) deleteMachine(ma *v1alpha1.MachineAutoscaler) error {
+	target, err := machineTarget(ma)
+	if err != nil {
+		return err
+	}
+
+	// TODO(bison): Patch instead of update.
+	labels := target.GetLabels()
+	delete(labels, minSizeLabel)
+	delete(labels, maxSizeLabel)
+	target.SetLabels(labels)
+
+	return sdk.Update(target)
+}
+
+func (h *Handler) updateMachine(ma *v1alpha1.MachineAutoscaler) error {
+	target, err := machineTarget(ma)
+	if err != nil {
+		return err
+	}
+
+	newLabels := map[string]string{
+		minSizeLabel: strconv.Itoa(int(ma.Spec.MinReplicas)),
+		maxSizeLabel: strconv.Itoa(int(ma.Spec.MaxReplicas)),
+	}
+
+	labels := target.GetLabels()
+
+	if machineNeedsUpdate(labels, newLabels) {
+		// TODO(bison): We should just patch here.
+		labels[minSizeLabel] = newLabels[minSizeLabel]
+		labels[maxSizeLabel] = newLabels[maxSizeLabel]
+
+		target.SetLabels(labels)
+		return sdk.Update(target)
 	}
 
 	return nil
@@ -165,6 +218,35 @@ func asOwner(ca *v1alpha1.ClusterAutoscaler) metav1.OwnerReference {
 		UID:        ca.UID,
 		Controller: &trueVar,
 	}
+}
+
+func machineTarget(ma *v1alpha1.MachineAutoscaler) (*unstructured.Unstructured, error) {
+	ref := ma.Spec.ScaleTargetRef
+
+	// TODO(bison): Keep a list of supported GVKs?
+	if ref.APIVersion != "cluster.k8s.io/v1alpha1" || ref.Kind != "MachineSet" {
+		return nil, fmt.Errorf("unsupported scale target: %#v", ref)
+	}
+
+	// TODO(bison): We could probably have the SDK do this for us.
+	client, _, err := k8sclient.GetResourceClient(ref.APIVersion, ref.Kind, ma.Namespace)
+	if err != nil {
+		return nil, fmt.Errorf("error getting resource client: %v", err)
+	}
+
+	target, err := client.Get(ref.Name, metav1.GetOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("error getting scale target: %v", err)
+	}
+
+	return target, nil
+}
+
+func machineNeedsUpdate(have, want map[string]string) bool {
+	minDiff := have[minSizeLabel] != want[minSizeLabel]
+	maxDiff := have[maxSizeLabel] != want[maxSizeLabel]
+
+	return minDiff || maxDiff
 }
 
 func RegisterOperatorMetrics() (*Metrics, error) {

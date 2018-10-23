@@ -4,6 +4,7 @@ kind: "ClusterAutoscaler"
 metadata:
   name: "example"
 spec:
+  podPriorityThreshold: -10
   resourceLimits:
     maxNodesTotal: 100
     cores:

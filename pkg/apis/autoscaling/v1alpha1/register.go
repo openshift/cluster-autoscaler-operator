@@ -2,7 +2,6 @@ package v1alpha1
 
 import (
 	sdkK8sutil "github.com/operator-framework/operator-sdk/pkg/util/k8sutil"
-
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -29,6 +28,8 @@ func addKnownTypes(scheme *runtime.Scheme) error {
 	scheme.AddKnownTypes(SchemeGroupVersion,
 		&ClusterAutoscaler{},
 		&ClusterAutoscalerList{},
+		&MachineAutoscaler{},
+		&MachineAutoscalerList{},
 	)
 	metav1.AddToGroupVersion(scheme, SchemeGroupVersion)
 	return nil
