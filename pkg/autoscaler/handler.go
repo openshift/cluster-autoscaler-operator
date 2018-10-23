@@ -3,16 +3,21 @@ package autoscaler
 import (
 	"context"
 	"fmt"
+	"reflect"
 
 	"github.com/openshift/cluster-autoscaler-operator/pkg/apis/autoscaling/v1alpha1"
-
 	"github.com/operator-framework/operator-sdk/pkg/sdk"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/sirupsen/logrus"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime/schema"
+)
+
+const (
+	caImage          = "quay.io/bison/cluster-autoscaler:a554b4f5"
+	criticalPod      = "scheduler.alpha.kubernetes.io/critical-pod"
+	caServiceAccount = "cluster-autoscaler"
 )
 
 func NewHandler(m *Metrics) sdk.Handler {
@@ -26,65 +31,139 @@ type Metrics struct {
 }
 
 type Handler struct {
-	// Metrics example
 	metrics *Metrics
-
-	// Fill me
 }
 
 func (h *Handler) Handle(ctx context.Context, event sdk.Event) error {
 	switch o := event.Object.(type) {
 	case *v1alpha1.ClusterAutoscaler:
-		err := sdk.Create(newAutoScalerPod(o))
-		if err != nil && !errors.IsAlreadyExists(err) {
-			logrus.Errorf("failed to create cluster-autoscaler pod : %v", err)
-			// increment error metric
-			h.metrics.operatorErrors.Inc()
-			return err
+		clusterAutoscaler := o
+
+		// Ignore deletes.  Resources should have their OwnerReference
+		// set appropriately which will allow them to be garbage
+		// collected automatically.
+		if event.Deleted {
+			return nil
 		}
+
+		dep := autoscalerDeployment(clusterAutoscaler)
+		err := sdk.Create(dep)
+		if err != nil && !errors.IsAlreadyExists(err) {
+			return fmt.Errorf("failed to create autoscaler deployment: %v", err)
+		}
+
+		if errors.IsAlreadyExists(err) {
+			return updateAutoscaler(clusterAutoscaler)
+		}
+
+		// TODO: Update ClusterAutoscaler status.
 	}
+
 	return nil
 }
 
-func newAutoScalerPod(ca *v1alpha1.ClusterAutoscaler) *corev1.Pod {
-	const caImage = "quay.io/bison/cluster-autoscaler:a554b4f5"
-	const caServiceAccount = "cluster-autoscaler"
-
-	labels := map[string]string{
-		"app": "cluster-autoscaler",
+func updateAutoscaler(ca *v1alpha1.ClusterAutoscaler) error {
+	dep := autoscalerDeployment(ca)
+	err := sdk.Get(dep)
+	if err != nil {
+		return fmt.Errorf("failed to get autoscaler deployment: %v", err)
 	}
 
-	// TODO: Error handling.
-	args, _ := ArgsFromCR(ca)
+	podSpec := autoscalerPodSpec(ca)
+	if !reflect.DeepEqual(dep.Spec.Template.Spec, podSpec) {
+		dep.Spec.Template.Spec = *podSpec
+		err = sdk.Update(dep)
+		if err != nil {
+			return fmt.Errorf("failed to update autoscaler deployment: %v", err)
+		}
+	}
 
-	return &corev1.Pod{
+	return nil
+}
+
+func autoscalerDeployment(ca *v1alpha1.ClusterAutoscaler) *appsv1.Deployment {
+	var replicas int32 = 1
+
+	deploymentName := fmt.Sprintf("cluster-autoscaler-%s", ca.Name)
+
+	labels := map[string]string{
+		"cluster-autoscaler": ca.Name,
+		"app":                "cluster-autoscaler",
+	}
+
+	annotations := map[string]string{
+		criticalPod: "",
+	}
+
+	podSpec := autoscalerPodSpec(ca)
+
+	dep := &appsv1.Deployment{
 		TypeMeta: metav1.TypeMeta{
-			Kind:       "Pod",
-			APIVersion: "v1",
+			APIVersion: "apps/v1",
+			Kind:       "Deployment",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      fmt.Sprintf("cluster-autoscaler-%s", ca.Name),
+			Name:      deploymentName,
 			Namespace: ca.Namespace,
-			OwnerReferences: []metav1.OwnerReference{
-				*metav1.NewControllerRef(ca, schema.GroupVersionKind{
-					Group:   v1alpha1.SchemeGroupVersion.Group,
-					Version: v1alpha1.SchemeGroupVersion.Version,
-					Kind:    "ClusterAutoscaler",
-				}),
-			},
-			Labels: labels,
 		},
-		Spec: corev1.PodSpec{
-			ServiceAccountName: caServiceAccount,
-			Containers: []corev1.Container{
-				{
-					Name:    "cluster-autoscaler",
-					Image:   caImage,
-					Command: []string{"/cluster-autoscaler"},
-					Args:    args,
+		Spec: appsv1.DeploymentSpec{
+			Replicas: &replicas,
+			Selector: &metav1.LabelSelector{
+				MatchLabels: labels,
+			},
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels:      labels,
+					Annotations: annotations,
 				},
+				Spec: *podSpec,
 			},
 		},
+	}
+
+	addOwnerRefToObject(dep, asOwner(ca))
+
+	return dep
+}
+
+func autoscalerPodSpec(ca *v1alpha1.ClusterAutoscaler) *corev1.PodSpec {
+	args := AutoscalerArgs(ca)
+
+	spec := &corev1.PodSpec{
+		ServiceAccountName: caServiceAccount,
+		Containers: []corev1.Container{
+			{
+				Name:    "cluster-autoscaler",
+				Image:   caImage,
+				Command: []string{"/cluster-autoscaler"},
+				Args:    args,
+			},
+		},
+		Tolerations: []corev1.Toleration{
+			{
+				Key:      "CriticalAddonsOnly",
+				Operator: corev1.TolerationOpExists,
+			},
+		},
+	}
+
+	return spec
+}
+
+// addOwnerRefToObject appends the desired OwnerReference to the object.
+func addOwnerRefToObject(obj metav1.Object, ownerRef metav1.OwnerReference) {
+	obj.SetOwnerReferences(append(obj.GetOwnerReferences(), ownerRef))
+}
+
+// asOwner returns an OwnerReference set as the ClusterAutoscaler CR.
+func asOwner(ca *v1alpha1.ClusterAutoscaler) metav1.OwnerReference {
+	trueVar := true
+	return metav1.OwnerReference{
+		APIVersion: ca.APIVersion,
+		Kind:       ca.Kind,
+		Name:       ca.Name,
+		UID:        ca.UID,
+		Controller: &trueVar,
 	}
 }
 

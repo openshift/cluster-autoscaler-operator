@@ -8,5 +8,5 @@ vendor/k8s.io/code-generator/generate-groups.sh \
 deepcopy \
 github.com/openshift/cluster-autoscaler-operator/pkg/generated \
 github.com/openshift/cluster-autoscaler-operator/pkg/apis \
-clusterautoscaling:v1alpha1 \
+autoscaling:v1alpha1 \
 --go-header-file "./tmp/codegen/boilerplate.go.txt"
