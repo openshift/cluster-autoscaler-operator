@@ -55,3 +55,36 @@ type ScaleDownConfig struct {
 	DelayAfterDelete  string `json:"delayAfterDelete"`
 	DelayAfterFailure string `json:"delayAfterFailure"`
 }
+
+type CrossVersionObjectReference struct {
+	Kind       string `json:"kind"`
+	Name       string `json:"name"`
+	APIVersion string `json:"apiVersion,omitempty"`
+}
+
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+type MachineAutoscalerList struct {
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata"`
+	Items           []MachineAutoscaler `json:"items"`
+}
+
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+type MachineAutoscaler struct {
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata"`
+	Spec              MachineAutoscalerSpec   `json:"spec"`
+	Status            MachineAutoscalerStatus `json:"status,omitempty"`
+}
+
+type MachineAutoscalerSpec struct {
+	MinReplicas    int32                       `json:"minReplicas"`
+	MaxReplicas    int32                       `json:"maxReplicas"`
+	ScaleTargetRef CrossVersionObjectReference `json:"scaleTargetRef"`
+}
+
+type MachineAutoscalerStatus struct {
+	// Fill me
+}
