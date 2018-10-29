@@ -1,3 +1,0 @@
-apiVersion: autoscaling.openshift.io/v1alpha1
-kind: ClusterAutoscaler
-projectName: cluster-autoscaler-operator
