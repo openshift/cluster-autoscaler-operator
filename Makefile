@@ -30,7 +30,7 @@ depend-update:
 
 .PHONY: build
 build: ## build binaries
-	$(DOCKER_CMD) go build $(GOGCFLAGS) -o bin/cluster-autoscaler-operator github.com/openshift/cluster-autoscaler-operator/cmd/cluster-autoscaler-operator
+	$(DOCKER_CMD) go build $(GOGCFLAGS) -o bin/cluster-autoscaler-operator github.com/openshift/cluster-autoscaler-operator/cmd/manager
 
 .PHONY: images
 images: ## Create images
@@ -46,7 +46,7 @@ check: fmt vet lint test ## Check your code
 
 .PHONY: test
 test: # Run unit test
-	$(DOCKER_CMD) go test -race -cover ./cmd/... ./cloud/...
+	$(DOCKER_CMD) go test -race -cover ./...
 
 .PHONY: lint
 lint: ## Go lint your code
