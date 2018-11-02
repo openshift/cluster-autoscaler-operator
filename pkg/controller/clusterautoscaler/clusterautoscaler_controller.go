@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/golang/glog"
 	autoscalingv1alpha1 "github.com/openshift/cluster-autoscaler-operator/pkg/apis/autoscaling/v1alpha1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -84,7 +85,7 @@ type Reconciler struct {
 // object and makes changes based on the state read and what is in the
 // ClusterAutoscaler.Spec
 func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, error) {
-	log.Printf("Reconciling ClusterAutoscaler %s/%s\n", request.Namespace, request.Name)
+	glog.Infof("Reconciling ClusterAutoscaler %s/%s\n", request.Namespace, request.Name)
 
 	// Fetch the ClusterAutoscaler instance
 	ca := &autoscalingv1alpha1.ClusterAutoscaler{}
@@ -99,19 +100,31 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 		}
 
 		// Error reading the object - requeue the request.
+		glog.Errorf("Error reading ClusterAutoscaler: %v", err)
 		return reconcile.Result{}, err
 	}
 
 	_, err = r.GetAutoscaler(ca)
 	if err != nil && !errors.IsNotFound(err) {
+		glog.Errorf("Error getting cluster-autoscaler deployment: %v", err)
 		return reconcile.Result{}, err
 	}
 
 	if errors.IsNotFound(err) {
-		return reconcile.Result{}, r.CreateAutoscaler(ca)
+		if err := r.CreateAutoscaler(ca); err != nil {
+			glog.Errorf("Error creating cluster-autoscaler deployment: %v", err)
+			return reconcile.Result{}, err
+		}
+
+		return reconcile.Result{}, nil
 	}
 
-	return reconcile.Result{}, r.UpdateAutoscaler(ca)
+	if err := r.UpdateAutoscaler(ca); err != nil {
+		glog.Errorf("Error updating cluster-autoscaler deployment: %v", err)
+		return reconcile.Result{}, err
+	}
+
+	return reconcile.Result{}, nil
 }
 
 // CreateAutoscaler will create the deployment for the given the

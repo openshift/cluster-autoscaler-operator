@@ -3,8 +3,8 @@ package machineautoscaler
 import (
 	"context"
 	"errors"
-	"log"
 
+	"github.com/golang/glog"
 	autoscalingv1alpha1 "github.com/openshift/cluster-autoscaler-operator/pkg/apis/autoscaling/v1alpha1"
 	"github.com/openshift/cluster-autoscaler-operator/pkg/util"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -86,7 +86,7 @@ type Reconciler struct {
 // makes changes based on the state read and what is in the
 // MachineAutoscaler.Spec
 func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, error) {
-	log.Printf("Reconciling MachineAutoscaler %s/%s\n", request.Namespace, request.Name)
+	glog.Infof("Reconciling MachineAutoscaler %s/%s\n", request.Namespace, request.Name)
 
 	// Fetch the MachineAutoscaler instance
 	ma := &autoscalingv1alpha1.MachineAutoscaler{}
@@ -101,32 +101,46 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 		}
 
 		// Error reading the object - requeue the request.
+		glog.Errorf("Error reading MachineAutoscaler: %v", err)
 		return reconcile.Result{}, err
 	}
 
 	target, err := r.GetTarget(ma)
 	if err != nil {
+		glog.Errorf("Error getting target: %v", err)
 		return reconcile.Result{}, err
 	}
 
 	// Handle MachineAutoscaler deletion.
 	if ma.GetDeletionTimestamp() != nil {
 		if err := r.FinalizeTarget(target); err != nil {
+			glog.Errorf("Error finalizing target: %v", err)
 			return reconcile.Result{}, err
 		}
 
-		return reconcile.Result{}, r.RemoveFinalizer(ma)
+		if err := r.RemoveFinalizer(ma); err != nil {
+			glog.Errorf("Error removing finalizer: %v", err)
+			return reconcile.Result{}, err
+		}
+
+		return reconcile.Result{}, nil
 	}
 
 	// Ensure our finalizers have been added.
 	if err := r.EnsureFinalizer(ma); err != nil {
+		glog.Errorf("Error setting finalizer: %v", err)
 		return reconcile.Result{}, err
 	}
 
 	min := int(ma.Spec.MinReplicas)
 	max := int(ma.Spec.MaxReplicas)
 
-	return reconcile.Result{}, r.UpdateTarget(target, min, max)
+	if err := r.UpdateTarget(target, min, max); err != nil {
+		glog.Errorf("Error updating target: %v", err)
+		return reconcile.Result{}, err
+	}
+
+	return reconcile.Result{}, nil
 }
 
 // GetTarget fetches the object targeted by the given MachineAutoscaler.
@@ -162,7 +176,7 @@ func (r *Reconciler) GetTarget(ma *autoscalingv1alpha1.MachineAutoscaler) (*Mach
 
 // UpdateTarget updates the min and max labels on the given target.
 func (r *Reconciler) UpdateTarget(target *MachineTarget, min, max int) error {
-	// Update the target object's labels if needed.
+	// Update the target object's labels if necessary.
 	if target.NeedsUpdate(min, max) {
 		target.SetLimits(min, max)
 	}
