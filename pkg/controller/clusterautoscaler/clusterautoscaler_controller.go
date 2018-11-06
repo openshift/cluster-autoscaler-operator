@@ -35,8 +35,10 @@ const (
 // when the Manager is Started.
 func Add(mgr manager.Manager, cfg *operator.Config) error {
 	r := newReconciler(mgr)
+
 	r.SetImage(cfg.ClusterAutoscalerImage)
 	r.SetReplicas(cfg.ClusterAutoscalerReplicas)
+	r.SetNamespace(cfg.ClusterAutoscalerNamespace)
 
 	return add(mgr, cfg, r)
 }
@@ -116,6 +118,9 @@ type Reconciler struct {
 	client client.Client
 	scheme *runtime.Scheme
 
+	// The namespace for cluster-autoscaler deployments.
+	caNamespace string
+
 	// The cluster-autoscaler image to use in deployments.
 	caImage string
 
@@ -169,6 +174,11 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 	return reconcile.Result{}, nil
 }
 
+// SetNamespace sets the cluster-autoscaler namespace on the reconciler.
+func (r *Reconciler) SetNamespace(namespace string) {
+	r.caNamespace = namespace
+}
+
 // SetImage sets the cluster-autoscaler image on the reconciler.
 func (r *Reconciler) SetImage(image string) {
 	r.caImage = image
@@ -218,7 +228,7 @@ func (r *Reconciler) UpdateAutoscaler(ca *autoscalingv1alpha1.ClusterAutoscaler)
 // custom resource instance.
 func (r *Reconciler) GetAutoscaler(ca *autoscalingv1alpha1.ClusterAutoscaler) (*appsv1.Deployment, error) {
 	deployment := &appsv1.Deployment{}
-	nn := autoscalerName(ca)
+	nn := r.AutoscalerName(ca)
 
 	if err := r.client.Get(context.TODO(), nn, deployment); err != nil {
 		return nil, err
@@ -227,19 +237,19 @@ func (r *Reconciler) GetAutoscaler(ca *autoscalingv1alpha1.ClusterAutoscaler) (*
 	return deployment, nil
 }
 
-// autoscalerName returns the expected NamespacedName for the deployment
+// AutoscalerName returns the expected NamespacedName for the deployment
 // belonging to the given ClusterAutoscaler.
-func autoscalerName(ca *autoscalingv1alpha1.ClusterAutoscaler) types.NamespacedName {
+func (r *Reconciler) AutoscalerName(ca *autoscalingv1alpha1.ClusterAutoscaler) types.NamespacedName {
 	return types.NamespacedName{
 		Name:      fmt.Sprintf("cluster-autoscaler-%s", ca.Name),
-		Namespace: ca.Namespace,
+		Namespace: r.caNamespace,
 	}
 }
 
 // AutoscalerDeployment returns the expected deployment belonging to the given
 // ClusterAutoscaler.
 func (r *Reconciler) AutoscalerDeployment(ca *autoscalingv1alpha1.ClusterAutoscaler) *appsv1.Deployment {
-	namespacedName := autoscalerName(ca)
+	namespacedName := r.AutoscalerName(ca)
 
 	labels := map[string]string{
 		"cluster-autoscaler": ca.Name,

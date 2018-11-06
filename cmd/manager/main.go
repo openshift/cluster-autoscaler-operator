@@ -34,6 +34,10 @@ func getConfig() *operator.Config {
 		config.ClusterAutoscalerImage = caImage
 	}
 
+	if caNamespace, ok := os.LookupEnv("CLUSTER_AUTOSCALER_NAMESPACE"); ok {
+		config.ClusterAutoscalerNamespace = caNamespace
+	}
+
 	return config
 }
 

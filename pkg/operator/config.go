@@ -1,6 +1,10 @@
 package operator
 
 const (
+	// DefaultClusterAutoscalerNamespace is the default namespace for
+	// cluster-autoscaler deployments.
+	DefaultClusterAutoscalerNamespace = "openshift-cluster-autoscaler"
+
 	// DefaultClusterAutoscalerName is the default ClusterAutoscaler
 	// object watched by the operator.
 	DefaultClusterAutoscalerName = "default"
@@ -20,6 +24,10 @@ const (
 
 // Config represents the runtime configuration for the operator.
 type Config struct {
+	// ClusterAutoscalerNamespace is the namespace in which
+	// cluster-autoscaler deployments will be created.
+	ClusterAutoscalerNamespace string
+
 	// ClusterAutoscalerName is the name of the ClusterAutoscaler
 	// resource that will be watched by the operator.
 	ClusterAutoscalerName string
@@ -36,8 +44,9 @@ type Config struct {
 // NewConfig returns a new Config object with defaults set.
 func NewConfig() *Config {
 	return &Config{
-		ClusterAutoscalerName:     DefaultClusterAutoscalerName,
-		ClusterAutoscalerImage:    DefaultClusterAutoscalerImage,
-		ClusterAutoscalerReplicas: DefaultClusterAutoscalerReplicas,
+		ClusterAutoscalerNamespace: DefaultClusterAutoscalerNamespace,
+		ClusterAutoscalerName:      DefaultClusterAutoscalerName,
+		ClusterAutoscalerImage:     DefaultClusterAutoscalerImage,
+		ClusterAutoscalerReplicas:  DefaultClusterAutoscalerReplicas,
 	}
 }
