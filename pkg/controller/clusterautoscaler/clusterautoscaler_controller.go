@@ -26,7 +26,6 @@ import (
 )
 
 const (
-	caImage          = "quay.io/bison/cluster-autoscaler:a554b4f5"
 	criticalPod      = "scheduler.alpha.kubernetes.io/critical-pod"
 	caServiceAccount = "cluster-autoscaler"
 )
@@ -35,11 +34,15 @@ const (
 // Manager. The Manager will set fields on the Controller and Start it
 // when the Manager is Started.
 func Add(mgr manager.Manager, cfg *operator.Config) error {
-	return add(mgr, cfg, newReconciler(mgr))
+	r := newReconciler(mgr)
+	r.SetImage(cfg.ClusterAutoscalerImage)
+	r.SetReplicas(cfg.ClusterAutoscalerReplicas)
+
+	return add(mgr, cfg, r)
 }
 
-// newReconciler returns a new reconcile.Reconciler
-func newReconciler(mgr manager.Manager) reconcile.Reconciler {
+// newReconciler returns a new Reconciler.
+func newReconciler(mgr manager.Manager) *Reconciler {
 	return &Reconciler{
 		client: mgr.GetClient(),
 		scheme: mgr.GetScheme(),
@@ -112,6 +115,12 @@ type Reconciler struct {
 	// that reads objects from the cache and writes to the apiserver
 	client client.Client
 	scheme *runtime.Scheme
+
+	// The cluster-autoscaler image to use in deployments.
+	caImage string
+
+	// The number of replicas in cluster-autoscaler deployments.
+	caReplicas int32
 }
 
 // Reconcile reads that state of the cluster for a ClusterAutoscaler
@@ -160,12 +169,22 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 	return reconcile.Result{}, nil
 }
 
+// SetImage sets the cluster-autoscaler image on the reconciler.
+func (r *Reconciler) SetImage(image string) {
+	r.caImage = image
+}
+
+// SetReplicas sets the number of cluster-autoscaler replicas on the reconciler.
+func (r *Reconciler) SetReplicas(replicas int32) {
+	r.caReplicas = replicas
+}
+
 // CreateAutoscaler will create the deployment for the given the
 // ClusterAutoscaler custom resource instance.
 func (r *Reconciler) CreateAutoscaler(ca *autoscalingv1alpha1.ClusterAutoscaler) error {
 	glog.Infof("Creating cluster-autoscaler deployment %s/%s\n", r.caNamespace, ca.Name)
 
-	deployment := autoscalerDeployment(ca)
+	deployment := r.AutoscalerDeployment(ca)
 
 	// Set ClusterAutoscaler instance as the owner and controller.
 	if err := controllerutil.SetControllerReference(ca, deployment, r.scheme); err != nil {
@@ -184,7 +203,7 @@ func (r *Reconciler) UpdateAutoscaler(ca *autoscalingv1alpha1.ClusterAutoscaler)
 	}
 
 	existingSpec := existingDeployment.Spec.Template.Spec
-	expectedSpec := autoscalerPodSpec(ca)
+	expectedSpec := r.AutoscalerPodSpec(ca)
 
 	// Only comparing podSpec for now.
 	if equality.Semantic.DeepEqual(existingSpec, expectedSpec) {
@@ -217,11 +236,9 @@ func autoscalerName(ca *autoscalingv1alpha1.ClusterAutoscaler) types.NamespacedN
 	}
 }
 
-// autoscalerDeployment returns the expected deployment belonging to the given
+// AutoscalerDeployment returns the expected deployment belonging to the given
 // ClusterAutoscaler.
-func autoscalerDeployment(ca *autoscalingv1alpha1.ClusterAutoscaler) *appsv1.Deployment {
-	var replicas int32 = 1
-
+func (r *Reconciler) AutoscalerDeployment(ca *autoscalingv1alpha1.ClusterAutoscaler) *appsv1.Deployment {
 	namespacedName := autoscalerName(ca)
 
 	labels := map[string]string{
@@ -233,7 +250,7 @@ func autoscalerDeployment(ca *autoscalingv1alpha1.ClusterAutoscaler) *appsv1.Dep
 		criticalPod: "",
 	}
 
-	podSpec := autoscalerPodSpec(ca)
+	podSpec := r.AutoscalerPodSpec(ca)
 
 	deployment := &appsv1.Deployment{
 		TypeMeta: metav1.TypeMeta{
@@ -245,7 +262,7 @@ func autoscalerDeployment(ca *autoscalingv1alpha1.ClusterAutoscaler) *appsv1.Dep
 			Namespace: namespacedName.Namespace,
 		},
 		Spec: appsv1.DeploymentSpec{
-			Replicas: &replicas,
+			Replicas: &r.caReplicas,
 			Selector: &metav1.LabelSelector{
 				MatchLabels: labels,
 			},
@@ -262,9 +279,9 @@ func autoscalerDeployment(ca *autoscalingv1alpha1.ClusterAutoscaler) *appsv1.Dep
 	return deployment
 }
 
-// autoscalerPodSpec returns the expected podSpec for the deployment belonging
+// AutoscalerPodSpec returns the expected podSpec for the deployment belonging
 // to the given ClusterAutoscaler.
-func autoscalerPodSpec(ca *autoscalingv1alpha1.ClusterAutoscaler) *corev1.PodSpec {
+func (r *Reconciler) AutoscalerPodSpec(ca *autoscalingv1alpha1.ClusterAutoscaler) *corev1.PodSpec {
 	args := AutoscalerArgs(ca)
 
 	spec := &corev1.PodSpec{
@@ -272,7 +289,7 @@ func autoscalerPodSpec(ca *autoscalingv1alpha1.ClusterAutoscaler) *corev1.PodSpe
 		Containers: []corev1.Container{
 			{
 				Name:    "cluster-autoscaler",
-				Image:   caImage,
+				Image:   r.caImage,
 				Command: []string{"/cluster-autoscaler"},
 				Args:    args,
 			},
