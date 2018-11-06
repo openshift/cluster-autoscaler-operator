@@ -3,10 +3,10 @@ package clusterautoscaler
 import (
 	"context"
 	"fmt"
-	"log"
 
 	"github.com/golang/glog"
 	autoscalingv1alpha1 "github.com/openshift/cluster-autoscaler-operator/pkg/apis/autoscaling/v1alpha1"
+	"github.com/openshift/cluster-autoscaler-operator/pkg/operator"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
@@ -17,8 +17,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 )
@@ -32,8 +34,8 @@ const (
 // Add creates a new ClusterAutoscaler Controller and adds it to the
 // Manager. The Manager will set fields on the Controller and Start it
 // when the Manager is Started.
-func Add(mgr manager.Manager) error {
-	return add(mgr, newReconciler(mgr))
+func Add(mgr manager.Manager, cfg *operator.Config) error {
+	return add(mgr, cfg, newReconciler(mgr))
 }
 
 // newReconciler returns a new reconcile.Reconciler
@@ -44,16 +46,47 @@ func newReconciler(mgr manager.Manager) reconcile.Reconciler {
 	}
 }
 
+// processEvent is used in predicate functions.  It inspects metadata and
+// returns a boolean value representing whether the controller should process an
+// event for the object.
+func processEvent(meta metav1.Object, cfg *operator.Config) bool {
+	// Only process events for objects matching the configured resource name.
+	if meta.GetName() != cfg.ClusterAutoscalerName {
+		glog.Warningf("Not processing ClusterAutoscaler %s", meta.GetName())
+		return false
+	}
+
+	return true
+}
+
 // add adds a new Controller to mgr with r as the reconcile.Reconciler
-func add(mgr manager.Manager, r reconcile.Reconciler) error {
+func add(mgr manager.Manager, cfg *operator.Config, r reconcile.Reconciler) error {
 	// Create a new controller
 	c, err := controller.New("clusterautoscaler-controller", mgr, controller.Options{Reconciler: r})
 	if err != nil {
 		return err
 	}
 
+	// ClusterAutoscaler is effectively a singleton resource.  A
+	// deployment is only created if an instance is found matching the
+	// name set at runtime.
+	p := predicate.Funcs{
+		CreateFunc: func(e event.CreateEvent) bool {
+			return processEvent(e.Meta, cfg)
+		},
+		UpdateFunc: func(e event.UpdateEvent) bool {
+			return processEvent(e.MetaNew, cfg)
+		},
+		DeleteFunc: func(e event.DeleteEvent) bool {
+			return processEvent(e.Meta, cfg)
+		},
+		GenericFunc: func(e event.GenericEvent) bool {
+			return processEvent(e.Meta, cfg)
+		},
+	}
+
 	// Watch for changes to primary resource ClusterAutoscaler
-	err = c.Watch(&source.Kind{Type: &autoscalingv1alpha1.ClusterAutoscaler{}}, &handler.EnqueueRequestForObject{})
+	err = c.Watch(&source.Kind{Type: &autoscalingv1alpha1.ClusterAutoscaler{}}, &handler.EnqueueRequestForObject{}, p)
 	if err != nil {
 		return err
 	}
@@ -85,7 +118,7 @@ type Reconciler struct {
 // object and makes changes based on the state read and what is in the
 // ClusterAutoscaler.Spec
 func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, error) {
-	glog.Infof("Reconciling ClusterAutoscaler %s/%s\n", request.Namespace, request.Name)
+	glog.Infof("Reconciling ClusterAutoscaler %s\n", request.Name)
 
 	// Fetch the ClusterAutoscaler instance
 	ca := &autoscalingv1alpha1.ClusterAutoscaler{}
@@ -130,7 +163,7 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 // CreateAutoscaler will create the deployment for the given the
 // ClusterAutoscaler custom resource instance.
 func (r *Reconciler) CreateAutoscaler(ca *autoscalingv1alpha1.ClusterAutoscaler) error {
-	log.Printf("Creating cluster-autoscaler deployment %s/%s\n", ca.Namespace, ca.Name)
+	glog.Infof("Creating cluster-autoscaler deployment %s/%s\n", r.caNamespace, ca.Name)
 
 	deployment := autoscalerDeployment(ca)
 

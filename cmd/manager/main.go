@@ -2,11 +2,13 @@ package main
 
 import (
 	"flag"
+	"os"
 	"runtime"
 
 	"github.com/golang/glog"
 	"github.com/openshift/cluster-autoscaler-operator/pkg/apis"
 	"github.com/openshift/cluster-autoscaler-operator/pkg/controller"
+	"github.com/openshift/cluster-autoscaler-operator/pkg/operator"
 	"github.com/operator-framework/operator-sdk/pkg/k8sutil"
 	sdkVersion "github.com/operator-framework/operator-sdk/version"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
@@ -21,9 +23,21 @@ func printVersion() {
 	glog.Infof("operator-sdk Version: %v", sdkVersion.Version)
 }
 
+func getConfig() *operator.Config {
+	config := operator.NewConfig()
+
+	if caName, ok := os.LookupEnv("CLUSTER_AUTOSCALER_NAME"); ok {
+		config.ClusterAutoscalerName = caName
+	}
+
+	return config
+}
+
 func main() {
 	flag.Parse()
 	printVersion()
+
+	operatorConfig := getConfig()
 
 	namespace, err := k8sutil.GetWatchNamespace()
 	if err != nil {
@@ -53,7 +67,7 @@ func main() {
 	}
 
 	// Setup all Controllers
-	if err := controller.AddToManager(mgr); err != nil {
+	if err := controller.AddToManager(mgr, operatorConfig); err != nil {
 		glog.Fatal(err)
 	}
 

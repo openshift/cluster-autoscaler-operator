@@ -6,6 +6,7 @@ import (
 
 	"github.com/golang/glog"
 	autoscalingv1alpha1 "github.com/openshift/cluster-autoscaler-operator/pkg/apis/autoscaling/v1alpha1"
+	"github.com/openshift/cluster-autoscaler-operator/pkg/operator"
 	"github.com/openshift/cluster-autoscaler-operator/pkg/util"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -40,8 +41,8 @@ var SupportedTargetGVKs = []schema.GroupVersionKind{
 // Add creates a new MachineAutoscaler Controller and adds it to the
 // Manager. The Manager will set fields on the Controller and Start it when the
 // Manager is Started.
-func Add(mgr manager.Manager) error {
-	return add(mgr, newReconciler(mgr))
+func Add(mgr manager.Manager, cfg *operator.Config) error {
+	return add(mgr, cfg, newReconciler(mgr))
 }
 
 // newReconciler returns a new reconcile.Reconciler
@@ -53,7 +54,7 @@ func newReconciler(mgr manager.Manager) reconcile.Reconciler {
 }
 
 // add adds a new Controller to mgr with r as the reconcile.Reconciler
-func add(mgr manager.Manager, r reconcile.Reconciler) error {
+func add(mgr manager.Manager, cfg *operator.Config, r reconcile.Reconciler) error {
 	// Create a new controller
 	c, err := controller.New("machineautoscaler-controller", mgr, controller.Options{Reconciler: r})
 	if err != nil {
