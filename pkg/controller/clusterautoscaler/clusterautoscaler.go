@@ -2,7 +2,6 @@ package clusterautoscaler
 
 import (
 	"fmt"
-	"strconv"
 
 	v1alpha1 "github.com/openshift/cluster-autoscaler-operator/pkg/apis/autoscaling/v1alpha1"
 )
@@ -17,8 +16,8 @@ func (a AutoscalerArg) String() string {
 }
 
 // Value returns the argument with the given value set.
-func (a AutoscalerArg) Value(v string) string {
-	return fmt.Sprintf("%s=%s", a.String(), v)
+func (a AutoscalerArg) Value(v interface{}) string {
+	return fmt.Sprintf("%s=%v", a.String(), v)
 }
 
 // Range returns the argument with the given numerical range set.
@@ -53,7 +52,7 @@ const (
 // to the cluster-autoscaler corresponding to the values in the given
 // ClusterAutoscaler resource.
 func AutoscalerArgs(ca *v1alpha1.ClusterAutoscaler, namespace string) []string {
-	spec := &ca.Spec
+	s := &ca.Spec
 
 	args := []string{
 		LogToStderrArg.String(),
@@ -62,21 +61,21 @@ func AutoscalerArgs(ca *v1alpha1.ClusterAutoscaler, namespace string) []string {
 	}
 
 	if ca.Spec.MaxPodGracePeriod != nil {
-		v := strconv.Itoa(int(*spec.MaxPodGracePeriod))
-		args = append(args, MaxGracefulTerminationSecArg.Value(v))
+		v := MaxGracefulTerminationSecArg.Value(*s.MaxPodGracePeriod)
+		args = append(args, v)
 	}
 
 	if ca.Spec.PodPriorityThreshold != nil {
-		v := strconv.Itoa(int(*spec.PodPriorityThreshold))
-		args = append(args, ExpendablePodsPriorityCutoffArg.Value(v))
+		v := ExpendablePodsPriorityCutoffArg.Value(*s.PodPriorityThreshold)
+		args = append(args, v)
 	}
 
 	if ca.Spec.ResourceLimits != nil {
-		args = append(args, ResourceArgs(spec.ResourceLimits)...)
+		args = append(args, ResourceArgs(s.ResourceLimits)...)
 	}
 
 	if ca.Spec.ScaleDown != nil {
-		args = append(args, ScaleDownArgs(spec.ScaleDown)...)
+		args = append(args, ScaleDownArgs(s.ScaleDown)...)
 	}
 
 	return args
@@ -107,8 +106,7 @@ func ResourceArgs(rl *v1alpha1.ResourceLimits) []string {
 	args := []string{}
 
 	if rl.MaxNodesTotal != nil {
-		v := strconv.Itoa(int(*rl.MaxNodesTotal))
-		args = append(args, MaxNodesTotalArg.Value(v))
+		args = append(args, MaxNodesTotalArg.Value(*rl.MaxNodesTotal))
 	}
 
 	if rl.Cores != nil {
