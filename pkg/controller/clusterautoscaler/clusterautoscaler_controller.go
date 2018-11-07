@@ -3,10 +3,10 @@ package clusterautoscaler
 import (
 	"context"
 	"fmt"
-	"log"
 
 	"github.com/golang/glog"
 	autoscalingv1alpha1 "github.com/openshift/cluster-autoscaler-operator/pkg/apis/autoscaling/v1alpha1"
+	"github.com/openshift/cluster-autoscaler-operator/pkg/operator"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
@@ -17,14 +17,15 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
 const (
-	caImage          = "quay.io/bison/cluster-autoscaler:a554b4f5"
 	criticalPod      = "scheduler.alpha.kubernetes.io/critical-pod"
 	caServiceAccount = "cluster-autoscaler"
 )
@@ -32,28 +33,65 @@ const (
 // Add creates a new ClusterAutoscaler Controller and adds it to the
 // Manager. The Manager will set fields on the Controller and Start it
 // when the Manager is Started.
-func Add(mgr manager.Manager) error {
-	return add(mgr, newReconciler(mgr))
+func Add(mgr manager.Manager, cfg *operator.Config) error {
+	r := newReconciler(mgr)
+
+	r.SetImage(cfg.ClusterAutoscalerImage)
+	r.SetReplicas(cfg.ClusterAutoscalerReplicas)
+	r.SetNamespace(cfg.ClusterAutoscalerNamespace)
+
+	return add(mgr, cfg, r)
 }
 
-// newReconciler returns a new reconcile.Reconciler
-func newReconciler(mgr manager.Manager) reconcile.Reconciler {
+// newReconciler returns a new Reconciler.
+func newReconciler(mgr manager.Manager) *Reconciler {
 	return &Reconciler{
 		client: mgr.GetClient(),
 		scheme: mgr.GetScheme(),
 	}
 }
 
+// processEvent is used in predicate functions.  It inspects metadata and
+// returns a boolean value representing whether the controller should process an
+// event for the object.
+func processEvent(meta metav1.Object, cfg *operator.Config) bool {
+	// Only process events for objects matching the configured resource name.
+	if meta.GetName() != cfg.ClusterAutoscalerName {
+		glog.Warningf("Not processing ClusterAutoscaler %s", meta.GetName())
+		return false
+	}
+
+	return true
+}
+
 // add adds a new Controller to mgr with r as the reconcile.Reconciler
-func add(mgr manager.Manager, r reconcile.Reconciler) error {
+func add(mgr manager.Manager, cfg *operator.Config, r reconcile.Reconciler) error {
 	// Create a new controller
 	c, err := controller.New("clusterautoscaler-controller", mgr, controller.Options{Reconciler: r})
 	if err != nil {
 		return err
 	}
 
+	// ClusterAutoscaler is effectively a singleton resource.  A
+	// deployment is only created if an instance is found matching the
+	// name set at runtime.
+	p := predicate.Funcs{
+		CreateFunc: func(e event.CreateEvent) bool {
+			return processEvent(e.Meta, cfg)
+		},
+		UpdateFunc: func(e event.UpdateEvent) bool {
+			return processEvent(e.MetaNew, cfg)
+		},
+		DeleteFunc: func(e event.DeleteEvent) bool {
+			return processEvent(e.Meta, cfg)
+		},
+		GenericFunc: func(e event.GenericEvent) bool {
+			return processEvent(e.Meta, cfg)
+		},
+	}
+
 	// Watch for changes to primary resource ClusterAutoscaler
-	err = c.Watch(&source.Kind{Type: &autoscalingv1alpha1.ClusterAutoscaler{}}, &handler.EnqueueRequestForObject{})
+	err = c.Watch(&source.Kind{Type: &autoscalingv1alpha1.ClusterAutoscaler{}}, &handler.EnqueueRequestForObject{}, p)
 	if err != nil {
 		return err
 	}
@@ -79,13 +117,22 @@ type Reconciler struct {
 	// that reads objects from the cache and writes to the apiserver
 	client client.Client
 	scheme *runtime.Scheme
+
+	// The namespace for cluster-autoscaler deployments.
+	caNamespace string
+
+	// The cluster-autoscaler image to use in deployments.
+	caImage string
+
+	// The number of replicas in cluster-autoscaler deployments.
+	caReplicas int32
 }
 
 // Reconcile reads that state of the cluster for a ClusterAutoscaler
 // object and makes changes based on the state read and what is in the
 // ClusterAutoscaler.Spec
 func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, error) {
-	glog.Infof("Reconciling ClusterAutoscaler %s/%s\n", request.Namespace, request.Name)
+	glog.Infof("Reconciling ClusterAutoscaler %s\n", request.Name)
 
 	// Fetch the ClusterAutoscaler instance
 	ca := &autoscalingv1alpha1.ClusterAutoscaler{}
@@ -127,12 +174,27 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 	return reconcile.Result{}, nil
 }
 
+// SetNamespace sets the cluster-autoscaler namespace on the reconciler.
+func (r *Reconciler) SetNamespace(namespace string) {
+	r.caNamespace = namespace
+}
+
+// SetImage sets the cluster-autoscaler image on the reconciler.
+func (r *Reconciler) SetImage(image string) {
+	r.caImage = image
+}
+
+// SetReplicas sets the number of cluster-autoscaler replicas on the reconciler.
+func (r *Reconciler) SetReplicas(replicas int32) {
+	r.caReplicas = replicas
+}
+
 // CreateAutoscaler will create the deployment for the given the
 // ClusterAutoscaler custom resource instance.
 func (r *Reconciler) CreateAutoscaler(ca *autoscalingv1alpha1.ClusterAutoscaler) error {
-	log.Printf("Creating cluster-autoscaler deployment %s/%s\n", ca.Namespace, ca.Name)
+	glog.Infof("Creating cluster-autoscaler deployment %s/%s\n", r.caNamespace, ca.Name)
 
-	deployment := autoscalerDeployment(ca)
+	deployment := r.AutoscalerDeployment(ca)
 
 	// Set ClusterAutoscaler instance as the owner and controller.
 	if err := controllerutil.SetControllerReference(ca, deployment, r.scheme); err != nil {
@@ -151,7 +213,7 @@ func (r *Reconciler) UpdateAutoscaler(ca *autoscalingv1alpha1.ClusterAutoscaler)
 	}
 
 	existingSpec := existingDeployment.Spec.Template.Spec
-	expectedSpec := autoscalerPodSpec(ca)
+	expectedSpec := r.AutoscalerPodSpec(ca)
 
 	// Only comparing podSpec for now.
 	if equality.Semantic.DeepEqual(existingSpec, expectedSpec) {
@@ -166,7 +228,7 @@ func (r *Reconciler) UpdateAutoscaler(ca *autoscalingv1alpha1.ClusterAutoscaler)
 // custom resource instance.
 func (r *Reconciler) GetAutoscaler(ca *autoscalingv1alpha1.ClusterAutoscaler) (*appsv1.Deployment, error) {
 	deployment := &appsv1.Deployment{}
-	nn := autoscalerName(ca)
+	nn := r.AutoscalerName(ca)
 
 	if err := r.client.Get(context.TODO(), nn, deployment); err != nil {
 		return nil, err
@@ -175,21 +237,19 @@ func (r *Reconciler) GetAutoscaler(ca *autoscalingv1alpha1.ClusterAutoscaler) (*
 	return deployment, nil
 }
 
-// autoscalerName returns the expected NamespacedName for the deployment
+// AutoscalerName returns the expected NamespacedName for the deployment
 // belonging to the given ClusterAutoscaler.
-func autoscalerName(ca *autoscalingv1alpha1.ClusterAutoscaler) types.NamespacedName {
+func (r *Reconciler) AutoscalerName(ca *autoscalingv1alpha1.ClusterAutoscaler) types.NamespacedName {
 	return types.NamespacedName{
 		Name:      fmt.Sprintf("cluster-autoscaler-%s", ca.Name),
-		Namespace: ca.Namespace,
+		Namespace: r.caNamespace,
 	}
 }
 
-// autoscalerDeployment returns the expected deployment belonging to the given
+// AutoscalerDeployment returns the expected deployment belonging to the given
 // ClusterAutoscaler.
-func autoscalerDeployment(ca *autoscalingv1alpha1.ClusterAutoscaler) *appsv1.Deployment {
-	var replicas int32 = 1
-
-	namespacedName := autoscalerName(ca)
+func (r *Reconciler) AutoscalerDeployment(ca *autoscalingv1alpha1.ClusterAutoscaler) *appsv1.Deployment {
+	namespacedName := r.AutoscalerName(ca)
 
 	labels := map[string]string{
 		"cluster-autoscaler": ca.Name,
@@ -200,7 +260,7 @@ func autoscalerDeployment(ca *autoscalingv1alpha1.ClusterAutoscaler) *appsv1.Dep
 		criticalPod: "",
 	}
 
-	podSpec := autoscalerPodSpec(ca)
+	podSpec := r.AutoscalerPodSpec(ca)
 
 	deployment := &appsv1.Deployment{
 		TypeMeta: metav1.TypeMeta{
@@ -212,7 +272,7 @@ func autoscalerDeployment(ca *autoscalingv1alpha1.ClusterAutoscaler) *appsv1.Dep
 			Namespace: namespacedName.Namespace,
 		},
 		Spec: appsv1.DeploymentSpec{
-			Replicas: &replicas,
+			Replicas: &r.caReplicas,
 			Selector: &metav1.LabelSelector{
 				MatchLabels: labels,
 			},
@@ -229,9 +289,9 @@ func autoscalerDeployment(ca *autoscalingv1alpha1.ClusterAutoscaler) *appsv1.Dep
 	return deployment
 }
 
-// autoscalerPodSpec returns the expected podSpec for the deployment belonging
+// AutoscalerPodSpec returns the expected podSpec for the deployment belonging
 // to the given ClusterAutoscaler.
-func autoscalerPodSpec(ca *autoscalingv1alpha1.ClusterAutoscaler) *corev1.PodSpec {
+func (r *Reconciler) AutoscalerPodSpec(ca *autoscalingv1alpha1.ClusterAutoscaler) *corev1.PodSpec {
 	args := AutoscalerArgs(ca)
 
 	spec := &corev1.PodSpec{
@@ -239,7 +299,7 @@ func autoscalerPodSpec(ca *autoscalingv1alpha1.ClusterAutoscaler) *corev1.PodSpe
 		Containers: []corev1.Container{
 			{
 				Name:    "cluster-autoscaler",
-				Image:   caImage,
+				Image:   r.caImage,
 				Command: []string{"/cluster-autoscaler"},
 				Args:    args,
 			},

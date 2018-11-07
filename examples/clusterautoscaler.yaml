@@ -2,7 +2,7 @@
 apiVersion: "autoscaling.openshift.io/v1alpha1"
 kind: "ClusterAutoscaler"
 metadata:
-  name: "example"
+  name: "default"
 spec:
   podPriorityThreshold: -10
   resourceLimits:
