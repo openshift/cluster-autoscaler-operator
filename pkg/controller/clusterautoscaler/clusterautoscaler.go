@@ -2,80 +2,129 @@ package clusterautoscaler
 
 import (
 	"fmt"
+	"strconv"
 
-	autoscalingv1alpha1 "github.com/openshift/cluster-autoscaler-operator/pkg/apis/autoscaling/v1alpha1"
+	v1alpha1 "github.com/openshift/cluster-autoscaler-operator/pkg/apis/autoscaling/v1alpha1"
 )
 
-func AutoscalerArgs(ca *autoscalingv1alpha1.ClusterAutoscaler) []string {
+// AutoscalerArg represents a command line argument to the cluster-autoscaler
+// that may be combined with a value or numerical range.
+type AutoscalerArg string
+
+// String returns the argument as a plain string.
+func (a AutoscalerArg) String() string {
+	return string(a)
+}
+
+// Value returns the argument with the given value set.
+func (a AutoscalerArg) Value(v string) string {
+	return fmt.Sprintf("%s=%s", a.String(), v)
+}
+
+// Range returns the argument with the given numerical range set.
+func (a AutoscalerArg) Range(min, max int) string {
+	return fmt.Sprintf("%s=%d:%d", a.String(), min, max)
+}
+
+// TypeRange returns the argument with the given type and numerical range set.
+func (a AutoscalerArg) TypeRange(t string, min, max int) string {
+	return fmt.Sprintf("%s=%s:%d:%d", a.String(), t, min, max)
+}
+
+// These constants represent the cluster-autoscaler arguments used by the
+// operator when processing ClusterAutoscaler resources.
+const (
+	LogToStderrArg                  AutoscalerArg = "--logtostderr"
+	NamespaceArg                    AutoscalerArg = "--namespace"
+	CloudProviderArg                AutoscalerArg = "--cloud-provider"
+	MaxGracefulTerminationSecArg    AutoscalerArg = "--max-graceful-termination-sec"
+	ExpendablePodsPriorityCutoffArg AutoscalerArg = "--expendable-pods-priority-cutoff"
+	ScaleDownEnabledArg             AutoscalerArg = "--scale-down-enabled"
+	ScaleDownDelayAfterAddArg       AutoscalerArg = "--scale-down-delay-after-add"
+	ScaleDownDelayAfterDeleteArg    AutoscalerArg = "--scale-down-delay-after-delete"
+	ScaleDownDelayAfterFailureArg   AutoscalerArg = "--scale-down-delay-after-failure"
+	MaxNodesTotalArg                AutoscalerArg = "--max-nodes-total"
+	CoresTotalArg                   AutoscalerArg = "--cores-total"
+	MemoryTotalArg                  AutoscalerArg = "--memory-total"
+	GPUTotalArg                     AutoscalerArg = "--gpu-total"
+)
+
+// AutoscalerArgs returns a slice of strings representing command line arguments
+// to the cluster-autoscaler corresponding to the values in the given
+// ClusterAutoscaler resource.
+func AutoscalerArgs(ca *v1alpha1.ClusterAutoscaler, namespace string) []string {
+	spec := &ca.Spec
+
 	args := []string{
-		"--logtostderr",
-		"--cloud-provider=cluster-api",
-		fmt.Sprintf("--namespace=%s", ca.Namespace),
+		LogToStderrArg.String(),
+		CloudProviderArg.Value("cluster-api"),
+		NamespaceArg.Value(namespace),
 	}
 
 	if ca.Spec.MaxPodGracePeriod != nil {
-		mpgp := fmt.Sprintf("--max-graceful-termination-sec=%d", *ca.Spec.MaxPodGracePeriod)
-		args = append(args, mpgp)
+		v := strconv.Itoa(int(*spec.MaxPodGracePeriod))
+		args = append(args, MaxGracefulTerminationSecArg.Value(v))
 	}
 
 	if ca.Spec.PodPriorityThreshold != nil {
-		ppt := fmt.Sprintf("--expendable-pods-priority-cutoff=%d", *ca.Spec.PodPriorityThreshold)
-		args = append(args, ppt)
+		v := strconv.Itoa(int(*spec.PodPriorityThreshold))
+		args = append(args, ExpendablePodsPriorityCutoffArg.Value(v))
 	}
 
 	if ca.Spec.ResourceLimits != nil {
-		args = append(args, ResourceArgs(ca.Spec.ResourceLimits)...)
+		args = append(args, ResourceArgs(spec.ResourceLimits)...)
 	}
 
 	if ca.Spec.ScaleDown != nil {
-		args = append(args, ScaleDownArgs(ca.Spec.ScaleDown)...)
+		args = append(args, ScaleDownArgs(spec.ScaleDown)...)
 	}
 
 	return args
 }
 
-func ScaleDownArgs(sd *autoscalingv1alpha1.ScaleDownConfig) []string {
+// ScaleDownArgs returns a slice of strings representing command line arguments
+// to the cluster-autoscaler corresponding to the values in the given
+// ScaleDownConfig object.
+func ScaleDownArgs(sd *v1alpha1.ScaleDownConfig) []string {
 	if !sd.Enabled {
-		return []string{"--scale-down-enabled=false"}
+		return []string{ScaleDownEnabledArg.Value("false")}
 	}
 
 	args := []string{
-		"--scale-down-enabled=true",
-		fmt.Sprintf("--scale-down-delay-after-add=%s", sd.DelayAfterAdd),
-		fmt.Sprintf("--scale-down-delay-after-delete=%s", sd.DelayAfterDelete),
-		fmt.Sprintf("--scale-down-delay-after-failure=%s", sd.DelayAfterFailure),
+		ScaleDownEnabledArg.Value("true"),
+		ScaleDownDelayAfterAddArg.Value(sd.DelayAfterAdd),
+		ScaleDownDelayAfterDeleteArg.Value(sd.DelayAfterDelete),
+		ScaleDownDelayAfterFailureArg.Value(sd.DelayAfterFailure),
 	}
 
 	return args
 }
 
-func ResourceArgs(rl *autoscalingv1alpha1.ResourceLimits) []string {
+// ResourceArgs returns a slice of strings representing command line arguments
+// to the cluster-autoscaler corresponding to the values in the given
+// ResourceLimits object.
+func ResourceArgs(rl *v1alpha1.ResourceLimits) []string {
 	args := []string{}
 
 	if rl.MaxNodesTotal != nil {
-		maxNodes := fmt.Sprintf("--max-nodes-total=%d", *rl.MaxNodesTotal)
-		args = append(args, maxNodes)
+		v := strconv.Itoa(int(*rl.MaxNodesTotal))
+		args = append(args, MaxNodesTotalArg.Value(v))
 	}
 
 	if rl.Cores != nil {
-		cores := fmt.Sprintf("--cores-total=%s", RangeString(*rl.Cores))
-		args = append(args, cores)
+		min, max := int(rl.Cores.Min), int(rl.Cores.Max)
+		args = append(args, CoresTotalArg.Range(min, max))
 	}
 
 	if rl.Memory != nil {
-		memory := fmt.Sprintf("--memory-total=%s", RangeString(*rl.Memory))
-		args = append(args, memory)
+		min, max := int(rl.Memory.Min), int(rl.Memory.Max)
+		args = append(args, MemoryTotalArg.Range(min, max))
 	}
 
 	for _, g := range rl.GPUS {
-		gpuRange := RangeString(g.ResourceRange)
-		gpu := fmt.Sprintf("--gpu-total=%s:%s", g.Type, gpuRange)
-		args = append(args, gpu)
+		min, max := int(g.Min), int(g.Max)
+		args = append(args, GPUTotalArg.TypeRange(g.Type, min, max))
 	}
 
 	return args
-}
-
-func RangeString(rr autoscalingv1alpha1.ResourceRange) string {
-	return fmt.Sprintf("%d:%d", rr.Min, rr.Max)
 }
