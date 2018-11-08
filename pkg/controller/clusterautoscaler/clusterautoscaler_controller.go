@@ -292,7 +292,7 @@ func (r *Reconciler) AutoscalerDeployment(ca *autoscalingv1alpha1.ClusterAutosca
 // AutoscalerPodSpec returns the expected podSpec for the deployment belonging
 // to the given ClusterAutoscaler.
 func (r *Reconciler) AutoscalerPodSpec(ca *autoscalingv1alpha1.ClusterAutoscaler) *corev1.PodSpec {
-	args := AutoscalerArgs(ca)
+	args := AutoscalerArgs(ca, r.caNamespace)
 
 	spec := &corev1.PodSpec{
 		ServiceAccountName: caServiceAccount,

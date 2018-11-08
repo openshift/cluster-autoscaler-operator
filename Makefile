@@ -1,5 +1,10 @@
 DBG         ?= 0
+PROJECT     ?= cluster-autoscaler-operator
+ORG_PATH    ?= github.com/openshift
+REPO_PATH   ?= $(ORG_PATH)/$(PROJECT)
 VERSION     ?= $(shell git describe --always --abbrev=7)
+LD_FLAGS    ?= -X $(REPO_PATH)/version.Version=$(VERSION)
+BUILD_DEST  ?= bin/cluster-autoscaler-operator
 MUTABLE_TAG ?= latest
 IMAGE        = origin-cluster-autoscaler-operator
 
@@ -15,7 +20,7 @@ ifeq ($(NO_DOCKER), 1)
   DOCKER_CMD =
   IMAGE_BUILD_CMD = imagebuilder
 else
-  DOCKER_CMD := docker run --rm -v "$(PWD)":/go/src/github.com/openshift/cluster-autoscaler-operator:Z -w /go/src/github.com/openshift/cluster-autoscaler-operator openshift/origin-release:golang-1.10
+  DOCKER_CMD := docker run --rm -v "$(PWD):/go/src/$(REPO_PATH):Z" -w "/go/src/$(REPO_PATH)" openshift/origin-release:golang-1.10
   IMAGE_BUILD_CMD = docker build
 endif
 
@@ -30,7 +35,7 @@ depend-update:
 
 .PHONY: build
 build: ## build binaries
-	$(DOCKER_CMD) go build $(GOGCFLAGS) -o bin/cluster-autoscaler-operator github.com/openshift/cluster-autoscaler-operator/cmd/manager
+	$(DOCKER_CMD) go build $(GOGCFLAGS) -ldflags "$(LD_FLAGS)" -o "$(BUILD_DEST)" "$(REPO_PATH)/cmd/manager"
 
 .PHONY: images
 images: ## Create images

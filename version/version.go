@@ -1,5 +1,7 @@
 package version
 
 var (
-	Version = "0.0.1"
+	// Version is the current version of the operator.  The actual
+	// value will be set by the build scripts.
+	Version = "not-built-properly"
 )

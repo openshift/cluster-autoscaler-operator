@@ -1,11 +1,16 @@
 package machineautoscaler
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
+
+// ErrTargetMissingLabels is the error returned when a target is
+// missing the min or max labels.
+var ErrTargetMissingLabels = errors.New("missing min or max label")
 
 // MachineTarget represents an unstructured target object for a
 // MachineAutoscaler, used to update metadata only.
@@ -32,6 +37,10 @@ func (mt *MachineTarget) NeedsUpdate(min, max int) bool {
 func (mt *MachineTarget) SetLimits(min, max int) {
 	labels := mt.GetLabels()
 
+	if labels == nil {
+		labels = make(map[string]string)
+	}
+
 	labels[minSizeLabel] = strconv.Itoa(min)
 	labels[maxSizeLabel] = strconv.Itoa(max)
 
@@ -57,7 +66,7 @@ func (mt *MachineTarget) GetLimits() (min, max int, err error) {
 	maxString, maxOK := labels[maxSizeLabel]
 
 	if !minOK || !maxOK {
-		return 0, 0, fmt.Errorf("missing min or max label")
+		return 0, 0, ErrTargetMissingLabels
 	}
 
 	min, err = strconv.Atoi(minString)

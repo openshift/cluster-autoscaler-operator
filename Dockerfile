@@ -9,7 +9,12 @@ WORKDIR /go/src/github.com/openshift/cluster-autoscaler-operator
 # the cluster-autoscaler-operator directory.
 # e.g. docker build -t <tag> -f <this_Dockerfile> <path_to_cluster-autoscaler-operator>
 COPY . .
-RUN GOPATH=/go CGO_ENABLED=0 go build -o /go/bin/cluster-autoscaler-operator ./cmd/manager
+
+ENV NO_DOCKER=1
+ENV GOPATH=/go
+ENV BUILD_DEST=/go/bin/cluster-autoscaler-operator
+
+RUN unset VERSION && make build
 
 # Final container
 FROM openshift/origin-base
