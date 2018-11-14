@@ -96,14 +96,14 @@ rules:
   resources: ["poddisruptionbudgets"]
   verbs: ["watch","list"]
 - apiGroups: ["apps"]
-  resources: ["statefulsets"]
+  resources: ["statefulsets","replicasets","daemonsets"]
   verbs: ["watch","list","get"]
 - apiGroups: ["storage.k8s.io"]
   resources: ["storageclasses"]
   verbs: ["watch","list","get"]
 - apiGroups: ["cluster.k8s.io"]
   resources: ["machinesets", "machines"]
-  verbs: ["watch","list","get"]
+  verbs: ["watch","list","get","update"]
 
 ---
 apiVersion: rbac.authorization.k8s.io/v1
