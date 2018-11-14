@@ -3,7 +3,7 @@ package operator
 const (
 	// DefaultClusterAutoscalerNamespace is the default namespace for
 	// cluster-autoscaler deployments.
-	DefaultClusterAutoscalerNamespace = "openshift-cluster-autoscaler"
+	DefaultClusterAutoscalerNamespace = "openshift-cluster-api"
 
 	// DefaultClusterAutoscalerName is the default ClusterAutoscaler
 	// object watched by the operator.
