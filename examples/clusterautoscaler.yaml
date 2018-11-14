@@ -6,16 +6,16 @@ metadata:
 spec:
   podPriorityThreshold: -10
   resourceLimits:
-    maxNodesTotal: 100
+    maxNodesTotal: 24
     cores:
       min: 8
-      max: 64
+      max: 128
     memory:
       min: 4
-      max: 32
+      max: 256
     gpus:
       - type: nvidia.com/gpu
-        min: 2
+        min: 0
         max: 16
       - type: amd.com/gpu
         min: 0
