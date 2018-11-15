@@ -3,7 +3,7 @@ kind: Role
 apiVersion: rbac.authorization.k8s.io/v1beta1
 metadata:
   name: cluster-autoscaler-operator
-  namespace: openshift-cluster-autoscaler
+  namespace: openshift-cluster-api
 rules:
 - apiGroups:
   - autoscaling.openshift.io
@@ -38,11 +38,11 @@ kind: RoleBinding
 apiVersion: rbac.authorization.k8s.io/v1beta1
 metadata:
   name: cluster-autoscaler-operator
-  namespace: openshift-cluster-autoscaler
+  namespace: openshift-cluster-api
 subjects:
 - kind: ServiceAccount
   name: cluster-autoscaler-operator
-  namespace: openshift-cluster-autoscaler
+  namespace: openshift-cluster-api
 roleRef:
   kind: Role
   name: cluster-autoscaler-operator
@@ -56,7 +56,7 @@ metadata:
     k8s-addon: cluster-autoscaler.addons.k8s.io
     k8s-app: cluster-autoscaler
   name: cluster-autoscaler
-  namespace: openshift-cluster-autoscaler
+  namespace: openshift-cluster-api
 
 ---
 apiVersion: rbac.authorization.k8s.io/v1
@@ -96,21 +96,21 @@ rules:
   resources: ["poddisruptionbudgets"]
   verbs: ["watch","list"]
 - apiGroups: ["apps"]
-  resources: ["statefulsets"]
+  resources: ["statefulsets","replicasets","daemonsets"]
   verbs: ["watch","list","get"]
 - apiGroups: ["storage.k8s.io"]
   resources: ["storageclasses"]
   verbs: ["watch","list","get"]
 - apiGroups: ["cluster.k8s.io"]
   resources: ["machinesets", "machines"]
-  verbs: ["watch","list","get"]
+  verbs: ["watch","list","get","update"]
 
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   name: cluster-autoscaler
-  namespace: openshift-cluster-autoscaler
+  namespace: openshift-cluster-api
   labels:
     k8s-addon: cluster-autoscaler.addons.k8s.io
     k8s-app: cluster-autoscaler
@@ -138,14 +138,14 @@ roleRef:
 subjects:
   - kind: ServiceAccount
     name: cluster-autoscaler
-    namespace: openshift-cluster-autoscaler
+    namespace: openshift-cluster-api
 
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   name: cluster-autoscaler
-  namespace: openshift-cluster-autoscaler
+  namespace: openshift-cluster-api
   labels:
     k8s-addon: cluster-autoscaler.addons.k8s.io
     k8s-app: cluster-autoscaler
@@ -156,4 +156,4 @@ roleRef:
 subjects:
   - kind: ServiceAccount
     name: cluster-autoscaler
-    namespace: openshift-cluster-autoscaler
+    namespace: openshift-cluster-api

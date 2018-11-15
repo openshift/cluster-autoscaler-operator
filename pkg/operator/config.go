@@ -3,7 +3,7 @@ package operator
 const (
 	// DefaultClusterAutoscalerNamespace is the default namespace for
 	// cluster-autoscaler deployments.
-	DefaultClusterAutoscalerNamespace = "openshift-cluster-autoscaler"
+	DefaultClusterAutoscalerNamespace = "openshift-cluster-api"
 
 	// DefaultClusterAutoscalerName is the default ClusterAutoscaler
 	// object watched by the operator.
@@ -11,11 +11,7 @@ const (
 
 	// DefaultClusterAutoscalerImage is the default image used in
 	// ClusterAutoscaler deployments.
-	//
-	// TODO(bison): This should obviously be moved to the official
-	// namespace once cluster-api support is merged in the OpenShift
-	// fork.
-	DefaultClusterAutoscalerImage = "quay.io/bison/cluster-autoscaler:a554b4f5"
+	DefaultClusterAutoscalerImage = "quay.io/openshift/origin-cluster-autoscaler:v4.0"
 
 	// DefaultClusterAutoscalerReplicas is the default number of
 	// replicas in ClusterAutoscaler deployments.

@@ -300,7 +300,7 @@ func (r *Reconciler) AutoscalerPodSpec(ca *autoscalingv1alpha1.ClusterAutoscaler
 			{
 				Name:    "cluster-autoscaler",
 				Image:   r.caImage,
-				Command: []string{"/cluster-autoscaler"},
+				Command: []string{"cluster-autoscaler"},
 				Args:    args,
 			},
 		},
