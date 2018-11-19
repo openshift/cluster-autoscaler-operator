@@ -8,9 +8,9 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
-// ErrTargetMissingLabels is the error returned when a target is
-// missing the min or max labels.
-var ErrTargetMissingLabels = errors.New("missing min or max label")
+// ErrTargetMissingAnnotations is the error returned when a target is
+// missing the min or max annotations.
+var ErrTargetMissingAnnotations = errors.New("missing min or max annotation")
 
 // MachineTarget represents an unstructured target object for a
 // MachineAutoscaler, used to update metadata only.
@@ -33,50 +33,50 @@ func (mt *MachineTarget) NeedsUpdate(min, max int) bool {
 	return minDiff || maxDiff
 }
 
-// SetLimits sets the target's min and max labels.
+// SetLimits sets the target's min and max annotations.
 func (mt *MachineTarget) SetLimits(min, max int) {
-	labels := mt.GetLabels()
+	annotations := mt.GetAnnotations()
 
-	if labels == nil {
-		labels = make(map[string]string)
+	if annotations == nil {
+		annotations = make(map[string]string)
 	}
 
-	labels[minSizeLabel] = strconv.Itoa(min)
-	labels[maxSizeLabel] = strconv.Itoa(max)
+	annotations[minSizeAnnotation] = strconv.Itoa(min)
+	annotations[maxSizeAnnotation] = strconv.Itoa(max)
 
-	mt.SetLabels(labels)
+	mt.SetAnnotations(annotations)
 }
 
-// RemoveLimits removes the target's min and max labels.
+// RemoveLimits removes the target's min and max annotations.
 func (mt *MachineTarget) RemoveLimits() {
-	labels := mt.GetLabels()
+	annotations := mt.GetAnnotations()
 
-	delete(labels, minSizeLabel)
-	delete(labels, maxSizeLabel)
+	delete(annotations, minSizeAnnotation)
+	delete(annotations, maxSizeAnnotation)
 
-	mt.SetLabels(labels)
+	mt.SetAnnotations(annotations)
 }
 
 // GetLimits returns the target's min and max limits.  An error may be
-// returned if the label's contents could not be parsed as integers.
+// returned if the annotations's contents could not be parsed as ints.
 func (mt *MachineTarget) GetLimits() (min, max int, err error) {
-	labels := mt.GetLabels()
+	annotations := mt.GetAnnotations()
 
-	minString, minOK := labels[minSizeLabel]
-	maxString, maxOK := labels[maxSizeLabel]
+	minString, minOK := annotations[minSizeAnnotation]
+	maxString, maxOK := annotations[maxSizeAnnotation]
 
 	if !minOK || !maxOK {
-		return 0, 0, ErrTargetMissingLabels
+		return 0, 0, ErrTargetMissingAnnotations
 	}
 
 	min, err = strconv.Atoi(minString)
 	if err != nil {
-		return 0, 0, fmt.Errorf("bad min label: %s", minString)
+		return 0, 0, fmt.Errorf("bad min annotation: %s", minString)
 	}
 
 	max, err = strconv.Atoi(maxString)
 	if err != nil {
-		return 0, 0, fmt.Errorf("bad max label: %s", maxString)
+		return 0, 0, fmt.Errorf("bad max annotation: %s", maxString)
 	}
 
 	return min, max, nil

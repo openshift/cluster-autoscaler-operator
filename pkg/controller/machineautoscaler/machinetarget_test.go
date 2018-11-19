@@ -50,9 +50,9 @@ func TestNeedsUpdate(t *testing.T) {
 		t.Fatal("target should not need update")
 	}
 
-	target.SetLabels(map[string]string{
-		minSizeLabel: "not-an-int",
-		maxSizeLabel: "not-an-int",
+	target.SetAnnotations(map[string]string{
+		minSizeAnnotation: "not-an-int",
+		maxSizeAnnotation: "not-an-int",
 	})
 
 	// Error parsing values.
@@ -80,35 +80,35 @@ func TestSetLimits(t *testing.T) {
 func TestGetLimits(t *testing.T) {
 	target := NewTarget()
 
-	// No labels.
+	// No annotations.
 	_, _, err := target.GetLimits()
-	if err != ErrTargetMissingLabels {
-		t.Fatal("expected missing labels error")
+	if err != ErrTargetMissingAnnotations {
+		t.Fatal("expected missing annotations error")
 	}
 
-	// Set bad min label.
-	target.SetLabels(map[string]string{
-		minSizeLabel: "not-an-int",
-		maxSizeLabel: "4",
+	// Set bad min annotation.
+	target.SetAnnotations(map[string]string{
+		minSizeAnnotation: "not-an-int",
+		maxSizeAnnotation: "4",
 	})
 
 	_, _, err = target.GetLimits()
 	if err == nil {
-		t.Fatal("expected bad label error")
+		t.Fatal("expected bad annotations error")
 	}
 
-	// Set bad max label.
-	target.SetLabels(map[string]string{
-		minSizeLabel: "2",
-		maxSizeLabel: "not-an-int",
+	// Set bad max annotation.
+	target.SetAnnotations(map[string]string{
+		minSizeAnnotation: "2",
+		maxSizeAnnotation: "not-an-int",
 	})
 
 	_, _, err = target.GetLimits()
 	if err == nil {
-		t.Fatal("expected bad label error")
+		t.Fatal("expected bad annotation error")
 	}
 
-	// Set correct labels.
+	// Set correct annotations.
 	expectedMin, expectedMax := 2, 4
 	target.SetLimits(expectedMin, expectedMax)
 
@@ -129,12 +129,12 @@ func TestRemoveLimits(t *testing.T) {
 	target.SetLimits(2, 4)
 	target.RemoveLimits()
 
-	labels := target.GetLabels()
+	annotations := target.GetAnnotations()
 
-	_, minOK := labels[minSizeLabel]
-	_, maxOK := labels[maxSizeLabel]
+	_, minOK := annotations[minSizeAnnotation]
+	_, maxOK := annotations[maxSizeAnnotation]
 
 	if minOK || maxOK {
-		t.Fatal("found labels after removal")
+		t.Fatal("found annotations after removal")
 	}
 }

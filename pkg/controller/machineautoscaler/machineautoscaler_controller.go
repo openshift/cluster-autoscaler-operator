@@ -21,11 +21,11 @@ import (
 
 const (
 	// MachineTargetFinalizer is the finalizer added to MachineAutoscaler
-	// instances to allow for cleanup of labels on target resources.
+	// instances to allow for cleanup of annotations on target resources.
 	MachineTargetFinalizer = "machinetarget.autoscaling.openshift.io"
 
-	minSizeLabel = "sigs.k8s.io/cluster-api-autoscaler-node-group-min-size"
-	maxSizeLabel = "sigs.k8s.io/cluster-api-autoscaler-node-group-max-size"
+	minSizeAnnotation = "sigs.k8s.io/cluster-api-autoscaler-node-group-min-size"
+	maxSizeAnnotation = "sigs.k8s.io/cluster-api-autoscaler-node-group-max-size"
 )
 
 // ErrUnsupportedTarget is the error returned when a target references an object
@@ -175,9 +175,9 @@ func (r *Reconciler) GetTarget(ma *autoscalingv1alpha1.MachineAutoscaler) (*Mach
 	return target, nil
 }
 
-// UpdateTarget updates the min and max labels on the given target.
+// UpdateTarget updates the min and max annotations on the given target.
 func (r *Reconciler) UpdateTarget(target *MachineTarget, min, max int) error {
-	// Update the target object's labels if necessary.
+	// Update the target object's annotations if necessary.
 	if target.NeedsUpdate(min, max) {
 		target.SetLimits(min, max)
 	}
