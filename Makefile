@@ -50,8 +50,12 @@ push:
 check: fmt vet lint test ## Check your code
 
 .PHONY: test
-test: # Run unit test
+test: ## Run unit tests
 	$(DOCKER_CMD) go test -race -cover ./...
+
+.PHONY: test-e2e
+test-e2e: ## Run e2e tests
+	 go run ./test/e2e -alsologtostderr
 
 .PHONY: lint
 lint: ## Go lint your code
