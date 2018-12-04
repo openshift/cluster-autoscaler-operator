@@ -296,6 +296,9 @@ func (r *Reconciler) AutoscalerPodSpec(ca *autoscalingv1alpha1.ClusterAutoscaler
 
 	spec := &corev1.PodSpec{
 		ServiceAccountName: caServiceAccount,
+		NodeSelector: map[string]string{
+			"node-role.kubernetes.io/master": "",
+		},
 		Containers: []corev1.Container{
 			{
 				Name:    "cluster-autoscaler",
@@ -307,6 +310,12 @@ func (r *Reconciler) AutoscalerPodSpec(ca *autoscalingv1alpha1.ClusterAutoscaler
 		Tolerations: []corev1.Toleration{
 			{
 				Key:      "CriticalAddonsOnly",
+				Operator: corev1.TolerationOpExists,
+			},
+			{
+
+				Key:      "node-role.kubernetes.io/master",
+				Effect:   corev1.TaintEffectNoSchedule,
 				Operator: corev1.TolerationOpExists,
 			},
 		},
