@@ -55,7 +55,7 @@ test: ## Run unit tests
 
 .PHONY: test-e2e
 test-e2e: ## Run e2e tests
-	 go run ./test/e2e -alsologtostderr
+	 go run ./test/e2e/*.go -alsologtostderr
 
 .PHONY: lint
 lint: ## Go lint your code
