@@ -26,8 +26,9 @@ import (
 )
 
 const (
-	criticalPod      = "scheduler.alpha.kubernetes.io/critical-pod"
-	caServiceAccount = "cluster-autoscaler"
+	criticalPod         = "scheduler.alpha.kubernetes.io/critical-pod"
+	caServiceAccount    = "cluster-autoscaler"
+	caPriorityClassName = "system-cluster-critical"
 )
 
 // Add creates a new ClusterAutoscaler Controller and adds it to the
@@ -296,6 +297,7 @@ func (r *Reconciler) AutoscalerPodSpec(ca *autoscalingv1alpha1.ClusterAutoscaler
 
 	spec := &corev1.PodSpec{
 		ServiceAccountName: caServiceAccount,
+		PriorityClassName:  caPriorityClassName,
 		NodeSelector: map[string]string{
 			"node-role.kubernetes.io/master": "",
 		},
