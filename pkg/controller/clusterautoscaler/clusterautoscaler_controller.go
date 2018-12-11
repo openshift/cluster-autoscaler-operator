@@ -6,7 +6,6 @@ import (
 
 	"github.com/golang/glog"
 	autoscalingv1alpha1 "github.com/openshift/cluster-autoscaler-operator/pkg/apis/autoscaling/v1alpha1"
-	"github.com/openshift/cluster-autoscaler-operator/pkg/operator"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
@@ -31,42 +30,40 @@ const (
 	caPriorityClassName = "system-cluster-critical"
 )
 
-// Add creates a new ClusterAutoscaler Controller and adds it to the
-// Manager. The Manager will set fields on the Controller and Start it
-// when the Manager is Started.
-func Add(mgr manager.Manager, cfg *operator.Config) error {
-	r := newReconciler(mgr)
-
-	r.SetImage(cfg.ClusterAutoscalerImage)
-	r.SetReplicas(cfg.ClusterAutoscalerReplicas)
-	r.SetNamespace(cfg.ClusterAutoscalerNamespace)
-
-	return add(mgr, cfg, r)
-}
-
-// newReconciler returns a new Reconciler.
-func newReconciler(mgr manager.Manager) *Reconciler {
+// NewReconciler returns a new Reconciler.
+func NewReconciler(mgr manager.Manager, cfg *Config) *Reconciler {
 	return &Reconciler{
 		client: mgr.GetClient(),
 		scheme: mgr.GetScheme(),
+		config: cfg,
 	}
 }
 
-// processEvent is used in predicate functions.  It inspects metadata and
-// returns a boolean value representing whether the controller should process an
-// event for the object.
-func processEvent(meta metav1.Object, cfg *operator.Config) bool {
-	// Only process events for objects matching the configured resource name.
-	if meta.GetName() != cfg.ClusterAutoscalerName {
-		glog.Warningf("Not processing ClusterAutoscaler %s", meta.GetName())
-		return false
-	}
-
-	return true
+// Config represents the configuration for a reconciler instance.
+type Config struct {
+	// The name of the singleton ClusterAutoscaler resource.
+	Name string
+	// The namespace for cluster-autoscaler deployments.
+	Namespace string
+	// The cluster-autoscaler image to use in deployments.
+	Image string
+	// The number of replicas in cluster-autoscaler deployments.
+	Replicas int32
 }
 
-// add adds a new Controller to mgr with r as the reconcile.Reconciler
-func add(mgr manager.Manager, cfg *operator.Config, r reconcile.Reconciler) error {
+var _ reconcile.Reconciler = &Reconciler{}
+
+// Reconciler reconciles a ClusterAutoscaler object
+type Reconciler struct {
+	// This client, initialized using mgr.Client() above, is a split client
+	// that reads objects from the cache and writes to the apiserver
+	client client.Client
+	scheme *runtime.Scheme
+	config *Config
+}
+
+// AddToManager adds a new Controller to mgr with r as the reconcile.Reconciler
+func (r *Reconciler) AddToManager(mgr manager.Manager) error {
 	// Create a new controller
 	c, err := controller.New("clusterautoscaler-controller", mgr, controller.Options{Reconciler: r})
 	if err != nil {
@@ -78,16 +75,16 @@ func add(mgr manager.Manager, cfg *operator.Config, r reconcile.Reconciler) erro
 	// name set at runtime.
 	p := predicate.Funcs{
 		CreateFunc: func(e event.CreateEvent) bool {
-			return processEvent(e.Meta, cfg)
+			return r.NamePredicate(e.Meta)
 		},
 		UpdateFunc: func(e event.UpdateEvent) bool {
-			return processEvent(e.MetaNew, cfg)
+			return r.NamePredicate(e.MetaNew)
 		},
 		DeleteFunc: func(e event.DeleteEvent) bool {
-			return processEvent(e.Meta, cfg)
+			return r.NamePredicate(e.Meta)
 		},
 		GenericFunc: func(e event.GenericEvent) bool {
-			return processEvent(e.Meta, cfg)
+			return r.NamePredicate(e.Meta)
 		},
 	}
 
@@ -108,25 +105,6 @@ func add(mgr manager.Manager, cfg *operator.Config, r reconcile.Reconciler) erro
 	}
 
 	return nil
-}
-
-var _ reconcile.Reconciler = &Reconciler{}
-
-// Reconciler reconciles a ClusterAutoscaler object
-type Reconciler struct {
-	// This client, initialized using mgr.Client() above, is a split client
-	// that reads objects from the cache and writes to the apiserver
-	client client.Client
-	scheme *runtime.Scheme
-
-	// The namespace for cluster-autoscaler deployments.
-	caNamespace string
-
-	// The cluster-autoscaler image to use in deployments.
-	caImage string
-
-	// The number of replicas in cluster-autoscaler deployments.
-	caReplicas int32
 }
 
 // Reconcile reads that state of the cluster for a ClusterAutoscaler
@@ -175,25 +153,28 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 	return reconcile.Result{}, nil
 }
 
-// SetNamespace sets the cluster-autoscaler namespace on the reconciler.
-func (r *Reconciler) SetNamespace(namespace string) {
-	r.caNamespace = namespace
+// SetConfig sets the given config on the reconciler.
+func (r *Reconciler) SetConfig(cfg *Config) {
+	r.config = cfg
 }
 
-// SetImage sets the cluster-autoscaler image on the reconciler.
-func (r *Reconciler) SetImage(image string) {
-	r.caImage = image
-}
+// NamePredicate is used in predicate functions.  It returns true if
+// the object's name matches the configured name of the singleton
+// ClusterAutoscaler resource.
+func (r *Reconciler) NamePredicate(meta metav1.Object) bool {
+	// Only process events for objects matching the configured resource name.
+	if meta.GetName() != r.config.Name {
+		glog.Warningf("Not processing ClusterAutoscaler %s", meta.GetName())
+		return false
+	}
 
-// SetReplicas sets the number of cluster-autoscaler replicas on the reconciler.
-func (r *Reconciler) SetReplicas(replicas int32) {
-	r.caReplicas = replicas
+	return true
 }
 
 // CreateAutoscaler will create the deployment for the given the
 // ClusterAutoscaler custom resource instance.
 func (r *Reconciler) CreateAutoscaler(ca *autoscalingv1alpha1.ClusterAutoscaler) error {
-	glog.Infof("Creating cluster-autoscaler deployment %s/%s\n", r.caNamespace, ca.Name)
+	glog.Infof("Creating cluster-autoscaler deployment %s/%s\n", r.config.Namespace, ca.Name)
 
 	deployment := r.AutoscalerDeployment(ca)
 
@@ -243,7 +224,7 @@ func (r *Reconciler) GetAutoscaler(ca *autoscalingv1alpha1.ClusterAutoscaler) (*
 func (r *Reconciler) AutoscalerName(ca *autoscalingv1alpha1.ClusterAutoscaler) types.NamespacedName {
 	return types.NamespacedName{
 		Name:      fmt.Sprintf("cluster-autoscaler-%s", ca.Name),
-		Namespace: r.caNamespace,
+		Namespace: r.config.Namespace,
 	}
 }
 
@@ -273,7 +254,7 @@ func (r *Reconciler) AutoscalerDeployment(ca *autoscalingv1alpha1.ClusterAutosca
 			Namespace: namespacedName.Namespace,
 		},
 		Spec: appsv1.DeploymentSpec{
-			Replicas: &r.caReplicas,
+			Replicas: &r.config.Replicas,
 			Selector: &metav1.LabelSelector{
 				MatchLabels: labels,
 			},
@@ -293,7 +274,7 @@ func (r *Reconciler) AutoscalerDeployment(ca *autoscalingv1alpha1.ClusterAutosca
 // AutoscalerPodSpec returns the expected podSpec for the deployment belonging
 // to the given ClusterAutoscaler.
 func (r *Reconciler) AutoscalerPodSpec(ca *autoscalingv1alpha1.ClusterAutoscaler) *corev1.PodSpec {
-	args := AutoscalerArgs(ca, r.caNamespace)
+	args := AutoscalerArgs(ca, r.config.Namespace)
 
 	spec := &corev1.PodSpec{
 		ServiceAccountName: caServiceAccount,
@@ -304,7 +285,7 @@ func (r *Reconciler) AutoscalerPodSpec(ca *autoscalingv1alpha1.ClusterAutoscaler
 		Containers: []corev1.Container{
 			{
 				Name:    "cluster-autoscaler",
-				Image:   r.caImage,
+				Image:   r.config.Image,
 				Command: []string{"cluster-autoscaler"},
 				Args:    args,
 			},
