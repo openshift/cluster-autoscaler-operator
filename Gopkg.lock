@@ -252,6 +252,37 @@
   version = "1.0.1"
 
 [[projects]]
+  branch = "master"
+  digest = "1:d60f58238786f29df539514efed06fae076de3d0db6aadf37c17c70449c3657a"
+  name = "github.com/openshift/api"
+  packages = [
+    "config/v1",
+    "security/v1",
+  ]
+  pruneopts = "NT"
+  revision = "83b2fe56301417028bd52e56edd75768e2ea051c"
+
+[[projects]]
+  branch = "master"
+  digest = "1:9e30e424d3f3e33499ef969c4eec3d7f9cbff3d504ce54f79e141895c3ad211e"
+  name = "github.com/openshift/client-go"
+  packages = [
+    "config/clientset/versioned",
+    "config/clientset/versioned/scheme",
+    "config/clientset/versioned/typed/config/v1",
+  ]
+  pruneopts = "NT"
+  revision = "960f72aa32a8e9b4dd769b90ff1cb5bd4c898eec"
+
+[[projects]]
+  branch = "master"
+  digest = "1:d472843fad24d8cf23fc738a99d66b201630bb2cda03233a6989eb13193a5236"
+  name = "github.com/openshift/cluster-version-operator"
+  packages = ["lib/resourcemerge"]
+  pruneopts = "NT"
+  revision = "eec5a8fda3f50f21eef3d06546f2a1b80e93ca94"
+
+[[projects]]
   digest = "1:93b1d84c5fa6d1ea52f4114c37714cddd84d5b78f151b62bb101128dd51399bf"
   name = "github.com/pborman/uuid"
   packages = ["."]
@@ -481,6 +512,16 @@
   revision = "2d6f90ab1293a1fb871cf149423ebb72aa7423aa"
 
 [[projects]]
+  digest = "1:117a407949aaaad9f7fbe3da8d6c2055f2c223ac0cbebd39f47ff71899622a91"
+  name = "k8s.io/apiextensions-apiserver"
+  packages = [
+    "pkg/apis/apiextensions",
+    "pkg/apis/apiextensions/v1beta1",
+  ]
+  pruneopts = "NT"
+  revision = "408db4a50408e2149acbd657bceb2480c13cb0a4"
+
+[[projects]]
   digest = "1:b07bf863262aae765494d60f0d524483f211b29f9bb27d445a79c13af8676bf2"
   name = "k8s.io/apimachinery"
   packages = [
@@ -654,6 +695,17 @@
   revision = "7338e4bfd6915369a1375890db1bbda0158c9863"
 
 [[projects]]
+  digest = "1:5bf7628fa2938ef77c3f66dce1fe0a2b5ae85192728fcead988d48d2d1041584"
+  name = "k8s.io/kube-aggregator"
+  packages = [
+    "pkg/apis/apiregistration",
+    "pkg/apis/apiregistration/v1",
+  ]
+  pruneopts = "NT"
+  revision = "89cd614e9090a2f1e78316ed459857c49c55d276"
+  version = "kubernetes-1.11.1"
+
+[[projects]]
   branch = "master"
   digest = "1:5d079d7e46465aca266ef69f55c17e361ed4b880bb3f2e71f67210bdc8991c09"
   name = "k8s.io/kube-openapi"
@@ -708,6 +760,9 @@
   analyzer-version = 1
   input-imports = [
     "github.com/golang/glog",
+    "github.com/openshift/api/config/v1",
+    "github.com/openshift/client-go/config/clientset/versioned",
+    "github.com/openshift/cluster-version-operator/lib/resourcemerge",
     "k8s.io/api/apps/v1",
     "k8s.io/api/core/v1",
     "k8s.io/apimachinery/pkg/api/equality",
@@ -720,6 +775,7 @@
     "k8s.io/apimachinery/pkg/util/wait",
     "k8s.io/client-go/kubernetes/scheme",
     "k8s.io/client-go/plugin/pkg/client/auth/gcp",
+    "k8s.io/client-go/rest",
     "k8s.io/code-generator/cmd/client-gen",
     "k8s.io/code-generator/cmd/conversion-gen",
     "k8s.io/code-generator/cmd/deepcopy-gen",
