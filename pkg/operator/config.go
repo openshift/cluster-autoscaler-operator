@@ -1,6 +1,12 @@
 package operator
 
+import "os"
+
 const (
+	// DefaultWatchNamespace is the default namespace the operator
+	// will watch for instances of its custom resources.
+	DefaultWatchNamespace = "openshift-cluster-api"
+
 	// DefaultClusterAutoscalerNamespace is the default namespace for
 	// cluster-autoscaler deployments.
 	DefaultClusterAutoscalerNamespace = "openshift-cluster-api"
@@ -20,6 +26,10 @@ const (
 
 // Config represents the runtime configuration for the operator.
 type Config struct {
+	// WatchNamespace is the namespace the operator will watch for
+	// ClusterAutoscaler and MachineAutoscaler instances.
+	WatchNamespace string
+
 	// ClusterAutoscalerNamespace is the namespace in which
 	// cluster-autoscaler deployments will be created.
 	ClusterAutoscalerNamespace string
@@ -40,9 +50,34 @@ type Config struct {
 // NewConfig returns a new Config object with defaults set.
 func NewConfig() *Config {
 	return &Config{
+		WatchNamespace:             DefaultWatchNamespace,
 		ClusterAutoscalerNamespace: DefaultClusterAutoscalerNamespace,
 		ClusterAutoscalerName:      DefaultClusterAutoscalerName,
 		ClusterAutoscalerImage:     DefaultClusterAutoscalerImage,
 		ClusterAutoscalerReplicas:  DefaultClusterAutoscalerReplicas,
 	}
+}
+
+// ConfigFromEnvironment returns a new Config object with defaults
+// overridden by environment variables when set.
+func ConfigFromEnvironment() *Config {
+	config := NewConfig()
+
+	if watchNamespace, ok := os.LookupEnv("WATCH_NAMESPACE"); ok {
+		config.WatchNamespace = watchNamespace
+	}
+
+	if caName, ok := os.LookupEnv("CLUSTER_AUTOSCALER_NAME"); ok {
+		config.ClusterAutoscalerName = caName
+	}
+
+	if caImage, ok := os.LookupEnv("CLUSTER_AUTOSCALER_IMAGE"); ok {
+		config.ClusterAutoscalerImage = caImage
+	}
+
+	if caNamespace, ok := os.LookupEnv("CLUSTER_AUTOSCALER_NAMESPACE"); ok {
+		config.ClusterAutoscalerNamespace = caNamespace
+	}
+
+	return config
 }
