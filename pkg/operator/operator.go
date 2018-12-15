@@ -9,9 +9,13 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/runtime/signals"
 )
 
+// OperatorName is the name of this operator.
+const OperatorName = "cluster-autoscaler-operator"
+
 // Operator represents an instance of the cluster-autoscaler-operator.
 type Operator struct {
 	config  *Config
+	status  *StatusReporter
 	manager manager.Manager
 }
 
@@ -22,6 +26,11 @@ func New(cfg *Config) (*Operator, error) {
 
 	// Get a config to talk to the apiserver.
 	clientConfig, err := config.GetConfig()
+	if err != nil {
+		return nil, err
+	}
+
+	operator.status, err = NewStatusReporter(clientConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -77,5 +86,10 @@ func (o *Operator) AddControllers() error {
 
 // Start starts the operator's controller-manager.
 func (o *Operator) Start() error {
-	return o.manager.Start(signals.SetupSignalHandler())
+	stopCh := signals.SetupSignalHandler()
+
+	// Report status to the CVO.
+	go o.status.Report(stopCh)
+
+	return o.manager.Start(stopCh)
 }
