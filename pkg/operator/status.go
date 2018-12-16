@@ -5,7 +5,7 @@ import (
 
 	configv1 "github.com/openshift/api/config/v1"
 	osconfig "github.com/openshift/client-go/config/clientset/versioned"
-	"github.com/openshift/cluster-autoscaler-operator/version"
+	"github.com/openshift/cluster-autoscaler-operator/pkg/version"
 	cvorm "github.com/openshift/cluster-version-operator/lib/resourcemerge"
 	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -63,7 +63,7 @@ func (r *StatusReporter) GetOrCreateClusterOperator() (*configv1.ClusterOperator
 // resource's status.
 func (r *StatusReporter) ApplyConditions(conds []configv1.ClusterOperatorStatusCondition) error {
 	status := configv1.ClusterOperatorStatus{
-		Version: version.Version,
+		Version: version.Raw,
 	}
 
 	for _, c := range conds {

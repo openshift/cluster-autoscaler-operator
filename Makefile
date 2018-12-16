@@ -2,8 +2,8 @@ DBG         ?= 0
 PROJECT     ?= cluster-autoscaler-operator
 ORG_PATH    ?= github.com/openshift
 REPO_PATH   ?= $(ORG_PATH)/$(PROJECT)
-VERSION     ?= $(shell git describe --always --abbrev=7)
-LD_FLAGS    ?= -X $(REPO_PATH)/version.Version=$(VERSION)
+VERSION     ?= $(shell git describe --always --dirty --abbrev=7)
+LD_FLAGS    ?= -X $(REPO_PATH)/pkg/version.Raw=$(VERSION)
 BUILD_DEST  ?= bin/cluster-autoscaler-operator
 MUTABLE_TAG ?= latest
 IMAGE        = origin-cluster-autoscaler-operator

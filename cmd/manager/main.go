@@ -6,14 +6,14 @@ import (
 
 	"github.com/golang/glog"
 	"github.com/openshift/cluster-autoscaler-operator/pkg/operator"
-	"github.com/openshift/cluster-autoscaler-operator/version"
+	"github.com/openshift/cluster-autoscaler-operator/pkg/version"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 )
 
 func printVersion() {
 	glog.Infof("Go Version: %s", runtime.Version())
 	glog.Infof("Go OS/Arch: %s/%s", runtime.GOOS, runtime.GOARCH)
-	glog.Infof("cluster-autoscaler-operator Version: %v", version.Version)
+	glog.Infof("Version: %s", version.String)
 }
 
 func main() {
