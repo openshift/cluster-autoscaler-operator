@@ -8,6 +8,7 @@ import (
 	autoscalingv1alpha1 "github.com/openshift/cluster-autoscaler-operator/pkg/apis/autoscaling/v1alpha1"
 	"github.com/openshift/cluster-autoscaler-operator/pkg/util"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -23,6 +24,10 @@ const (
 	// instances to allow for cleanup of annotations on target resources.
 	MachineTargetFinalizer = "machinetarget.autoscaling.openshift.io"
 
+	// MachineTargetOwnerAnnotation is the annotation used to mark a
+	// target resource's autoscaling as owned by a MachineAutoscaler.
+	MachineTargetOwnerAnnotation = "autoscaling.openshift.io/machineautoscaler"
+
 	minSizeAnnotation = "sigs.k8s.io/cluster-api-autoscaler-node-group-min-size"
 	maxSizeAnnotation = "sigs.k8s.io/cluster-api-autoscaler-node-group-max-size"
 )
@@ -31,7 +36,7 @@ const (
 // with an unsupported GroupVersionKind.
 var ErrUnsupportedTarget = errors.New("unsupported MachineAutoscaler target")
 
-// SupportedTargetGVKs is the list of GroupVersionKinds supported as targers for
+// SupportedTargetGVKs is the list of GroupVersionKinds supported as targets for
 // a MachineAutocaler instance.
 var SupportedTargetGVKs = []schema.GroupVersionKind{
 	{Group: "cluster.k8s.io", Version: "v1alpha1", Kind: "MachineSet"},
@@ -59,8 +64,22 @@ func (r *Reconciler) AddToManager(mgr manager.Manager) error {
 		return err
 	}
 
-	// TODO(bison): Should we also watch all supported target GVKs? Is it
-	// appropriate to set an owner referene on the target?
+	// Watch for changes to each supported target resource type and enqueue
+	// reconcile requests for their owning MachineAutoscaler resources.
+	for _, gvk := range SupportedTargetGVKs {
+		target := &unstructured.Unstructured{}
+		target.SetGroupVersionKind(gvk)
+
+		err := c.Watch(
+			&source.Kind{Type: target},
+			&handler.EnqueueRequestsFromMapFunc{
+				ToRequests: handler.ToRequestsFunc(targetOwnerRequest),
+			})
+
+		if err != nil {
+			return err
+		}
+	}
 
 	return nil
 }
@@ -102,6 +121,19 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 	if err != nil {
 		glog.Errorf("Error getting target: %v", err)
 		return reconcile.Result{}, err
+	}
+
+	// Set the MachineAutoscaler as the owner of the target.
+	ownerModifed, err := target.SetOwner(ma)
+	if err != nil {
+		glog.Errorf("Error setting target owner: %v", err)
+		return reconcile.Result{}, err
+	}
+
+	// If the owner is newly added, remove any existing limits.
+	// This will force an update to bring things into sync.
+	if ownerModifed {
+		target.RemoveLimits()
 	}
 
 	// Handle MachineAutoscaler deletion.
@@ -172,14 +204,18 @@ func (r *Reconciler) UpdateTarget(target *MachineTarget, min, max int) error {
 	// Update the target object's annotations if necessary.
 	if target.NeedsUpdate(min, max) {
 		target.SetLimits(min, max)
+
+		return r.client.Update(context.TODO(), target)
 	}
 
-	return r.client.Update(context.TODO(), target)
+	return nil
 }
 
 // FinalizeTarget handles finalizers for the given target.
 func (r *Reconciler) FinalizeTarget(target *MachineTarget) error {
 	target.RemoveLimits()
+	target.RemoveOwner()
+
 	return r.client.Update(context.TODO(), target)
 }
 
@@ -216,4 +252,22 @@ func SupportedTarget(gvk schema.GroupVersionKind) bool {
 	}
 
 	return false
+}
+
+// targetOwnerRequest is used with handler.EnqueueRequestsFromMapFunc to enqueue
+// reconcile requests for the owning MachineAutoscaler of a watched target.
+func targetOwnerRequest(a handler.MapObject) []reconcile.Request {
+	target, err := MachineTargetFromObject(a.Object)
+	if err != nil {
+		glog.Errorf("Failed to convert object to MachineTarget: %v", err)
+		return nil
+	}
+
+	owner, err := target.GetOwner()
+	if err != nil {
+		glog.V(2).Infof("Will not reconcile: %v", err)
+		return nil
+	}
+
+	return []reconcile.Request{{NamespacedName: owner}}
 }

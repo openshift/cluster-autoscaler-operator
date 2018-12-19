@@ -4,13 +4,53 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 )
 
-// ErrTargetMissingAnnotations is the error returned when a target is
-// missing the min or max annotations.
-var ErrTargetMissingAnnotations = errors.New("missing min or max annotation")
+var (
+	// ErrTargetMissingAnnotations is the error returned when a target is
+	// missing the min or max annotations.
+	ErrTargetMissingAnnotations = errors.New("missing min or max annotation")
+
+	// ErrTargetAlreadyOwned is the error returned when a target is already
+	// marked as owned by another MachineAutoscaler resource.
+	ErrTargetAlreadyOwned = errors.New("already owned by another MachineAutoscaler")
+
+	// ErrTargetMissingOwner is the error returned when a target has no owner
+	// annotations set.
+	ErrTargetMissingOwner = errors.New("missing owner annotation")
+
+	// ErrTargetBadOwner is the error returned when a target's owner annotation
+	// is not correctly formatted.
+	ErrTargetBadOwner = errors.New("incorrectly formatted owner annotation")
+)
+
+// MachineTargetFromObject converts a runtime.Object to a MachineTarget.
+func MachineTargetFromObject(obj runtime.Object) (*MachineTarget, error) {
+	gvk := obj.GetObjectKind().GroupVersionKind()
+
+	if !SupportedTarget(gvk) {
+		return nil, ErrUnsupportedTarget
+	}
+
+	u, err := runtime.DefaultUnstructuredConverter.ToUnstructured(obj)
+	if err != nil {
+		return nil, err
+	}
+
+	target := &MachineTarget{
+		Unstructured: unstructured.Unstructured{
+			Object: u,
+		},
+	}
+
+	return target, nil
+}
 
 // MachineTarget represents an unstructured target object for a
 // MachineAutoscaler, used to update metadata only.
@@ -80,4 +120,69 @@ func (mt *MachineTarget) GetLimits() (min, max int, err error) {
 	}
 
 	return min, max, nil
+}
+
+// SetOwner sets the target's owner annotation to the given object.  It returns
+// a boolean indicating whether the owner annotation changed, and an error,
+// which will be ErrTargetAlreadyOwned if the target is already owned.
+func (mt *MachineTarget) SetOwner(owner metav1.Object) (bool, error) {
+	annotations := mt.GetAnnotations()
+
+	if annotations == nil {
+		annotations = make(map[string]string)
+	}
+
+	ownerRef := types.NamespacedName{
+		Namespace: owner.GetNamespace(),
+		Name:      owner.GetName(),
+	}
+
+	if a, ok := annotations[MachineTargetOwnerAnnotation]; ok {
+		if a != ownerRef.String() {
+			return false, ErrTargetAlreadyOwned
+		}
+
+		return false, nil
+	}
+
+	annotations[MachineTargetOwnerAnnotation] = ownerRef.String()
+	mt.SetAnnotations(annotations)
+
+	return true, nil
+}
+
+// RemoveOwner removes the owner annotation from the target.
+func (mt *MachineTarget) RemoveOwner() {
+	annotations := mt.GetAnnotations()
+
+	delete(annotations, MachineTargetOwnerAnnotation)
+
+	mt.SetAnnotations(annotations)
+}
+
+// GetOwner returns a types.NamespacedName referencing the target's owner,
+// ErrTargetMissingOwner if the target has no owner annotation, or
+// ErrTargetBadOwner if the owner annotation is present but malformed.
+func (mt *MachineTarget) GetOwner() (types.NamespacedName, error) {
+	nn := types.NamespacedName{}
+	annotations := mt.GetAnnotations()
+
+	if annotations == nil {
+		return nn, ErrTargetMissingOwner
+	}
+
+	owner, found := annotations[MachineTargetOwnerAnnotation]
+	if !found {
+		return nn, ErrTargetMissingOwner
+	}
+
+	parts := strings.Split(owner, string(types.Separator))
+
+	if len(parts) != 2 {
+		return nn, ErrTargetBadOwner
+	}
+
+	nn.Namespace, nn.Name = parts[0], parts[1]
+
+	return nn, nil
 }
