@@ -26,7 +26,14 @@ func New(cfg *Config) (*Operator, error) {
 		return nil, err
 	}
 
-	managerOptions := manager.Options{Namespace: cfg.WatchNamespace}
+	// Create the controller-manager.
+	managerOptions := manager.Options{
+		Namespace:               cfg.WatchNamespace,
+		LeaderElection:          cfg.LeaderElection,
+		LeaderElectionNamespace: cfg.LeaderElectionNamespace,
+		LeaderElectionID:        cfg.LeaderElectionID,
+	}
+
 	operator.manager, err = manager.New(clientConfig, managerOptions)
 	if err != nil {
 		return nil, err

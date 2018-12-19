@@ -1,11 +1,28 @@
 package operator
 
-import "os"
+import (
+	"os"
+	"strconv"
+
+	"github.com/golang/glog"
+)
 
 const (
 	// DefaultWatchNamespace is the default namespace the operator
 	// will watch for instances of its custom resources.
 	DefaultWatchNamespace = "openshift-cluster-api"
+
+	// DefaultLeaderElection controls whether the default
+	// configuration performs leader-election on startup.
+	DefaultLeaderElection = true
+
+	// DefaultLeaderElectionNamespace is the default namespace in
+	// which the leader-election ConfigMap will be created.
+	DefaultLeaderElectionNamespace = "openshift-cluster-api"
+
+	// DefaultLeaderElectionID is the default name for the ConfigMap
+	// used for leader-election.
+	DefaultLeaderElectionID = "cluster-autoscaler-operator-leader"
 
 	// DefaultClusterAutoscalerNamespace is the default namespace for
 	// cluster-autoscaler deployments.
@@ -30,6 +47,16 @@ type Config struct {
 	// ClusterAutoscaler and MachineAutoscaler instances.
 	WatchNamespace string
 
+	// LeaderElection indicates whether to perform leader-election.
+	LeaderElection bool
+
+	// LeaderElectionNamespace is the namespace in which the
+	// leader-election ConfigMap will be created.
+	LeaderElectionNamespace string
+
+	// LeaderElectionID is the name of the leader-election ConfigMap.
+	LeaderElectionID string
+
 	// ClusterAutoscalerNamespace is the namespace in which
 	// cluster-autoscaler deployments will be created.
 	ClusterAutoscalerNamespace string
@@ -51,6 +78,9 @@ type Config struct {
 func NewConfig() *Config {
 	return &Config{
 		WatchNamespace:             DefaultWatchNamespace,
+		LeaderElection:             DefaultLeaderElection,
+		LeaderElectionNamespace:    DefaultLeaderElectionNamespace,
+		LeaderElectionID:           DefaultLeaderElectionID,
 		ClusterAutoscalerNamespace: DefaultClusterAutoscalerNamespace,
 		ClusterAutoscalerName:      DefaultClusterAutoscalerName,
 		ClusterAutoscalerImage:     DefaultClusterAutoscalerImage,
@@ -65,6 +95,24 @@ func ConfigFromEnvironment() *Config {
 
 	if watchNamespace, ok := os.LookupEnv("WATCH_NAMESPACE"); ok {
 		config.WatchNamespace = watchNamespace
+	}
+
+	if leaderElection, ok := os.LookupEnv("LEADER_ELECTION"); ok {
+		le, err := strconv.ParseBool(leaderElection)
+		if err != nil {
+			le = DefaultLeaderElection
+			glog.Errorf("Error parsing LEADER_ELECTION environment variable: %v", err)
+		}
+
+		config.LeaderElection = le
+	}
+
+	if leNamespace, ok := os.LookupEnv("LEADER_ELECTION_NAMESPACE"); ok {
+		config.LeaderElectionNamespace = leNamespace
+	}
+
+	if leID, ok := os.LookupEnv("LEADER_ELECTION_ID"); ok {
+		config.LeaderElectionID = leID
 	}
 
 	if caName, ok := os.LookupEnv("CLUSTER_AUTOSCALER_NAME"); ok {
