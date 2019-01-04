@@ -35,6 +35,7 @@ var ErrUnsupportedTarget = errors.New("unsupported MachineAutoscaler target")
 // a MachineAutocaler instance.
 var SupportedTargetGVKs = []schema.GroupVersionKind{
 	{Group: "cluster.k8s.io", Version: "v1alpha1", Kind: "MachineSet"},
+	{Group: "cluster.k8s.io", Version: "v1alpha1", Kind: "MachineDeployment"},
 }
 
 // NewReconciler returns a new Reconciler.
