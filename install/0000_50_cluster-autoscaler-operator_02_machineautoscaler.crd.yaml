@@ -13,3 +13,23 @@ spec:
     singular: machineautoscaler
   scope: Namespaced
   version: v1alpha1
+  additionalPrinterColumns:
+  - JSONPath: .spec.scaleTargetRef.kind
+    name: Ref Kind
+    description: Kind of object scaled
+    type: string
+  - JSONPath: .spec.scaleTargetRef.name
+    name: Ref Name
+    description: Name of object scaled
+    type: string
+  - JSONPath: .spec.minReplicas
+    name: Min
+    description: Min number of replicas
+    type: integer
+  - JSONPath: .spec.maxReplicas
+    name: Max
+    description: Max number of replicas
+    type: integer
+  - JSONPath: .metadata.creationTimestamp    
+    name: Age
+    type: date  
