@@ -6,3 +6,7 @@ spec:
     from:
       kind: DockerImage
       name: docker.io/openshift/origin-cluster-autoscaler-operator:v4.0
+  - name: cluster-autoscaler
+    from:
+      kind: DockerImage
+      name: docker.io/openshift/origin-cluster-autoscaler:v4.0
