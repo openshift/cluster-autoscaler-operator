@@ -281,6 +281,7 @@ func (r *Reconciler) AutoscalerPodSpec(ca *autoscalingv1alpha1.ClusterAutoscaler
 		PriorityClassName:  caPriorityClassName,
 		NodeSelector: map[string]string{
 			"node-role.kubernetes.io/master": "",
+			"beta.kubernetes.io/os":          "linux",
 		},
 		Containers: []corev1.Container{
 			{
