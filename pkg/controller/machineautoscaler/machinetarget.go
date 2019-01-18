@@ -88,13 +88,13 @@ func (mt *MachineTarget) SetLimits(min, max int) {
 }
 
 // RemoveLimits removes the target's min and max annotations.
-func (mt *MachineTarget) RemoveLimits() {
-	annotations := mt.GetAnnotations()
+func (mt *MachineTarget) RemoveLimits() bool {
+	annotations := []string{
+		minSizeAnnotation,
+		maxSizeAnnotation,
+	}
 
-	delete(annotations, minSizeAnnotation)
-	delete(annotations, maxSizeAnnotation)
-
-	mt.SetAnnotations(annotations)
+	return mt.RemoveAnnotations(annotations)
 }
 
 // GetLimits returns the target's min and max limits.  An error may be
@@ -152,12 +152,12 @@ func (mt *MachineTarget) SetOwner(owner metav1.Object) (bool, error) {
 }
 
 // RemoveOwner removes the owner annotation from the target.
-func (mt *MachineTarget) RemoveOwner() {
-	annotations := mt.GetAnnotations()
+func (mt *MachineTarget) RemoveOwner() bool {
+	annotations := []string{
+		MachineTargetOwnerAnnotation,
+	}
 
-	delete(annotations, MachineTargetOwnerAnnotation)
-
-	mt.SetAnnotations(annotations)
+	return mt.RemoveAnnotations(annotations)
 }
 
 // GetOwner returns a types.NamespacedName referencing the target's owner,
@@ -185,4 +185,32 @@ func (mt *MachineTarget) GetOwner() (types.NamespacedName, error) {
 	nn.Namespace, nn.Name = parts[0], parts[1]
 
 	return nn, nil
+}
+
+// RemoveAnnotations removes the annotations with the given keys from the
+// target.  It returns a bool indicating whether the annotations were actually
+// modified.
+func (mt *MachineTarget) RemoveAnnotations(keys []string) bool {
+	annotations := mt.GetAnnotations()
+	modified := false
+
+	for _, key := range keys {
+		if _, found := annotations[key]; found {
+			delete(annotations, key)
+			modified = true
+		}
+	}
+
+	mt.SetAnnotations(annotations)
+
+	return modified
+}
+
+// Finalize removes autoscaling configuration from the target and returns a bool
+// indicating whether the target was actually modified.
+func (mt *MachineTarget) Finalize() bool {
+	limitsModified := mt.RemoveLimits()
+	ownerModified := mt.RemoveOwner()
+
+	return limitsModified || ownerModified
 }

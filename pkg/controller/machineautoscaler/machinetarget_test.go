@@ -227,3 +227,37 @@ func TestGetOwner(t *testing.T) {
 		t.Errorf("target with bad owner did not report ErrTargetBadOwner")
 	}
 }
+
+func TestFinalize(t *testing.T) {
+	target := NewTarget()
+
+	owner := NewTargetOwner("owner", "owner")
+	if _, err := target.SetOwner(owner); err != nil {
+		t.Fatalf("error setting owner: %v", err)
+	}
+
+	target.SetLimits(4, 6)
+
+	modified := target.Finalize()
+	annotations := target.GetAnnotations()
+
+	_, minOK := annotations[minSizeAnnotation]
+	_, maxOK := annotations[maxSizeAnnotation]
+	_, ownerOk := annotations[MachineTargetOwnerAnnotation]
+
+	// Annotations should be removed.
+	if minOK || maxOK || ownerOk {
+		t.Errorf("Annotations present after Finailze()")
+	}
+
+	if !modified {
+		t.Errorf("Finailze() did not report modification")
+	}
+
+	// Next Finalize() call should report no modification.
+	modified = target.Finalize()
+
+	if modified {
+		t.Errorf("Finailze() reported modification unnecessarily")
+	}
+}
