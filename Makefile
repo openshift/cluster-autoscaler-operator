@@ -33,6 +33,11 @@ depend:
 depend-update:
 	dep ensure -update
 
+.PHONY: generate
+generate:
+	$(DOCKER_CMD) ./vendor/k8s.io/code-generator/generate-groups.sh deepcopy \
+	  "$(REPO_PATH)/pkg/apis" "$(REPO_PATH)/pkg/apis" "autoscaling:v1alpha1"
+
 .PHONY: build
 build: ## build binaries
 	$(DOCKER_CMD) go build $(GOGCFLAGS) -ldflags "$(LD_FLAGS)" -o "$(BUILD_DEST)" "$(REPO_PATH)/cmd/manager"
