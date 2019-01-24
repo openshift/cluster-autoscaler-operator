@@ -76,7 +76,10 @@ func (o *Operator) AddControllers() error {
 	}
 
 	// Setup MachineAutoscaler controller.
-	ma := machineautoscaler.NewReconciler(o.manager)
+	ma := machineautoscaler.NewReconciler(o.manager, &machineautoscaler.Config{
+		Namespace: o.config.ClusterAutoscalerNamespace,
+	})
+
 	if err := ma.AddToManager(o.manager); err != nil {
 		return err
 	}
