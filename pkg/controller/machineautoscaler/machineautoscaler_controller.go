@@ -34,9 +34,15 @@ const (
 	maxSizeAnnotation = "sigs.k8s.io/cluster-api-autoscaler-node-group-max-size"
 )
 
-// ErrUnsupportedTarget is the error returned when a target references an object
-// with an unsupported GroupVersionKind.
-var ErrUnsupportedTarget = errors.New("unsupported MachineAutoscaler target")
+var (
+	// ErrUnsupportedTarget is the error returned when a target references an
+	// object with an unsupported GroupVersionKind.
+	ErrUnsupportedTarget = errors.New("unsupported MachineAutoscaler target")
+
+	// ErrInvalidTarget is the error returned when a target reference is invalid
+	// in some way, e.g. not having a name set.
+	ErrInvalidTarget = errors.New("invalid MachineAutoscaler target")
+)
 
 // SupportedTargetGVKs is the list of GroupVersionKinds supported as targets for
 // a MachineAutocaler instance.
@@ -228,8 +234,8 @@ func (r *Reconciler) GetTarget(ref *corev1.ObjectReference) (*MachineTarget, err
 	obj := &unstructured.Unstructured{}
 	gvk := ref.GroupVersionKind()
 
-	if !SupportedTarget(gvk) {
-		return nil, ErrUnsupportedTarget
+	if valid, err := ValidateReference(ref); !valid {
+		return nil, err
 	}
 
 	obj.SetGroupVersionKind(gvk)
@@ -338,6 +344,25 @@ func SupportedTarget(gvk schema.GroupVersionKind) bool {
 	}
 
 	return false
+}
+
+// ValidateReference validates that an object reference is valid, i.e. that it
+// has a name and a supported GroupVersionKind.  If this method returns false,
+// indicating that the reference is not valid, it MUST return a non-nil error.
+func ValidateReference(obj *corev1.ObjectReference) (bool, error) {
+	if obj == nil {
+		return false, ErrInvalidTarget
+	}
+
+	if obj.Name == "" {
+		return false, ErrInvalidTarget
+	}
+
+	if !SupportedTarget(obj.GroupVersionKind()) {
+		return false, ErrUnsupportedTarget
+	}
+
+	return true, nil
 }
 
 // targetOwnerRequest is used with handler.EnqueueRequestsFromMapFunc to enqueue
