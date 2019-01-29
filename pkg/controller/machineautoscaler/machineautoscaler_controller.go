@@ -134,28 +134,18 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 		return reconcile.Result{}, err
 	}
 
+	// Handle MachineAutoscaler deletion. This should happen directly after the
+	// MachineAutoscaler has been fetched, before any further reconciliation.
+	if ma.GetDeletionTimestamp() != nil {
+		return r.HandleDelete(ma)
+	}
+
 	targetRef := objectReference(ma.Spec.ScaleTargetRef)
 
 	target, err := r.GetTarget(targetRef)
 	if err != nil {
 		glog.Errorf("Error getting target: %v", err)
 		return reconcile.Result{}, err
-	}
-
-	// Handle MachineAutoscaler deletion.
-	// This should happen before anything else.
-	if ma.GetDeletionTimestamp() != nil {
-		if err := r.FinalizeTarget(target); err != nil {
-			glog.Errorf("Error finalizing target: %v", err)
-			return reconcile.Result{}, err
-		}
-
-		if err := r.RemoveFinalizer(ma); err != nil {
-			glog.Errorf("Error removing finalizer: %v", err)
-			return reconcile.Result{}, err
-		}
-
-		return reconcile.Result{}, nil
 	}
 
 	// Set the MachineAutoscaler as the owner of the target.
@@ -191,7 +181,10 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 		// If the target changed, and we were able to fetch the
 		// previous target successfully, finalize it.
 		if lastTarget != nil {
-			if err := r.FinalizeTarget(lastTarget); err != nil {
+			err := r.FinalizeTarget(lastTarget)
+
+			// Ignore 404s, the resource has most likely been deleted.
+			if err != nil && !apierrors.IsNotFound(err) {
 				glog.Errorf("Error finalizing previous target: %v", err)
 				return reconcile.Result{}, err
 			}
@@ -223,6 +216,35 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 
 	if err := r.UpdateTarget(target, min, max); err != nil {
 		glog.Errorf("Error updating target: %v", err)
+		return reconcile.Result{}, err
+	}
+
+	return reconcile.Result{}, nil
+}
+
+// HandleDelete is called by Reconcile to handle MachineAutoscaler deletion,
+// i.e. finalize the resource and remove finalizers.
+func (r *Reconciler) HandleDelete(ma *v1alpha1.MachineAutoscaler) (reconcile.Result, error) {
+	targetRef := objectReference(ma.Spec.ScaleTargetRef)
+
+	target, err := r.GetTarget(targetRef)
+	if err != nil && !apierrors.IsNotFound(err) {
+		glog.Errorf("Error getting target for finalization: %v", err)
+		return reconcile.Result{}, err
+	}
+
+	if target != nil {
+		err := r.FinalizeTarget(target)
+
+		// Ignore 404s, the resource has most likely been deleted.
+		if err != nil && !apierrors.IsNotFound(err) {
+			glog.Errorf("Error finalizing target: %v", err)
+			return reconcile.Result{}, err
+		}
+	}
+
+	if err := r.RemoveFinalizer(ma); err != nil {
+		glog.Errorf("Error removing finalizer: %v", err)
 		return reconcile.Result{}, err
 	}
 
