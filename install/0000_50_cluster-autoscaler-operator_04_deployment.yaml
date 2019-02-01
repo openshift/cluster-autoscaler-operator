@@ -16,6 +16,7 @@ spec:
       labels:
         k8s-app: cluster-autoscaler-operator
     spec:
+      serviceAccountName: cluster-autoscaler-operator
       containers:
       - name: cluster-autoscaler-operator
         image: docker.io/openshift/origin-cluster-autoscaler-operator:v4.0
