@@ -1,4 +1,17 @@
 ---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: cluster-autoscaler-operator
+rules:
+- apiGroups:
+  - autoscaling.openshift.io
+  resources:
+  - "*"
+  verbs:
+  - "*"
+
+---
 kind: Role
 apiVersion: rbac.authorization.k8s.io/v1beta1
 metadata:
@@ -32,6 +45,16 @@ rules:
   - statefulsets
   verbs:
   - "*"
+- apiGroups:
+  - cluster.k8s.io
+  resources:
+  - machinedeployments
+  - machinesets
+  verbs:
+  - watch
+  - list
+  - get
+  - update
 
 ---
 kind: RoleBinding
@@ -47,6 +70,27 @@ roleRef:
   kind: Role
   name: cluster-autoscaler-operator
   apiGroup: rbac.authorization.k8s.io
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: cluster-autoscaler-operator
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-autoscaler-operator
+subjects:
+  - kind: ServiceAccount
+    name: cluster-autoscaler-operator
+    namespace: openshift-cluster-api
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: cluster-autoscaler-operator
+  namespace: openshift-cluster-api
 
 ---
 apiVersion: v1
