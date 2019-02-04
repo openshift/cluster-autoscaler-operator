@@ -49,6 +49,8 @@ type Config struct {
 	Image string
 	// The number of replicas in cluster-autoscaler deployments.
 	Replicas int32
+	// The name of the CloudProvider.
+	CloudProvider string
 }
 
 var _ reconcile.Reconciler = &Reconciler{}
@@ -274,7 +276,7 @@ func (r *Reconciler) AutoscalerDeployment(ca *autoscalingv1alpha1.ClusterAutosca
 // AutoscalerPodSpec returns the expected podSpec for the deployment belonging
 // to the given ClusterAutoscaler.
 func (r *Reconciler) AutoscalerPodSpec(ca *autoscalingv1alpha1.ClusterAutoscaler) *corev1.PodSpec {
-	args := AutoscalerArgs(ca, r.config.Namespace)
+	args := AutoscalerArgs(ca, r.config)
 
 	spec := &corev1.PodSpec{
 		ServiceAccountName: caServiceAccount,
