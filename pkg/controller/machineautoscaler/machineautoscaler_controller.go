@@ -30,8 +30,8 @@ const (
 	// target resource's autoscaling as owned by a MachineAutoscaler.
 	MachineTargetOwnerAnnotation = "autoscaling.openshift.io/machineautoscaler"
 
-	minSizeAnnotation = "sigs.k8s.io/cluster-api-autoscaler-node-group-min-size"
-	maxSizeAnnotation = "sigs.k8s.io/cluster-api-autoscaler-node-group-max-size"
+	minSizeAnnotation = "machine.openshift.io/cluster-api-autoscaler-node-group-min-size"
+	maxSizeAnnotation = "machine.openshift.io/cluster-api-autoscaler-node-group-max-size"
 )
 
 var (
