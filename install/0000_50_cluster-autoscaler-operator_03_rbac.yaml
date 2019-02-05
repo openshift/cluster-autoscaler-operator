@@ -47,6 +47,7 @@ rules:
   - "*"
 - apiGroups:
   - cluster.k8s.io
+  - machine.openshift.io
   resources:
   - machinedeployments
   - machinesets
@@ -145,8 +146,8 @@ rules:
 - apiGroups: ["storage.k8s.io"]
   resources: ["storageclasses"]
   verbs: ["watch","list","get"]
-- apiGroups: ["cluster.k8s.io"]
-  resources: ["machinesets", "machines"]
+- apiGroups: ["cluster.k8s.io","machine.openshift.io"]
+  resources: ["machinedeployments","machines","machinesets"]
   verbs: ["watch","list","get","update"]
 
 ---
