@@ -43,6 +43,7 @@ const (
 	ScaleDownDelayAfterAddArg       AutoscalerArg = "--scale-down-delay-after-add"
 	ScaleDownDelayAfterDeleteArg    AutoscalerArg = "--scale-down-delay-after-delete"
 	ScaleDownDelayAfterFailureArg   AutoscalerArg = "--scale-down-delay-after-failure"
+	ScaleDownUnneededTimeArg        AutoscalerArg = "--scale-down-unneeded-time"
 	MaxNodesTotalArg                AutoscalerArg = "--max-nodes-total"
 	CoresTotalArg                   AutoscalerArg = "--cores-total"
 	MemoryTotalArg                  AutoscalerArg = "--memory-total"
@@ -96,6 +97,7 @@ func ScaleDownArgs(sd *v1alpha1.ScaleDownConfig) []string {
 		ScaleDownDelayAfterAddArg.Value(sd.DelayAfterAdd),
 		ScaleDownDelayAfterDeleteArg.Value(sd.DelayAfterDelete),
 		ScaleDownDelayAfterFailureArg.Value(sd.DelayAfterFailure),
+		ScaleDownUnneededTimeArg.Value(sd.UnneededTime),
 	}
 
 	return args
