@@ -23,7 +23,8 @@ spec:
         command:
         - cluster-autoscaler-operator
         args:
-        - -alsologtostderr
+        - --alsologtostderr
+        - --v=3
         env:
         - name: WATCH_NAMESPACE
           valueFrom:
