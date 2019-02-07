@@ -9,9 +9,11 @@ import (
 	"github.com/golang/glog"
 	autoscalingv1alpha1 "github.com/openshift/cluster-autoscaler-operator/pkg/apis/autoscaling/v1alpha1"
 	kappsapi "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 var (
@@ -91,9 +93,39 @@ func ExpectClusterAutoscalerAvailable() error {
 			return false, nil
 		}
 		if d.Status.ReadyReplicas < 1 {
+			glog.Warningf("Expecting at least 1 replica Ready, got %v", d.Status.ReadyReplicas)
 			return false, nil
 		}
 		return true, nil
 	})
+	if err != nil {
+		logErr := func() error {
+			pods := &corev1.PodList{}
+			opts := &client.ListOptions{}
+			opts.MatchingLabels(d.Spec.Selector.MatchLabels)
+			if err := F.Client.List(context.TODO(), opts, pods); err != nil {
+				return fmt.Errorf("Unable to list deployment pods: %v", err)
+			}
+			for _, pod := range pods.Items {
+				waitErr := wait.PollImmediate(1*time.Second, 1*time.Minute, func() (bool, error) {
+					req := F.RESTClient.Get().Namespace(namespace).Resource("pods").Name(pod.Name).SubResource("log")
+					res := req.Do()
+					raw, err := res.Raw()
+					if err != nil {
+						return false, fmt.Errorf("Unable to get pod logs: %v", err)
+					}
+					fmt.Printf("Pod %q logs:\n%v", pod.Name, string(raw))
+					return true, nil
+				})
+				if waitErr != nil {
+					return waitErr
+				}
+			}
+			return nil
+		}()
+		if logErr != nil {
+			return fmt.Errorf("Trying to list cluster autoscaler logs: %v", logErr)
+		}
+	}
 	return err
 }
