@@ -2,10 +2,14 @@ package main
 
 import (
 	"flag"
+	"fmt"
 
 	"github.com/golang/glog"
 	"github.com/openshift/cluster-autoscaler-operator/pkg/apis"
+	v1 "k8s.io/api/core/v1"
+	serializer "k8s.io/apimachinery/pkg/runtime/serializer"
 	"k8s.io/client-go/kubernetes/scheme"
+	rest "k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 )
@@ -18,7 +22,8 @@ const (
 var F *Framework
 
 type Framework struct {
-	Client client.Client
+	Client     client.Client
+	RESTClient *rest.RESTClient
 }
 
 func newClient() error {
@@ -33,7 +38,18 @@ func newClient() error {
 		return err
 	}
 
-	F = &Framework{Client: client}
+	configShallowCopy := *cfg
+	gv := v1.SchemeGroupVersion
+	configShallowCopy.GroupVersion = &gv
+	configShallowCopy.APIPath = "/api"
+	configShallowCopy.NegotiatedSerializer = serializer.DirectCodecFactory{CodecFactory: scheme.Codecs}
+
+	rc, err := rest.RESTClientFor(&configShallowCopy)
+	if err != nil {
+		return fmt.Errorf("unable to build rest client: %v", err)
+	}
+
+	F = &Framework{Client: client, RESTClient: rc}
 
 	return nil
 }
