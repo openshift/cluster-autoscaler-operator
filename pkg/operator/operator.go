@@ -65,10 +65,11 @@ func New(cfg *Config) (*Operator, error) {
 func (o *Operator) AddControllers() error {
 	// Setup ClusterAutoscaler controller.
 	ca := clusterautoscaler.NewReconciler(o.manager, &clusterautoscaler.Config{
-		Name:      o.config.ClusterAutoscalerName,
-		Image:     o.config.ClusterAutoscalerImage,
-		Replicas:  o.config.ClusterAutoscalerReplicas,
-		Namespace: o.config.ClusterAutoscalerNamespace,
+		Name:          o.config.ClusterAutoscalerName,
+		Image:         o.config.ClusterAutoscalerImage,
+		Replicas:      o.config.ClusterAutoscalerReplicas,
+		Namespace:     o.config.ClusterAutoscalerNamespace,
+		CloudProvider: o.config.ClusterAutoscalerCloudProvider,
 	})
 
 	if err := ca.AddToManager(o.manager); err != nil {

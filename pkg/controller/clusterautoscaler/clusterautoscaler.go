@@ -51,13 +51,13 @@ const (
 // AutoscalerArgs returns a slice of strings representing command line arguments
 // to the cluster-autoscaler corresponding to the values in the given
 // ClusterAutoscaler resource.
-func AutoscalerArgs(ca *v1alpha1.ClusterAutoscaler, namespace string) []string {
+func AutoscalerArgs(ca *v1alpha1.ClusterAutoscaler, cfg *Config) []string {
 	s := &ca.Spec
 
 	args := []string{
 		LogToStderrArg.String(),
-		CloudProviderArg.Value("cluster-api"),
-		NamespaceArg.Value(namespace),
+		CloudProviderArg.Value(cfg.CloudProvider),
+		NamespaceArg.Value(cfg.Namespace),
 	}
 
 	if ca.Spec.MaxPodGracePeriod != nil {

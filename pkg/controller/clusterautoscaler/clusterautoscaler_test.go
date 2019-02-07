@@ -8,8 +8,9 @@ import (
 )
 
 const (
-	NvidiaGPU     = "nvidia.com/gpu"
-	TestNamespace = "test"
+	NvidiaGPU         = "nvidia.com/gpu"
+	TestNamespace     = "test"
+	TestCloudProvider = "testProvider"
 )
 
 var (
@@ -75,13 +76,15 @@ func includeString(list []string, item string) bool {
 func TestAutoscalerArgs(t *testing.T) {
 	ca := NewClusterAutoscaler()
 
-	args := AutoscalerArgs(ca, TestNamespace)
+	args := AutoscalerArgs(ca, &Config{CloudProvider: TestCloudProvider, Namespace: TestNamespace})
 
 	expected := []string{
 		ExpendablePodsPriorityCutoffArg.Value(PodPriorityThreshold),
 		MaxGracefulTerminationSecArg.Value(MaxPodGracePeriod),
 		MaxNodesTotalArg.Value(MaxNodesTotal),
 		CoresTotalArg.Range(int(CoresMin), int(CoresMax)),
+		NamespaceArg.Value(TestNamespace),
+		CloudProviderArg.Value(TestCloudProvider),
 	}
 
 	for _, e := range expected {

@@ -39,6 +39,10 @@ const (
 	// DefaultClusterAutoscalerReplicas is the default number of
 	// replicas in ClusterAutoscaler deployments.
 	DefaultClusterAutoscalerReplicas = 1
+
+	// DefaultClusterAutoscalerCloudProvider is the default name for
+	// the CloudProvider beeing used.
+	DefaultClusterAutoscalerCloudProvider = "openshift-machine-api"
 )
 
 // Config represents the runtime configuration for the operator.
@@ -72,19 +76,24 @@ type Config struct {
 	// ClusterAutoscalerReplicas is the number of replicas to be
 	// configured in ClusterAutoscaler deployments.
 	ClusterAutoscalerReplicas int32
+
+	// ClusterAutoscalerCloudProvider is the name for the
+	// CloudProvider beeing used.
+	ClusterAutoscalerCloudProvider string
 }
 
 // NewConfig returns a new Config object with defaults set.
 func NewConfig() *Config {
 	return &Config{
-		WatchNamespace:             DefaultWatchNamespace,
-		LeaderElection:             DefaultLeaderElection,
-		LeaderElectionNamespace:    DefaultLeaderElectionNamespace,
-		LeaderElectionID:           DefaultLeaderElectionID,
-		ClusterAutoscalerNamespace: DefaultClusterAutoscalerNamespace,
-		ClusterAutoscalerName:      DefaultClusterAutoscalerName,
-		ClusterAutoscalerImage:     DefaultClusterAutoscalerImage,
-		ClusterAutoscalerReplicas:  DefaultClusterAutoscalerReplicas,
+		WatchNamespace:                 DefaultWatchNamespace,
+		LeaderElection:                 DefaultLeaderElection,
+		LeaderElectionNamespace:        DefaultLeaderElectionNamespace,
+		LeaderElectionID:               DefaultLeaderElectionID,
+		ClusterAutoscalerNamespace:     DefaultClusterAutoscalerNamespace,
+		ClusterAutoscalerName:          DefaultClusterAutoscalerName,
+		ClusterAutoscalerImage:         DefaultClusterAutoscalerImage,
+		ClusterAutoscalerReplicas:      DefaultClusterAutoscalerReplicas,
+		ClusterAutoscalerCloudProvider: DefaultClusterAutoscalerCloudProvider,
 	}
 }
 
@@ -121,6 +130,10 @@ func ConfigFromEnvironment() *Config {
 
 	if caImage, ok := os.LookupEnv("CLUSTER_AUTOSCALER_IMAGE"); ok {
 		config.ClusterAutoscalerImage = caImage
+	}
+
+	if cloudProvider, ok := os.LookupEnv("CLUSTER_AUTOSCALER_CLOUD_PROVIDER"); ok {
+		config.ClusterAutoscalerCloudProvider = cloudProvider
 	}
 
 	if caNamespace, ok := os.LookupEnv("CLUSTER_AUTOSCALER_NAMESPACE"); ok {

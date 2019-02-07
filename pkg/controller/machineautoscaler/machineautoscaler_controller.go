@@ -30,8 +30,8 @@ const (
 	// target resource's autoscaling as owned by a MachineAutoscaler.
 	MachineTargetOwnerAnnotation = "autoscaling.openshift.io/machineautoscaler"
 
-	minSizeAnnotation = "sigs.k8s.io/cluster-api-autoscaler-node-group-min-size"
-	maxSizeAnnotation = "sigs.k8s.io/cluster-api-autoscaler-node-group-max-size"
+	minSizeAnnotation = "machine.openshift.io/cluster-api-autoscaler-node-group-min-size"
+	maxSizeAnnotation = "machine.openshift.io/cluster-api-autoscaler-node-group-max-size"
 )
 
 var (
@@ -47,8 +47,10 @@ var (
 // SupportedTargetGVKs is the list of GroupVersionKinds supported as targets for
 // a MachineAutocaler instance.
 var SupportedTargetGVKs = []schema.GroupVersionKind{
-	{Group: "cluster.k8s.io", Version: "v1alpha1", Kind: "MachineSet"},
 	{Group: "cluster.k8s.io", Version: "v1alpha1", Kind: "MachineDeployment"},
+	{Group: "cluster.k8s.io", Version: "v1alpha1", Kind: "MachineSet"},
+	{Group: "machine.openshift.io", Version: "v1beta1", Kind: "MachineDeployment"},
+	{Group: "machine.openshift.io", Version: "v1beta1", Kind: "MachineSet"},
 }
 
 // Config represents the configuration for a reconciler instance.
