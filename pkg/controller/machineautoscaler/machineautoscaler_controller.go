@@ -10,6 +10,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -42,6 +43,10 @@ var (
 	// ErrInvalidTarget is the error returned when a target reference is invalid
 	// in some way, e.g. not having a name set.
 	ErrInvalidTarget = errors.New("invalid MachineAutoscaler target")
+
+	// ErrNoSupportedTargets is the error returned during initialization if none
+	// of the supported MachineAutoscaler targets are registered with the API.
+	ErrNoSupportedTargets = errors.New("no supported target types available")
 )
 
 // SupportedTargetGVKs is the list of GroupVersionKinds supported as targets for
@@ -94,9 +99,21 @@ func (r *Reconciler) AddToManager(mgr manager.Manager) error {
 				ToRequests: handler.ToRequestsFunc(targetOwnerRequest),
 			})
 
-		if err != nil {
+		// If we get an error indicating that no matching type is registered
+		// with the API, then remove it from the list of supported target GVKs.
+		// If the type is later registered, a restart of the operator will pick
+		// it up and properly reconcile any MachineAutoscalers referencing it.
+		if err != nil && meta.IsNoMatchError(err) {
+			glog.Warningf("Removing support for unregistered target type: %s", gvk)
+			SupportedTargetGVKs = removeSupportedGVK(gvk)
+		} else if err != nil {
 			return err
 		}
+	}
+
+	// Fail if we didn't find any of the supported target types registered.
+	if len(SupportedTargetGVKs) < 1 {
+		return ErrNoSupportedTargets
 	}
 
 	return nil
@@ -420,4 +437,18 @@ func objectReference(ref v1alpha1.CrossVersionObjectReference) *corev1.ObjectRef
 	obj.Name = ref.Name
 
 	return obj
+}
+
+// removeSupportedGVK removes the given type from the list of supported GVKs for
+// MachineAutoscaler targets.
+func removeSupportedGVK(gvk schema.GroupVersionKind) []schema.GroupVersionKind {
+	newSlice := SupportedTargetGVKs[:0] // Share the backing array.
+
+	for _, x := range SupportedTargetGVKs {
+		if x != gvk {
+			newSlice = append(newSlice, x)
+		}
+	}
+
+	return newSlice
 }
