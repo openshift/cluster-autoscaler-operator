@@ -261,18 +261,18 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:d60f58238786f29df539514efed06fae076de3d0db6aadf37c17c70449c3657a"
+  digest = "1:530300f70d660c91f34b5343390a0b79208553aa230ee2081f0122f0d6c79476"
   name = "github.com/openshift/api"
   packages = [
     "config/v1",
     "security/v1",
   ]
   pruneopts = "NT"
-  revision = "83b2fe56301417028bd52e56edd75768e2ea051c"
+  revision = "21e40de482627b2047cbf430594540413539a442"
 
 [[projects]]
   branch = "master"
-  digest = "1:9e30e424d3f3e33499ef969c4eec3d7f9cbff3d504ce54f79e141895c3ad211e"
+  digest = "1:fd2167e64935d15d90ebc7f7e9c3823cb0410813a2f6950538554cc99efccc9d"
   name = "github.com/openshift/client-go"
   packages = [
     "config/clientset/versioned",
@@ -280,15 +280,15 @@
     "config/clientset/versioned/typed/config/v1",
   ]
   pruneopts = "NT"
-  revision = "960f72aa32a8e9b4dd769b90ff1cb5bd4c898eec"
+  revision = "f8b9b0633d7fe283277fc35b437428aed9ec5464"
 
 [[projects]]
   branch = "master"
-  digest = "1:d472843fad24d8cf23fc738a99d66b201630bb2cda03233a6989eb13193a5236"
+  digest = "1:af62f5be153110ed62358a19a6f758616d8d8fbb0f91dbe1847d2e7fc9ceeafc"
   name = "github.com/openshift/cluster-version-operator"
   packages = ["lib/resourcemerge"]
   pruneopts = "NT"
-  revision = "eec5a8fda3f50f21eef3d06546f2a1b80e93ca94"
+  revision = "00b7e79e19fd5fc0d6d962597d545b01a55dd294"
 
 [[projects]]
   digest = "1:93b1d84c5fa6d1ea52f4114c37714cddd84d5b78f151b62bb101128dd51399bf"
