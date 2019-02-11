@@ -60,7 +60,7 @@ test: ## Run unit tests
 
 .PHONY: test-e2e
 test-e2e: ## Run e2e tests
-	 go run ./test/e2e/*.go -alsologtostderr
+	 go run ./test/e2e/*.go -alsologtostderr $${NAMESPACE:+--namespace=$${NAMESPACE}} $${FOCUS:+--focus=$${FOCUS}}
 
 .PHONY: lint
 lint: ## Go lint your code
