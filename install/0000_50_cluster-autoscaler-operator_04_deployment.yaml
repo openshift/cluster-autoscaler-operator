@@ -3,7 +3,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: cluster-autoscaler-operator
-  namespace: openshift-cluster-api
+  namespace: openshift-machine-api
   labels:
     k8s-app: cluster-autoscaler-operator
 spec:

@@ -27,7 +27,7 @@ The operator manages the following custom resources:
     Args:
       --logtostderr
       --cloud-provider=cluster-api
-      --namespace=openshift-cluster-api
+      --namespace=openshift-machine-api
       --expendable-pods-priority-cutoff=-10
       --max-nodes-total=24
       --cores-total=8:128
@@ -56,21 +56,22 @@ The operator manages the following custom resources:
 $ make build
 $ make test
 
-$ export WATCH_NAMESPACE=openshift-cluster-api
+$ export WATCH_NAMESPACE=openshift-machine-api
 $ ./bin/cluster-autoscaler-operator -alsologtostderr
 ```
 
 The Cluster Autoscaler Operator is designed to be deployed on
 OpenShift by the [Cluster Version Operator][CVO], but it's possible to
 run it directly on any vanilla Kubernetes cluster that has the
-[cluster-api][cluster-api] components available.  To do so, apply the
+[machine-api][machine-api] components available.  To do so, apply the
 manifests in the install directory: `kubectl apply -f ./install`
 
-This will create the `openshift-cluster-api` namespace, register the
+This will create the `openshift-machine-api` namespace, register the
 custom resource definitions, configure RBAC policies, and create a
 deployment for the operator.
 
 [CVO]: https://github.com/openshift/cluster-version-operator
+[machine-api]: https://github.com/openshift/cluster-api
 [cluster-api]: https://github.com/kubernetes-sigs/cluster-api
 
 

@@ -10,7 +10,7 @@ import (
 const (
 	// DefaultWatchNamespace is the default namespace the operator
 	// will watch for instances of its custom resources.
-	DefaultWatchNamespace = "openshift-cluster-api"
+	DefaultWatchNamespace = "openshift-machine-api"
 
 	// DefaultLeaderElection controls whether the default
 	// configuration performs leader-election on startup.
@@ -18,7 +18,7 @@ const (
 
 	// DefaultLeaderElectionNamespace is the default namespace in
 	// which the leader-election ConfigMap will be created.
-	DefaultLeaderElectionNamespace = "openshift-cluster-api"
+	DefaultLeaderElectionNamespace = "openshift-machine-api"
 
 	// DefaultLeaderElectionID is the default name for the ConfigMap
 	// used for leader-election.
@@ -26,7 +26,7 @@ const (
 
 	// DefaultClusterAutoscalerNamespace is the default namespace for
 	// cluster-autoscaler deployments.
-	DefaultClusterAutoscalerNamespace = "openshift-cluster-api"
+	DefaultClusterAutoscalerNamespace = "openshift-machine-api"
 
 	// DefaultClusterAutoscalerName is the default ClusterAutoscaler
 	// object watched by the operator.

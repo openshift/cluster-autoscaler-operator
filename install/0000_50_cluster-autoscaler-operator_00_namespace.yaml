@@ -2,7 +2,7 @@
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: openshift-cluster-api
+  name: openshift-machine-api
   labels:
-    name: openshift-cluster-api
+    name: openshift-machine-api
     openshift.io/run-level: "1"
