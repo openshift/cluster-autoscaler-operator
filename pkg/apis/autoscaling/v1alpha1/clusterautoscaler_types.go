@@ -60,9 +60,9 @@ type ResourceRange struct {
 }
 
 type ScaleDownConfig struct {
-	Enabled           bool   `json:"enabled"`
-	DelayAfterAdd     string `json:"delayAfterAdd"`
-	DelayAfterDelete  string `json:"delayAfterDelete"`
-	DelayAfterFailure string `json:"delayAfterFailure"`
-	UnneededTime      string `json:"unneededTime,omitempty"`
+	Enabled           bool    `json:"enabled"`
+	DelayAfterAdd     *string `json:"delayAfterAdd,omitempty"`
+	DelayAfterDelete  *string `json:"delayAfterDelete,omitempty"`
+	DelayAfterFailure *string `json:"delayAfterFailure,omitempty"`
+	UnneededTime      *string `json:"unneededTime,omitempty"`
 }

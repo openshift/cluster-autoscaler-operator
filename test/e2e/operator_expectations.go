@@ -193,16 +193,18 @@ func isNodeReady(node *v1.Node) bool {
 
 // ExpectToScaleUpAndDown assumes the cluster autoscaler is already deployed
 func ExpectToScaleUpAndDown() error {
+	tenSeconds := "10s"
+
 	ca := *clusterAutoscalerResource()
 	// change the min core and memory to 1 so the autoscaler scales down as much as it can
 	ca.Spec.ResourceLimits.Cores.Min = 1
 	ca.Spec.ResourceLimits.Memory.Min = 1
 	ca.Spec.ScaleDown = &autoscalingv1alpha1.ScaleDownConfig{
 		Enabled:           true,
-		DelayAfterAdd:     "10s",
-		DelayAfterDelete:  "10s",
-		DelayAfterFailure: "10s",
-		UnneededTime:      "10s",
+		DelayAfterAdd:     &tenSeconds,
+		DelayAfterDelete:  &tenSeconds,
+		DelayAfterFailure: &tenSeconds,
+		UnneededTime:      &tenSeconds,
 	}
 	if err := F.Client.Create(context.TODO(), &ca); err != nil {
 		return fmt.Errorf("unable to deploy ClusterAutoscaler resource: %v", err)
