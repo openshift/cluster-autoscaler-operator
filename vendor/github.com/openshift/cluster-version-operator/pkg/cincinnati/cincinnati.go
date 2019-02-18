@@ -11,9 +11,9 @@ import (
 )
 
 const (
-	// ContentTypeGraphV1 is the MIME type specified in the HTTP Accept header
-	// of requests sent to the Cincinnati Graph API.
-	ContentTypeGraphV1 = "application/vnd.redhat.cincinnati.graph+json; version=1.0"
+	// GraphMediaType is the media-type specified in the HTTP Accept header
+	// of requests sent to the Cincinnati-v1 Graph API.
+	GraphMediaType = "application/json"
 )
 
 // Client is a Cincinnati client which can be used to fetch update graphs from
@@ -43,7 +43,7 @@ func (c Client) GetUpdates(upstream string, channel string, version semver.Versi
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Add("Accept", ContentTypeGraphV1)
+	req.Header.Add("Accept", GraphMediaType)
 
 	client := http.Client{}
 	resp, err := client.Do(req)
@@ -69,11 +69,16 @@ func (c Client) GetUpdates(upstream string, channel string, version semver.Versi
 
 	// Find the current version within the graph.
 	var currentIdx int
+	found := false
 	for i, node := range graph.Nodes {
 		if version.EQ(node.Version) {
 			currentIdx = i
+			found = true
 			break
 		}
+	}
+	if !found {
+		return nil, fmt.Errorf("unknown version %s", version)
 	}
 
 	// Find the children of the current version.
@@ -98,8 +103,8 @@ type graph struct {
 }
 
 type node struct {
-	Version semver.Version
-	Payload string
+	Version semver.Version `json:"version"`
+	Image   string         `json:"payload"`
 }
 
 type edge struct {

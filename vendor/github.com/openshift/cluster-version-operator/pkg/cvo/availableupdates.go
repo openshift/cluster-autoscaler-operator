@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/blang/semver"
-
 	"github.com/golang/glog"
 	"github.com/google/uuid"
 
@@ -13,6 +12,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	configv1 "github.com/openshift/api/config/v1"
+
 	"github.com/openshift/cluster-version-operator/lib/resourcemerge"
 	"github.com/openshift/cluster-version-operator/pkg/cincinnati"
 )
@@ -140,7 +140,7 @@ func calculateAvailableUpdatesStatus(clusterID, upstream, channel, version strin
 	for _, update := range updates {
 		cvoUpdates = append(cvoUpdates, configv1.Update{
 			Version: update.Version.String(),
-			Payload: update.Payload,
+			Image:   update.Image,
 		})
 	}
 
