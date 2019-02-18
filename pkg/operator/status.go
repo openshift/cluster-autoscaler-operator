@@ -1,6 +1,7 @@
 package operator
 
 import (
+	"github.com/golang/glog"
 	"time"
 
 	configv1 "github.com/openshift/api/config/v1"
@@ -163,9 +164,10 @@ func (r *StatusReporter) Report(stopCh <-chan struct{}) error {
 // and not failing.
 func (r *StatusReporter) CheckMachineAPI() (bool, error) {
 	mao, err := r.client.ConfigV1().ClusterOperators().
-		Get("machine-api-operator", metav1.GetOptions{})
+		Get("machine-api", metav1.GetOptions{})
 
 	if err != nil {
+		glog.Errorf("failed to get dependency machine-api status: %v", err)
 		return false, err
 	}
 
@@ -176,5 +178,6 @@ func (r *StatusReporter) CheckMachineAPI() (bool, error) {
 		return true, nil
 	}
 
+	glog.Infof("machine-api-operator not ready yet")
 	return false, nil
 }

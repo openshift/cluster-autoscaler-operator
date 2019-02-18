@@ -2,12 +2,15 @@ package main
 
 import (
 	"fmt"
+	"github.com/openshift/cluster-autoscaler-operator/pkg/operator"
 	"time"
 
 	"context"
 
 	"github.com/golang/glog"
+	osconfigv1 "github.com/openshift/api/config/v1"
 	autoscalingv1alpha1 "github.com/openshift/cluster-autoscaler-operator/pkg/apis/autoscaling/v1alpha1"
+	cvorm "github.com/openshift/cluster-version-operator/lib/resourcemerge"
 	kappsapi "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	"k8s.io/api/core/v1"
@@ -171,6 +174,27 @@ func verifyClusterAutoscalerIsReady() error {
 
 func ExpectOperatorAvailable() error {
 	return verifyClusterAutoscalerOperatorIsReady()
+}
+
+func ExpectClusterOperatorStatusAvailable() error {
+	name := operator.OperatorName
+	key := types.NamespacedName{
+		Namespace: namespace,
+		Name:      name,
+	}
+	clusterOperator := &osconfigv1.ClusterOperator{}
+
+	err := wait.PollImmediate(1*time.Second, 1*time.Minute, func() (bool, error) {
+		if err := F.Client.Get(context.TODO(), key, clusterOperator); err != nil {
+			glog.Errorf("error querying api for OperatorStatus object: %v, retrying...", err)
+			return false, nil
+		}
+		if cvorm.IsOperatorStatusConditionTrue(clusterOperator.Status.Conditions, osconfigv1.OperatorAvailable) {
+			return true, nil
+		}
+		return false, nil
+	})
+	return err
 }
 
 func CreateClusterAutoscaler() error {
