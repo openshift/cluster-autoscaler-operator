@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/golang/glog"
+	osconfigv1 "github.com/openshift/api/config/v1"
 	"github.com/openshift/cluster-autoscaler-operator/pkg/apis"
 	"k8s.io/client-go/kubernetes/scheme"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -53,6 +54,10 @@ func main() {
 		glog.Fatal(err)
 	}
 
+	if err := osconfigv1.AddToScheme(scheme.Scheme); err != nil {
+		glog.Fatal(err)
+	}
+
 	if err := newClient(); err != nil {
 		glog.Fatal(err)
 	}
@@ -71,6 +76,10 @@ func runSuite() error {
 		{
 			expect: ExpectOperatorAvailable,
 			name:   "[k8s][openshift] Expect operator to be available",
+		},
+		{
+			expect: ExpectClusterOperatorStatusAvailable,
+			name:   "[openshift] Expect Cluster Operator status to be available",
 		},
 		{
 			expect: CreateClusterAutoscaler,
