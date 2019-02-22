@@ -33,10 +33,26 @@ depend:
 depend-update:
 	dep ensure -update
 
+# This is a hack. The operator-sdk doesn't currently let you configure
+# output paths for the generated CRDs.  It also requires that they
+# already exist in order to regenerate the OpenAPI bits, so we do some
+# copying around here.
 .PHONY: generate
-generate:
-	$(DOCKER_CMD) ./vendor/k8s.io/code-generator/generate-groups.sh deepcopy \
-	  "$(REPO_PATH)/pkg/apis" "$(REPO_PATH)/pkg/apis" "autoscaling:v1alpha1"
+generate: ## Code generation (requires operator-sdk >= v0.5.0)
+	mkdir -p deploy/crds
+
+	cp install/0000_50_cluster-autoscaler-operator_01_clusterautoscaler.crd.yaml \
+	  deploy/crds/autoscaling_v1alpha1_clusterautoscaler_crd.yaml
+	cp install/0000_50_cluster-autoscaler-operator_02_machineautoscaler.crd.yaml \
+	  deploy/crds/autoscaling_v1alpha1_machineautoscaler_crd.yaml
+
+	operator-sdk generate k8s
+	operator-sdk generate openapi
+
+	cp deploy/crds/autoscaling_v1alpha1_clusterautoscaler_crd.yaml \
+	  install/0000_50_cluster-autoscaler-operator_01_clusterautoscaler.crd.yaml
+	cp deploy/crds/autoscaling_v1alpha1_machineautoscaler_crd.yaml \
+	  install/0000_50_cluster-autoscaler-operator_02_machineautoscaler.crd.yaml
 
 .PHONY: build
 build: ## build binaries
