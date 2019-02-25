@@ -283,6 +283,26 @@
   revision = "f8b9b0633d7fe283277fc35b437428aed9ec5464"
 
 [[projects]]
+  digest = "1:2b2d8e96b2738dffaccd23b5c8d3aa06a14adba8d98d5813cbfd9b11332844a6"
+  name = "github.com/openshift/cluster-api"
+  packages = [
+    "pkg/apis/machine/common",
+    "pkg/apis/machine/v1beta1",
+  ]
+  pruneopts = "NT"
+  revision = "91fca585a85b163ddfd119fd09c128c9feadddca"
+
+[[projects]]
+  digest = "1:ecc478d85805e9f6665a2bbb400e40638bfc31873a6328e0f437bfcc8b5db02b"
+  name = "github.com/openshift/cluster-api-actuator-pkg"
+  packages = [
+    "pkg/e2e/openshift",
+    "pkg/e2e/openshift/suites",
+  ]
+  pruneopts = "NT"
+  revision = "2620fd63480ea1155c71de87a022f1f564f09ff2"
+
+[[projects]]
   branch = "master"
   digest = "1:af62f5be153110ed62358a19a6f758616d8d8fbb0f91dbe1847d2e7fc9ceeafc"
   name = "github.com/openshift/cluster-version-operator"
@@ -313,6 +333,14 @@
   pruneopts = "NT"
   revision = "5f041e8faa004a95c88a202771f4cc3e991971e6"
   version = "v2.0.1"
+
+[[projects]]
+  digest = "1:14715f705ff5dfe0ffd6571d7d201dd8e921030f8070321a79380d8ca4ec1a24"
+  name = "github.com/pkg/errors"
+  packages = ["."]
+  pruneopts = "NT"
+  revision = "ba968bfe8b2f7e042a574c888954fccecfa385b4"
+  version = "v0.8.1"
 
 [[projects]]
   digest = "1:9d8420bbf131d1618bde6530af37c3799340d3762cc47210c1d9532a4c3a2779"
@@ -540,6 +568,7 @@
     "pkg/apis/meta/internalversion",
     "pkg/apis/meta/v1",
     "pkg/apis/meta/v1/unstructured",
+    "pkg/apis/meta/v1/validation",
     "pkg/apis/meta/v1beta1",
     "pkg/conversion",
     "pkg/conversion/queryparams",
@@ -703,6 +732,14 @@
   revision = "7338e4bfd6915369a1375890db1bbda0158c9863"
 
 [[projects]]
+  digest = "1:29f93bb84d907a2c035e729e19d66fe52165d8c905cb3ef1920140d76ae6afaf"
+  name = "k8s.io/klog"
+  packages = ["."]
+  pruneopts = "NT"
+  revision = "71442cd4037d612096940ceb0f3fec3f7fff66e0"
+  version = "v0.2.0"
+
+[[projects]]
   digest = "1:5bf7628fa2938ef77c3f66dce1fe0a2b5ae85192728fcead988d48d2d1041584"
   name = "k8s.io/kube-aggregator"
   packages = [
@@ -768,21 +805,23 @@
   analyzer-version = 1
   input-imports = [
     "github.com/blang/semver",
+    "github.com/go-openapi/spec",
     "github.com/golang/glog",
     "github.com/openshift/api/config/v1",
     "github.com/openshift/client-go/config/clientset/versioned",
+    "github.com/openshift/cluster-api-actuator-pkg/pkg/e2e/openshift",
     "github.com/openshift/cluster-version-operator/lib/resourcemerge",
     "k8s.io/api/apps/v1",
     "k8s.io/api/core/v1",
     "k8s.io/apimachinery/pkg/api/equality",
     "k8s.io/apimachinery/pkg/api/errors",
+    "k8s.io/apimachinery/pkg/api/meta",
     "k8s.io/apimachinery/pkg/apis/meta/v1",
     "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured",
     "k8s.io/apimachinery/pkg/runtime",
     "k8s.io/apimachinery/pkg/runtime/schema",
     "k8s.io/apimachinery/pkg/types",
     "k8s.io/apimachinery/pkg/util/wait",
-    "k8s.io/client-go/kubernetes/scheme",
     "k8s.io/client-go/plugin/pkg/client/auth/gcp",
     "k8s.io/client-go/rest",
     "k8s.io/code-generator/cmd/client-gen",
@@ -793,6 +832,7 @@
     "k8s.io/code-generator/cmd/lister-gen",
     "k8s.io/code-generator/cmd/openapi-gen",
     "k8s.io/gengo/args",
+    "k8s.io/kube-openapi/pkg/common",
     "sigs.k8s.io/controller-runtime/pkg/client",
     "sigs.k8s.io/controller-runtime/pkg/client/config",
     "sigs.k8s.io/controller-runtime/pkg/controller",
