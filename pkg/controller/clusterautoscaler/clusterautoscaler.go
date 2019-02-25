@@ -47,6 +47,7 @@ const (
 	CoresTotalArg                   AutoscalerArg = "--cores-total"
 	MemoryTotalArg                  AutoscalerArg = "--memory-total"
 	GPUTotalArg                     AutoscalerArg = "--gpu-total"
+	VerbosityArg                    AutoscalerArg = "--v"
 )
 
 // AutoscalerArgs returns a slice of strings representing command line arguments
@@ -57,6 +58,7 @@ func AutoscalerArgs(ca *v1alpha1.ClusterAutoscaler, cfg *Config) []string {
 
 	args := []string{
 		LogToStderrArg.String(),
+		VerbosityArg.Value(cfg.Verbosity),
 		CloudProviderArg.Value(cfg.CloudProvider),
 		NamespaceArg.Value(cfg.Namespace),
 	}
