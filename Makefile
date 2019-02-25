@@ -75,8 +75,8 @@ test: ## Run unit tests
 	$(DOCKER_CMD) go test -race -cover ./...
 
 .PHONY: test-e2e
-test-e2e: ## Run e2e tests
-	 go run ./test/e2e/*.go -alsologtostderr $${NAMESPACE:+--namespace=$${NAMESPACE}} $${FOCUS:+--focus=$${FOCUS}}
+test-e2e:
+	go run ./vendor/github.com/openshift/cluster-api-actuator-pkg/pkg/e2e/openshift/*.go -alsologtostderr
 
 .PHONY: lint
 lint: ## Go lint your code
