@@ -83,6 +83,7 @@ func (o *Operator) AddControllers() error {
 		Replicas:      o.config.ClusterAutoscalerReplicas,
 		Namespace:     o.config.ClusterAutoscalerNamespace,
 		CloudProvider: o.config.ClusterAutoscalerCloudProvider,
+		Verbosity:     o.config.ClusterAutoscalerVerbosity,
 	})
 
 	if err := ca.AddToManager(o.manager); err != nil {
