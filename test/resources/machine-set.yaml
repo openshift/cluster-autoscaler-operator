@@ -8,11 +8,11 @@ spec:
   replicas: 1
   selector:
     matchLabels:
-      sigs.k8s.io/cluster-api-machineset: kubemark-machine-pool
+      machine.openshift.io/cluster-api-machineset: kubemark-machine-pool
   template:
     metadata:
       labels:
-        sigs.k8s.io/cluster-api-machineset: kubemark-machine-pool
+        machine.openshift.io/cluster-api-machineset: kubemark-machine-pool
     spec:
       metadata:
         labels:
