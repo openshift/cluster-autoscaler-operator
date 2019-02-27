@@ -40,9 +40,6 @@ spec:
         - name: CLUSTER_AUTOSCALER_IMAGE
           value: docker.io/openshift/origin-cluster-autoscaler:v4.0
         resources:
-          limits:
-            cpu: 20m
-            memory: 50Mi
           requests:
             cpu: 20m
             memory: 50Mi
