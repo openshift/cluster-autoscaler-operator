@@ -9,6 +9,7 @@ spec:
     spec:
       containers:
       - name: cluster-autoscaler-operator
+        image: quay.io/openshift/origin-cluster-autoscaler-operator:v4.0
         env:
         - name: WATCH_NAMESPACE
           value: kube-system
