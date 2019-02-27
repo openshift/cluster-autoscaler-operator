@@ -55,6 +55,8 @@ type Config struct {
 	CloudProvider string
 	// The log verbosity level for the cluster-autoscaler.
 	Verbosity int
+	// Additional arguments passed to the cluster-autoscaler.
+	ExtraArgs string
 }
 
 var _ reconcile.Reconciler = &Reconciler{}
@@ -314,6 +316,10 @@ func (r *Reconciler) AutoscalerDeployment(ca *autoscalingv1alpha1.ClusterAutosca
 // to the given ClusterAutoscaler.
 func (r *Reconciler) AutoscalerPodSpec(ca *autoscalingv1alpha1.ClusterAutoscaler) *corev1.PodSpec {
 	args := AutoscalerArgs(ca, r.config)
+
+	if r.config.ExtraArgs != "" {
+		args = append(args, r.config.ExtraArgs)
+	}
 
 	spec := &corev1.PodSpec{
 		ServiceAccountName: caServiceAccount,

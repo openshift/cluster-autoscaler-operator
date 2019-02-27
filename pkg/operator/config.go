@@ -92,6 +92,15 @@ type Config struct {
 	// ClusterAutoscalerVerbosity is the logging verbosity level for
 	// ClusterAutoscaler deployments.
 	ClusterAutoscalerVerbosity int
+
+	// ClusterAutoscalerExtraArgs is a string of additional arguments
+	// passed to all ClusterAutoscaler deployments.
+	//
+	// This is not exposed in the CRD.  It is only configurable via
+	// environment variable, and in a normal OpenShift install the CVO
+	// will remove it if set manually.  It is only for development and
+	// debugging purposes.
+	ClusterAutoscalerExtraArgs string
 }
 
 // NewConfig returns a new Config object with defaults set.
@@ -165,6 +174,10 @@ func ConfigFromEnvironment() *Config {
 		}
 
 		config.ClusterAutoscalerVerbosity = v
+	}
+
+	if caExtraArgs, ok := os.LookupEnv("CLUSTER_AUTOSCALER_EXTRA_ARGS"); ok {
+		config.ClusterAutoscalerExtraArgs = caExtraArgs
 	}
 
 	return config
