@@ -16,11 +16,13 @@ package rpcreplay
 
 import (
 	"bufio"
+	"context"
 	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
 	"log"
+	"net"
 	"os"
 	"sync"
 
@@ -28,7 +30,6 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/any"
-	"golang.org/x/net/context"
 	spb "google.golang.org/genproto/googleapis/rpc/status"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
@@ -371,6 +372,31 @@ func (rep *Replayer) DialOptions() []grpc.DialOption {
 		grpc.WithUnaryInterceptor(rep.interceptUnary),
 		grpc.WithStreamInterceptor(rep.interceptStream),
 	}
+}
+
+// Connection returns a fake gRPC connection suitable for replaying.
+func (rep *Replayer) Connection() (*grpc.ClientConn, error) {
+	// We don't need an actual connection, not even a loopback one.
+	// But we do need something to attach gRPC interceptors to.
+	// So we start a local server and connect to it, then close it down.
+	srv := grpc.NewServer()
+	l, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		return nil, err
+	}
+	go func() {
+		if err := srv.Serve(l); err != nil {
+			panic(err) // we should never get an error because we just connect and stop
+		}
+	}()
+	conn, err := grpc.Dial(l.Addr().String(),
+		append([]grpc.DialOption{grpc.WithInsecure()}, rep.DialOptions()...)...)
+	if err != nil {
+		return nil, err
+	}
+	conn.Close()
+	srv.Stop()
+	return conn, nil
 }
 
 // Initial returns the initial state saved by the Recorder.
