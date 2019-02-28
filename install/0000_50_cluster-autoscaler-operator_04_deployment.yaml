@@ -16,6 +16,7 @@ spec:
       labels:
         k8s-app: cluster-autoscaler-operator
     spec:
+      priorityClassName: system-node-critical
       serviceAccountName: cluster-autoscaler-operator
       containers:
       - name: cluster-autoscaler-operator
