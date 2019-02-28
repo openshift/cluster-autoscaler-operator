@@ -56,10 +56,8 @@ func NewClusterAutoscaler() *autoscalingv1alpha1.ClusterAutoscaler {
 				GPUS: []autoscalingv1alpha1.GPULimit{
 					{
 						Type: NvidiaGPU,
-						ResourceRange: autoscalingv1alpha1.ResourceRange{
-							Min: NvidiaGPUMin,
-							Max: NvidiaGPUMax,
-						},
+						Min:  NvidiaGPUMin,
+						Max:  NvidiaGPUMax,
 					},
 				},
 			},
