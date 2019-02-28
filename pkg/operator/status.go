@@ -25,7 +25,7 @@ const (
 // StatusReporter reports the status of the operator to the OpenShift
 // cluster-version-operator via ClusterOperator resource status.
 type StatusReporter struct {
-	client         *osconfig.Clientset
+	client         osconfig.Interface
 	relatedObjects []configv1.ObjectReference
 }
 
