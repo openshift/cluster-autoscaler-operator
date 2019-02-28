@@ -25,6 +25,7 @@
 package logging
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -43,7 +44,6 @@ import (
 	"github.com/golang/protobuf/ptypes"
 	structpb "github.com/golang/protobuf/ptypes/struct"
 	tspb "github.com/golang/protobuf/ptypes/timestamp"
-	"golang.org/x/net/context"
 	"google.golang.org/api/option"
 	"google.golang.org/api/support/bundler"
 	mrpb "google.golang.org/genproto/googleapis/api/monitoredres"
@@ -233,7 +233,6 @@ type Logger struct {
 	// Options
 	commonResource *mrpb.MonitoredResource
 	commonLabels   map[string]string
-	writeTimeout   time.Duration
 	ctxFunc        func() (context.Context, func())
 }
 
@@ -597,6 +596,10 @@ type Entry struct {
 	// be relative to //tracing.googleapis.com.
 	Trace string
 
+	// ID of the span within the trace associated with the log entry.
+	// The ID is a 16-character hexadecimal encoding of an 8-byte array.
+	SpanID string
+
 	// Optional. Source code location information associated with the log entry,
 	// if any.
 	SourceLocation *logpb.LogEntrySourceLocation
@@ -825,6 +828,7 @@ func (l *Logger) toLogEntry(e Entry) (*logpb.LogEntry, error) {
 		Operation:      e.Operation,
 		Labels:         e.Labels,
 		Trace:          e.Trace,
+		SpanId:         e.SpanID,
 		Resource:       e.Resource,
 		SourceLocation: e.SourceLocation,
 	}

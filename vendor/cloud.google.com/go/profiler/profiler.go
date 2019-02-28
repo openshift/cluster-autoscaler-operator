@@ -38,6 +38,7 @@ package profiler
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"log"
@@ -53,8 +54,7 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes"
 	"github.com/google/pprof/profile"
-	gax "github.com/googleapis/gax-go"
-	"golang.org/x/net/context"
+	gax "github.com/googleapis/gax-go/v2"
 	"google.golang.org/api/option"
 	gtransport "google.golang.org/api/transport/grpc"
 	pb "google.golang.org/genproto/googleapis/devtools/cloudprofiler/v2"
@@ -264,6 +264,7 @@ func (r *retryer) Retry(err error) (time.Duration, bool) {
 // increasing value, bounded by maxBackoff.
 func (a *agent) createProfile(ctx context.Context) *pb.Profile {
 	req := pb.CreateProfileRequest{
+		Parent:      "projects/" + a.deployment.ProjectId,
 		Deployment:  a.deployment,
 		ProfileType: a.profileTypes,
 	}
