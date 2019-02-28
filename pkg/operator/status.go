@@ -6,6 +6,7 @@ import (
 
 	"github.com/golang/glog"
 	configv1 "github.com/openshift/api/config/v1"
+	osconfigv1 "github.com/openshift/api/config/v1"
 	osconfig "github.com/openshift/client-go/config/clientset/versioned"
 	"github.com/openshift/cluster-autoscaler-operator/pkg/version"
 	cvorm "github.com/openshift/cluster-version-operator/lib/resourcemerge"
@@ -14,12 +15,15 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/rest"
+	"reflect"
+	"strings"
 )
 
 // Reason messages used in status conditions.
 const (
 	ReasonEmpty             = ""
 	ReasonMissingDependency = "MissingDependency"
+	ReasonSyncing           = "SyncingResources"
 )
 
 // StatusReporter reports the status of the operator to the OpenShift
@@ -62,6 +66,15 @@ func (r *StatusReporter) GetOrCreateClusterOperator() (*configv1.ClusterOperator
 	}
 
 	return existing, err
+}
+
+func (r *StatusReporter) IsDifferentVersions(desiredVersions []osconfigv1.OperandVersion) (bool, error) {
+	co, err := r.GetOrCreateClusterOperator()
+	if err != nil {
+		return false, err
+	}
+	currentVersions := co.Status.Versions
+	return !reflect.DeepEqual(desiredVersions, currentVersions), nil
 }
 
 // ApplyConditions applies the given conditions to the ClusterOperator
@@ -140,6 +153,29 @@ func (r *StatusReporter) Fail(reason, message string) error {
 	return r.ApplyConditions(conditions)
 }
 
+// Progressing reports the operator as progressing but available, and not
+// failing -- optionally setting a reason and message.
+func (r *StatusReporter) Progressing(reason, message string) error {
+	conditions := []configv1.ClusterOperatorStatusCondition{
+		{
+			Type:   configv1.OperatorAvailable,
+			Status: configv1.ConditionTrue,
+		},
+		{
+			Type:    configv1.OperatorProgressing,
+			Status:  configv1.ConditionTrue,
+			Reason:  reason,
+			Message: message,
+		},
+		{
+			Type:   configv1.OperatorFailing,
+			Status: configv1.ConditionFalse,
+		},
+	}
+
+	return r.ApplyConditions(conditions)
+}
+
 // Report checks the status of dependencies and reports the operator's
 // status.  It will poll until stopCh is closed or prerequisites are
 // satisfied, in which case it will report the operator as available
@@ -158,6 +194,22 @@ func (r *StatusReporter) Report(stopCh <-chan struct{}) error {
 		}
 
 		if ok {
+			// desiredVersions will be replaced by value from CVO
+			desiredVersions := []osconfigv1.OperandVersion{
+				{
+					Name:    "cluster-autoscaler",
+					Version: version.Raw,
+				},
+			}
+			isProgress, err2 := r.IsDifferentVersions(desiredVersions)
+			if err2 != nil {
+				r.Fail(ReasonEmpty, fmt.Sprintf("error checking cluster-autoscaler-operator version %v", err2))
+				return false, nil
+			}
+			if isProgress {
+				r.Progressing(ReasonSyncing, fmt.Sprintf("Syncing to version %v", printOperandVersions(desiredVersions)))
+				return false, nil
+			}
 			r.Available(ReasonEmpty, "")
 			return true, nil
 		}
@@ -190,4 +242,12 @@ func (r *StatusReporter) CheckMachineAPI() (bool, error) {
 
 	glog.Infof("machine-api-operator not ready yet")
 	return false, nil
+}
+
+func printOperandVersions(desiredVersions []osconfigv1.OperandVersion) string {
+	versionsOutput := []string{}
+	for _, operand := range desiredVersions {
+		versionsOutput = append(versionsOutput, fmt.Sprintf("%s: %s", operand.Name, operand.Version))
+	}
+	return strings.Join(versionsOutput, ", ")
 }
