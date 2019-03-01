@@ -8,7 +8,6 @@ import (
 	configv1 "github.com/openshift/api/config/v1"
 	osconfigv1 "github.com/openshift/api/config/v1"
 	osconfig "github.com/openshift/client-go/config/clientset/versioned"
-	"github.com/openshift/cluster-autoscaler-operator/pkg/version"
 	cvorm "github.com/openshift/cluster-version-operator/lib/resourcemerge"
 	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -24,6 +23,7 @@ const (
 	ReasonEmpty             = ""
 	ReasonMissingDependency = "MissingDependency"
 	ReasonSyncing           = "SyncingResources"
+	ReasonCheckAutoscaler   = "UnableToCheckAutoscalers"
 )
 
 // StatusReporter reports the status of the operator to the OpenShift
@@ -31,10 +31,11 @@ const (
 type StatusReporter struct {
 	client         osconfig.Interface
 	relatedObjects []configv1.ObjectReference
+	releaseVersion string
 }
 
 // NewStatusReporter returns a new StatusReporter instance.
-func NewStatusReporter(cfg *rest.Config, relatedObjects []configv1.ObjectReference) (*StatusReporter, error) {
+func NewStatusReporter(cfg *rest.Config, relatedObjects []configv1.ObjectReference, releaseVersion string) (*StatusReporter, error) {
 	var err error
 	reporter := &StatusReporter{
 		relatedObjects: relatedObjects,
@@ -79,19 +80,26 @@ func (r *StatusReporter) IsDifferentVersions(desiredVersions []osconfigv1.Operan
 
 // ApplyConditions applies the given conditions to the ClusterOperator
 // resource's status.
-func (r *StatusReporter) ApplyConditions(conds []configv1.ClusterOperatorStatusCondition) error {
+func (r *StatusReporter) ApplyConditions(conds []configv1.ClusterOperatorStatusCondition, reachedLevel bool) error {
 	status := configv1.ClusterOperatorStatus{
-		Versions: []configv1.OperandVersion{
-			{
-				Name:    "cluster-autoscaler",
-				Version: version.Raw,
-			},
-		},
 		RelatedObjects: r.relatedObjects,
 	}
 
 	for _, c := range conds {
 		cvorm.SetOperatorStatusCondition(&status.Conditions, c)
+	}
+
+	if reachedLevel {
+		if len(r.releaseVersion) > 0 {
+			status.Versions = []configv1.OperandVersion{
+				{
+					Name:    "operator",
+					Version: r.releaseVersion,
+				},
+			}
+		} else {
+			status.Versions = nil
+		}
 	}
 
 	co, err := r.GetOrCreateClusterOperator()
@@ -126,8 +134,7 @@ func (r *StatusReporter) Available(reason, message string) error {
 			Status: configv1.ConditionFalse,
 		},
 	}
-
-	return r.ApplyConditions(conditions)
+	return r.ApplyConditions(conditions, true)
 }
 
 // Fail reports the operator as failing but available, and not
@@ -150,7 +157,13 @@ func (r *StatusReporter) Fail(reason, message string) error {
 		},
 	}
 
-	return r.ApplyConditions(conditions)
+	return r.ApplyConditions(conditions, false)
+}
+
+type AvailableChecker interface {
+	// AvailableAndUpdated returns true if the reconciler reports all
+	// cluster autoscalers are at the latest version.
+	AvailableAndUpdated() (bool, error)
 }
 
 // Progressing reports the operator as progressing but available, and not
@@ -177,10 +190,11 @@ func (r *StatusReporter) Progressing(reason, message string) error {
 }
 
 // Report checks the status of dependencies and reports the operator's
-// status.  It will poll until stopCh is closed or prerequisites are
+// status. It will poll until stopCh is closed or prerequisites are
 // satisfied, in which case it will report the operator as available
-// and return.
-func (r *StatusReporter) Report(stopCh <-chan struct{}) error {
+// and return. check is used to verify that the reconciler has reached
+// the desired state.
+func (r *StatusReporter) Report(stopCh <-chan struct{}, check AvailableChecker) error {
 	interval := 15 * time.Second
 
 	// Poll the status of our prerequisites and set our status
@@ -214,8 +228,18 @@ func (r *StatusReporter) Report(stopCh <-chan struct{}) error {
 			return true, nil
 		}
 
-		r.Fail(ReasonMissingDependency, "machine-api operator not ready")
-		return false, nil
+		ok, err = check.AvailableAndUpdated()
+		if err != nil {
+			r.Fail(ReasonCheckAutoscaler, fmt.Sprintf("error checking autoscaler operator status %v", err))
+			return false, nil
+		}
+		if !ok {
+			// TODO: technically we are progressing, report that here
+			return false, nil
+		}
+
+		r.Available(ReasonEmpty, "")
+		return true, nil
 	}
 
 	return wait.PollImmediateUntil(interval, pollFunc, stopCh)
