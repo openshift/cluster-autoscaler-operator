@@ -51,6 +51,10 @@ const (
 
 // Config represents the runtime configuration for the operator.
 type Config struct {
+	// ReleaseVersion is the version the operator is expected
+	// to report once it has reached level.
+	ReleaseVersion string
+
 	// WatchNamespace is the namespace the operator will watch for
 	// ClusterAutoscaler and MachineAutoscaler instances.
 	WatchNamespace string
@@ -110,6 +114,10 @@ func NewConfig() *Config {
 // overridden by environment variables when set.
 func ConfigFromEnvironment() *Config {
 	config := NewConfig()
+
+	if releaseVersion, ok := os.LookupEnv("RELEASE_VERSION"); ok {
+		config.ReleaseVersion = releaseVersion
+	}
 
 	if watchNamespace, ok := os.LookupEnv("WATCH_NAMESPACE"); ok {
 		config.WatchNamespace = watchNamespace
