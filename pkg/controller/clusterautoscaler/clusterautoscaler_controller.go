@@ -179,7 +179,7 @@ func (r *Reconciler) AvailableAndUpdated() (bool, error) {
 		}
 		return false, err
 	}
-	if dep.Annotations["release.openshift.io/version"] != r.config.ReleaseVersion {
+	if dep.ObjectMeta.Annotations["release.openshift.io/version"] != r.config.ReleaseVersion {
 		// still haven't synced the release version
 		return false, nil
 	}
@@ -288,8 +288,9 @@ func (r *Reconciler) AutoscalerDeployment(ca *autoscalingv1alpha1.ClusterAutosca
 			Kind:       "Deployment",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      namespacedName.Name,
-			Namespace: namespacedName.Namespace,
+			Name:        namespacedName.Name,
+			Namespace:   namespacedName.Namespace,
+			Annotations: annotations,
 		},
 		Spec: appsv1.DeploymentSpec{
 			Replicas: &r.config.Replicas,

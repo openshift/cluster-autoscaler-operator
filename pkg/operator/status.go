@@ -36,6 +36,7 @@ func NewStatusReporter(cfg *rest.Config, relatedObjects []configv1.ObjectReferen
 	var err error
 	reporter := &StatusReporter{
 		relatedObjects: relatedObjects,
+		releaseVersion: releaseVersion,
 	}
 
 	// Create a client for OpenShift config objects.
@@ -78,16 +79,16 @@ func (r *StatusReporter) ApplyConditions(conds []configv1.ClusterOperatorStatusC
 	}
 
 	if reachedLevel {
-		if len(r.releaseVersion) > 0 {
-			status.Versions = []configv1.OperandVersion{
-				{
-					Name:    "operator",
-					Version: r.releaseVersion,
-				},
-			}
-		} else {
-			status.Versions = nil
+		status.Versions = []configv1.OperandVersion{
+			{
+				Name:    "operator",
+				Version: r.releaseVersion,
+			},
 		}
+		glog.Infof("Setting operator version to: %v", r.releaseVersion)
+	} else {
+		status.Versions = nil
+		glog.Info("Setting operator version to nil")
 	}
 
 	co, err := r.GetOrCreateClusterOperator()
@@ -96,6 +97,7 @@ func (r *StatusReporter) ApplyConditions(conds []configv1.ClusterOperatorStatusC
 	}
 
 	if !equality.Semantic.DeepEqual(co.Status, status) {
+		glog.Info("operator status not current; Updating operator")
 		co.Status = status
 		_, err = r.client.ConfigV1().ClusterOperators().UpdateStatus(co)
 	}
@@ -122,6 +124,7 @@ func (r *StatusReporter) Available(reason, message string) error {
 			Status: configv1.ConditionFalse,
 		},
 	}
+	glog.Info("Setting operator to available")
 	return r.ApplyConditions(conditions, true)
 }
 
@@ -200,15 +203,19 @@ func (r *StatusReporter) Report(stopCh <-chan struct{}, check AvailableChecker) 
 		}
 		ok, err = check.AvailableAndUpdated()
 		if err != nil {
-			r.Fail(ReasonCheckAutoscaler, fmt.Sprintf("error checking autoscaler operator status %v", err))
+			r.Fail(ReasonCheckAutoscaler, fmt.Sprintf("error checking autoscaler operator status: %v", err))
 			return false, nil
 		}
 		if !ok {
+			glog.Infof("Syncing to version %v", r.releaseVersion)
 			r.Progressing(ReasonSyncing, fmt.Sprintf("Syncing to version %v", r.releaseVersion))
 			return false, nil
 		}
 
-		r.Available(ReasonEmpty, "")
+		err = r.Available(ReasonEmpty, "")
+		if err != nil {
+			return false, nil
+		}
 		return true, nil
 	}
 
