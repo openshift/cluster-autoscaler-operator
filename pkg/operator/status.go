@@ -6,17 +6,13 @@ import (
 
 	"github.com/golang/glog"
 	configv1 "github.com/openshift/api/config/v1"
-	osconfigv1 "github.com/openshift/api/config/v1"
 	osconfig "github.com/openshift/client-go/config/clientset/versioned"
-	"github.com/openshift/cluster-autoscaler-operator/pkg/version"
 	cvorm "github.com/openshift/cluster-version-operator/lib/resourcemerge"
 	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/rest"
-	"reflect"
-	"strings"
 )
 
 // Reason messages used in status conditions.
@@ -24,6 +20,7 @@ const (
 	ReasonEmpty             = ""
 	ReasonMissingDependency = "MissingDependency"
 	ReasonSyncing           = "SyncingResources"
+	ReasonCheckAutoscaler   = "UnableToCheckAutoscalers"
 )
 
 // StatusReporter reports the status of the operator to the OpenShift
@@ -31,13 +28,15 @@ const (
 type StatusReporter struct {
 	client         osconfig.Interface
 	relatedObjects []configv1.ObjectReference
+	releaseVersion string
 }
 
 // NewStatusReporter returns a new StatusReporter instance.
-func NewStatusReporter(cfg *rest.Config, relatedObjects []configv1.ObjectReference) (*StatusReporter, error) {
+func NewStatusReporter(cfg *rest.Config, relatedObjects []configv1.ObjectReference, releaseVersion string) (*StatusReporter, error) {
 	var err error
 	reporter := &StatusReporter{
 		relatedObjects: relatedObjects,
+		releaseVersion: releaseVersion,
 	}
 
 	// Create a client for OpenShift config objects.
@@ -68,30 +67,28 @@ func (r *StatusReporter) GetOrCreateClusterOperator() (*configv1.ClusterOperator
 	return existing, err
 }
 
-func (r *StatusReporter) IsDifferentVersions(desiredVersions []osconfigv1.OperandVersion) (bool, error) {
-	co, err := r.GetOrCreateClusterOperator()
-	if err != nil {
-		return false, err
-	}
-	currentVersions := co.Status.Versions
-	return !reflect.DeepEqual(desiredVersions, currentVersions), nil
-}
-
 // ApplyConditions applies the given conditions to the ClusterOperator
 // resource's status.
-func (r *StatusReporter) ApplyConditions(conds []configv1.ClusterOperatorStatusCondition) error {
+func (r *StatusReporter) ApplyConditions(conds []configv1.ClusterOperatorStatusCondition, reachedLevel bool) error {
 	status := configv1.ClusterOperatorStatus{
-		Versions: []configv1.OperandVersion{
-			{
-				Name:    "cluster-autoscaler",
-				Version: version.Raw,
-			},
-		},
 		RelatedObjects: r.relatedObjects,
 	}
 
 	for _, c := range conds {
 		cvorm.SetOperatorStatusCondition(&status.Conditions, c)
+	}
+
+	if reachedLevel {
+		status.Versions = []configv1.OperandVersion{
+			{
+				Name:    "operator",
+				Version: r.releaseVersion,
+			},
+		}
+		glog.Infof("Setting operator version to: %v", r.releaseVersion)
+	} else {
+		status.Versions = nil
+		glog.Info("Setting operator version to nil")
 	}
 
 	co, err := r.GetOrCreateClusterOperator()
@@ -100,6 +97,7 @@ func (r *StatusReporter) ApplyConditions(conds []configv1.ClusterOperatorStatusC
 	}
 
 	if !equality.Semantic.DeepEqual(co.Status, status) {
+		glog.Info("operator status not current; Updating operator")
 		co.Status = status
 		_, err = r.client.ConfigV1().ClusterOperators().UpdateStatus(co)
 	}
@@ -126,8 +124,8 @@ func (r *StatusReporter) Available(reason, message string) error {
 			Status: configv1.ConditionFalse,
 		},
 	}
-
-	return r.ApplyConditions(conditions)
+	glog.Info("Setting operator to available")
+	return r.ApplyConditions(conditions, true)
 }
 
 // Fail reports the operator as failing but available, and not
@@ -150,7 +148,13 @@ func (r *StatusReporter) Fail(reason, message string) error {
 		},
 	}
 
-	return r.ApplyConditions(conditions)
+	return r.ApplyConditions(conditions, false)
+}
+
+type AvailableChecker interface {
+	// AvailableAndUpdated returns true if the reconciler reports all
+	// cluster autoscalers are at the latest version.
+	AvailableAndUpdated() (bool, error)
 }
 
 // Progressing reports the operator as progressing but available, and not
@@ -173,14 +177,15 @@ func (r *StatusReporter) Progressing(reason, message string) error {
 		},
 	}
 
-	return r.ApplyConditions(conditions)
+	return r.ApplyConditions(conditions, false)
 }
 
 // Report checks the status of dependencies and reports the operator's
-// status.  It will poll until stopCh is closed or prerequisites are
+// status. It will poll until stopCh is closed or prerequisites are
 // satisfied, in which case it will report the operator as available
-// and return.
-func (r *StatusReporter) Report(stopCh <-chan struct{}) error {
+// and return. check is used to verify that the reconciler has reached
+// the desired state.
+func (r *StatusReporter) Report(stopCh <-chan struct{}, check AvailableChecker) error {
 	interval := 15 * time.Second
 
 	// Poll the status of our prerequisites and set our status
@@ -192,30 +197,26 @@ func (r *StatusReporter) Report(stopCh <-chan struct{}) error {
 			r.Fail(ReasonMissingDependency, fmt.Sprintf("error checking machine-api operator status %v", err))
 			return false, nil
 		}
-
-		if ok {
-			// desiredVersions will be replaced by value from CVO
-			desiredVersions := []osconfigv1.OperandVersion{
-				{
-					Name:    "cluster-autoscaler",
-					Version: version.Raw,
-				},
-			}
-			isProgress, err2 := r.IsDifferentVersions(desiredVersions)
-			if err2 != nil {
-				r.Fail(ReasonEmpty, fmt.Sprintf("error checking cluster-autoscaler-operator version %v", err2))
-				return false, nil
-			}
-			if isProgress {
-				r.Progressing(ReasonSyncing, fmt.Sprintf("Syncing to version %v", printOperandVersions(desiredVersions)))
-				return false, nil
-			}
-			r.Available(ReasonEmpty, "")
-			return true, nil
+		if !ok {
+			r.Fail(ReasonMissingDependency, "machine-api operator not ready")
+			return false, nil
+		}
+		ok, err = check.AvailableAndUpdated()
+		if err != nil {
+			r.Fail(ReasonCheckAutoscaler, fmt.Sprintf("error checking autoscaler operator status: %v", err))
+			return false, nil
+		}
+		if !ok {
+			glog.Infof("Syncing to version %v", r.releaseVersion)
+			r.Progressing(ReasonSyncing, fmt.Sprintf("Syncing to version %v", r.releaseVersion))
+			return false, nil
 		}
 
-		r.Fail(ReasonMissingDependency, "machine-api operator not ready")
-		return false, nil
+		err = r.Available(ReasonEmpty, "")
+		if err != nil {
+			return false, nil
+		}
+		return true, nil
 	}
 
 	return wait.PollImmediateUntil(interval, pollFunc, stopCh)
@@ -242,12 +243,4 @@ func (r *StatusReporter) CheckMachineAPI() (bool, error) {
 
 	glog.Infof("machine-api-operator not ready yet")
 	return false, nil
-}
-
-func printOperandVersions(desiredVersions []osconfigv1.OperandVersion) string {
-	versionsOutput := []string{}
-	for _, operand := range desiredVersions {
-		versionsOutput = append(versionsOutput, fmt.Sprintf("%s: %s", operand.Name, operand.Version))
-	}
-	return strings.Join(versionsOutput, ", ")
 }

@@ -18,6 +18,7 @@ type Operator struct {
 	config  *Config
 	status  *StatusReporter
 	manager manager.Manager
+	checker AvailableChecker
 }
 
 // New returns a new Operator instance with the given config and a
@@ -43,7 +44,7 @@ func New(cfg *Config) (*Operator, error) {
 			Name:     k,
 		})
 	}
-	operator.status, err = NewStatusReporter(clientConfig, relatedObjects)
+	operator.status, err = NewStatusReporter(clientConfig, relatedObjects, cfg.ReleaseVersion)
 	if err != nil {
 		return nil, err
 	}
@@ -78,13 +79,16 @@ func New(cfg *Config) (*Operator, error) {
 func (o *Operator) AddControllers() error {
 	// Setup ClusterAutoscaler controller.
 	ca := clusterautoscaler.NewReconciler(o.manager, &clusterautoscaler.Config{
-		Name:          o.config.ClusterAutoscalerName,
-		Image:         o.config.ClusterAutoscalerImage,
-		Replicas:      o.config.ClusterAutoscalerReplicas,
-		Namespace:     o.config.ClusterAutoscalerNamespace,
-		CloudProvider: o.config.ClusterAutoscalerCloudProvider,
-		Verbosity:     o.config.ClusterAutoscalerVerbosity,
+		ReleaseVersion: o.config.ReleaseVersion,
+		Name:           o.config.ClusterAutoscalerName,
+		Image:          o.config.ClusterAutoscalerImage,
+		Replicas:       o.config.ClusterAutoscalerReplicas,
+		Namespace:      o.config.ClusterAutoscalerNamespace,
+		CloudProvider:  o.config.ClusterAutoscalerCloudProvider,
+		Verbosity:      o.config.ClusterAutoscalerVerbosity,
 	})
+
+	o.checker = ca
 
 	if err := ca.AddToManager(o.manager); err != nil {
 		return err
@@ -107,7 +111,7 @@ func (o *Operator) Start() error {
 	stopCh := signals.SetupSignalHandler()
 
 	// Report status to the CVO.
-	go o.status.Report(stopCh)
+	go o.status.Report(stopCh, o.checker)
 
 	return o.manager.Start(stopCh)
 }

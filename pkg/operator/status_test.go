@@ -84,75 +84,14 @@ func TestApplyConditions(t *testing.T) {
 	r := StatusReporter{
 		client:         fakeconfigclientset.NewSimpleClientset(co),
 		relatedObjects: []configv1.ObjectReference{},
+		releaseVersion: "testing-1",
 	}
-	err := r.ApplyConditions(conditions)
+	err := r.ApplyConditions(conditions, true)
 	assert.Equal(t, nil, err, "expected nil error")
 	co_check, err2 := r.GetOrCreateClusterOperator()
 	assert.Equal(t, nil, err2, "expected nil error2")
 	// Need to check a specific field as comparing all conditions time stamps
 	// will be off.
 	assert.Equal(t, configv1.ConditionTrue, co_check.Status.Conditions[0].Status, "expected same conditions")
-}
-
-func TestCompareVersions(t *testing.T) {
-	type tCase struct {
-		oV           []osconfigv1.OperandVersion
-		expectedBool bool
-		expectedErr  error
-	}
-	tCases := []tCase{
-		{
-			oV: []osconfigv1.OperandVersion{
-				{
-					Name:    "operator",
-					Version: "1.0",
-				},
-			},
-			expectedBool: true,
-			expectedErr:  nil,
-		},
-		{
-			oV: []osconfigv1.OperandVersion{
-				{
-					Name:    "operator",
-					Version: "2.0",
-				},
-			},
-			expectedBool: false,
-			expectedErr:  nil,
-		},
-	}
-	desiredVersions := []osconfigv1.OperandVersion{
-		{
-			Name:    "operator",
-			Version: "2.0",
-		},
-	}
-	co := &osconfigv1.ClusterOperator{ObjectMeta: metav1.ObjectMeta{Name: "cluster-autoscaler"}}
-	for i, tc := range tCases {
-		co.Status.Versions = tc.oV
-		r := StatusReporter{
-			client:         fakeconfigclientset.NewSimpleClientset(co),
-			relatedObjects: []configv1.ObjectReference{},
-		}
-		isProgress, err := r.IsDifferentVersions(desiredVersions)
-		assert.Equal(t, tc.expectedBool, isProgress, "case %v: return expected %v but didn't get it", i, tc.expectedBool)
-		assert.Equal(t, tc.expectedErr, err, "case %v: expected %v error but didn't get it, got: ", i, tc.expectedErr, err)
-	}
-}
-
-func TestPrintOperandVersions(t *testing.T) {
-	desiredVersions := []osconfigv1.OperandVersion{
-		{
-			Name:    "operator",
-			Version: "2.0",
-		},
-		{
-			Name:    "operand",
-			Version: "2.0",
-		},
-	}
-	expectedString := "operator: 2.0, operand: 2.0"
-	vS := printOperandVersions(desiredVersions)
-	assert.Equal(t, expectedString, vS, "Expected: %v but got: %v", expectedString, vS)
+	assert.Equal(t, "testing-1", co_check.Status.Versions[0].Version, "expected same version")
 }

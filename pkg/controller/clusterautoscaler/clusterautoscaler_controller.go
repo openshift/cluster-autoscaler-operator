@@ -41,6 +41,8 @@ func NewReconciler(mgr manager.Manager, cfg *Config) *Reconciler {
 
 // Config represents the configuration for a reconciler instance.
 type Config struct {
+	// The release version assigned to the operator config.
+	ReleaseVersion string
 	// The name of the singleton ClusterAutoscaler resource.
 	Name string
 	// The namespace for cluster-autoscaler deployments.
@@ -157,6 +159,37 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 	return reconcile.Result{}, nil
 }
 
+// AvailableAndUpdated returns true if all cluster autoscalers are running and at the latest version
+// as defined by the operator.
+func (r *Reconciler) AvailableAndUpdated() (bool, error) {
+	ca := &autoscalingv1alpha1.ClusterAutoscaler{}
+	err := r.client.Get(context.TODO(), types.NamespacedName{Namespace: r.config.Namespace, Name: r.config.Name}, ca)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			// no CA, do nothing
+			return true, nil
+		}
+		return false, err
+	}
+	dep, err := r.GetAutoscaler(ca)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			// waiting for deployment to be created
+			return false, nil
+		}
+		return false, err
+	}
+	if dep.ObjectMeta.Annotations["release.openshift.io/version"] != r.config.ReleaseVersion {
+		// still haven't synced the release version
+		return false, nil
+	}
+	if dep.Status.ObservedGeneration < dep.Generation || dep.Status.UpdatedReplicas != dep.Status.Replicas || dep.Status.AvailableReplicas == 0 {
+		// deployment hasn't rolled out a new controller or we still have the old version hanging around
+		return false, nil
+	}
+	return true, nil
+}
+
 // SetConfig sets the given config on the reconciler.
 func (r *Reconciler) SetConfig(cfg *Config) {
 	r.config = cfg
@@ -243,7 +276,8 @@ func (r *Reconciler) AutoscalerDeployment(ca *autoscalingv1alpha1.ClusterAutosca
 	}
 
 	annotations := map[string]string{
-		criticalPod: "",
+		criticalPod:                    "",
+		"release.openshift.io/version": r.config.ReleaseVersion,
 	}
 
 	podSpec := r.AutoscalerPodSpec(ca)
@@ -254,8 +288,9 @@ func (r *Reconciler) AutoscalerDeployment(ca *autoscalingv1alpha1.ClusterAutosca
 			Kind:       "Deployment",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      namespacedName.Name,
-			Namespace: namespacedName.Namespace,
+			Name:        namespacedName.Name,
+			Namespace:   namespacedName.Namespace,
+			Annotations: annotations,
 		},
 		Spec: appsv1.DeploymentSpec{
 			Replicas: &r.config.Replicas,
