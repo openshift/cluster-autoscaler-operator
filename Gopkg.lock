@@ -383,7 +383,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:4242baa0208df0addf1b72e203fa1e404d5d613b08cd4219ed3052247ef11463"
+  digest = "1:d562e86a00e1439011e117b30a4f5872fe4ed448044c4bceaae2d9bbd64b3738"
   name = "github.com/openshift/cluster-api-actuator-pkg"
   packages = [
     "pkg/e2e",
@@ -396,7 +396,7 @@
     "pkg/types",
   ]
   pruneopts = "N"
-  revision = "46c9e34b233ddc7e2f952e74226bb6af792748cc"
+  revision = "3efa4690c70f9ae43099944c3eb4ba66d9e8c325"
 
 [[projects]]
   branch = "master"
@@ -405,6 +405,14 @@
   packages = ["lib/resourcemerge"]
   pruneopts = "NT"
   revision = "70c0232ed95e4b0e0cd78efdcdec6f2410f592bb"
+
+[[projects]]
+  branch = "master"
+  digest = "1:e3844be1ab2695aa21d64bde33812079709600cd8ad5a91018a7c1bf07a32089"
+  name = "github.com/openshift/library-go"
+  packages = ["pkg/config/clusteroperator/v1helpers"]
+  pruneopts = "NT"
+  revision = "0e0c8d01a19e8a9f2e517596557f4494a2490d88"
 
 [[projects]]
   digest = "1:93b1d84c5fa6d1ea52f4114c37714cddd84d5b78f151b62bb101128dd51399bf"
