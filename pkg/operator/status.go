@@ -23,6 +23,15 @@ const (
 	ReasonCheckAutoscaler   = "UnableToCheckAutoscalers"
 )
 
+// applyStatusInterface is used to enable unit testing and does not
+// implement all methods of StatusReporter.
+type applyStatusInterface interface {
+	checkMachineAPI() (bool, error)
+	fail(string, string) error
+	progressing() error
+	available(string, string) error
+}
+
 // StatusReporter reports the status of the operator to the OpenShift
 // cluster-version-operator via ClusterOperator resource status.
 type StatusReporter struct {
@@ -105,9 +114,9 @@ func (r *StatusReporter) ApplyConditions(conds []configv1.ClusterOperatorStatusC
 	return err
 }
 
-// Available reports the operator as available, not progressing, and
+// available reports the operator as available, not progressing, and
 // not failing -- optionally setting a reason and message.
-func (r *StatusReporter) Available(reason, message string) error {
+func (r *StatusReporter) available(reason, message string) error {
 	conditions := []configv1.ClusterOperatorStatusCondition{
 		{
 			Type:    configv1.OperatorAvailable,
@@ -130,7 +139,7 @@ func (r *StatusReporter) Available(reason, message string) error {
 
 // Fail reports the operator as failing but available, and not
 // progressing -- optionally setting a reason and message.
-func (r *StatusReporter) Fail(reason, message string) error {
+func (r *StatusReporter) fail(reason, message string) error {
 	conditions := []configv1.ClusterOperatorStatusCondition{
 		{
 			Type:   configv1.OperatorAvailable,
@@ -157,9 +166,10 @@ type AvailableChecker interface {
 	AvailableAndUpdated() (bool, error)
 }
 
-// Progressing reports the operator as progressing but available, and not
+// progressing reports the operator as progressing but available, and not
 // failing -- optionally setting a reason and message.
-func (r *StatusReporter) Progressing(reason, message string) error {
+func (r *StatusReporter) progressing() error {
+	glog.Infof("Syncing to version %v", r.releaseVersion)
 	conditions := []configv1.ClusterOperatorStatusCondition{
 		{
 			Type:   configv1.OperatorAvailable,
@@ -168,8 +178,8 @@ func (r *StatusReporter) Progressing(reason, message string) error {
 		{
 			Type:    configv1.OperatorProgressing,
 			Status:  configv1.ConditionTrue,
-			Reason:  reason,
-			Message: message,
+			Reason:  ReasonSyncing,
+			Message: fmt.Sprintf("Syncing to version %v", r.releaseVersion),
 		},
 		{
 			Type:   configv1.OperatorFailing,
@@ -178,6 +188,35 @@ func (r *StatusReporter) Progressing(reason, message string) error {
 	}
 
 	return r.ApplyConditions(conditions, false)
+}
+
+// applyStatusInterface required here for test coverage of critical code.
+// In actual operation, we are passing in StatusReporter.
+func applyStatus(r applyStatusInterface, check AvailableChecker) (bool, error) {
+	ok, err := r.checkMachineAPI()
+	if err != nil {
+		r.fail(ReasonMissingDependency, fmt.Sprintf("error checking machine-api operator status %v", err))
+		return false, nil
+	}
+	if !ok {
+		r.fail(ReasonMissingDependency, "machine-api operator not ready")
+		return false, nil
+	}
+	ok, err = check.AvailableAndUpdated()
+	if err != nil {
+		r.fail(ReasonCheckAutoscaler, fmt.Sprintf("error checking autoscaler operator status: %v", err))
+		return false, nil
+	}
+	if !ok {
+		r.progressing()
+		return false, nil
+	}
+
+	err = r.available(ReasonEmpty, "")
+	if err != nil {
+		return false, nil
+	}
+	return true, nil
 }
 
 // Report checks the status of dependencies and reports the operator's
@@ -192,40 +231,16 @@ func (r *StatusReporter) Report(stopCh <-chan struct{}, check AvailableChecker) 
 	// accordingly.  Rather than return errors and stop polling, most
 	// errors here should just be reported in the status message.
 	pollFunc := func() (bool, error) {
-		ok, err := r.CheckMachineAPI()
-		if err != nil {
-			r.Fail(ReasonMissingDependency, fmt.Sprintf("error checking machine-api operator status %v", err))
-			return false, nil
-		}
-		if !ok {
-			r.Fail(ReasonMissingDependency, "machine-api operator not ready")
-			return false, nil
-		}
-		ok, err = check.AvailableAndUpdated()
-		if err != nil {
-			r.Fail(ReasonCheckAutoscaler, fmt.Sprintf("error checking autoscaler operator status: %v", err))
-			return false, nil
-		}
-		if !ok {
-			glog.Infof("Syncing to version %v", r.releaseVersion)
-			r.Progressing(ReasonSyncing, fmt.Sprintf("Syncing to version %v", r.releaseVersion))
-			return false, nil
-		}
-
-		err = r.Available(ReasonEmpty, "")
-		if err != nil {
-			return false, nil
-		}
-		return true, nil
+		return applyStatus(r, check)
 	}
 
 	return wait.PollImmediateUntil(interval, pollFunc, stopCh)
 }
 
-// CheckMachineAPI checks the status of the machine-api-operator as
+// checkMachineAPI checks the status of the machine-api-operator as
 // reported to the CVO.  It returns true if the operator is available
 // and not failing.
-func (r *StatusReporter) CheckMachineAPI() (bool, error) {
+func (r *StatusReporter) checkMachineAPI() (bool, error) {
 	mao, err := r.client.ConfigV1().ClusterOperators().
 		Get("machine-api", metav1.GetOptions{})
 
