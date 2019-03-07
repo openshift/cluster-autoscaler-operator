@@ -55,7 +55,7 @@ func TestCheckMachineAPI(t *testing.T) {
 			client:         fakeconfigclientset.NewSimpleClientset(co),
 			relatedObjects: []configv1.ObjectReference{},
 		}
-		res, err := r.CheckMachineAPI()
+		res, err := r.checkMachineAPI()
 		assert.Equal(t, tc.expectedBool, res, "case %v: return expected %v but didn't get it", i, tc.expectedBool)
 		assert.Equal(t, tc.expectedErr, err, "case %v: expected %v error but didn't get it, got: ", i, tc.expectedErr, err)
 	}
@@ -83,30 +83,29 @@ func (c *MockCheck) AvailableAndUpdated() (bool, error) {
 	return c.isAvailableAndUpdated, nil
 }
 
-func (r *MockStatusReporter) CheckMachineAPI() (bool, error) {
+func (r *MockStatusReporter) checkMachineAPI() (bool, error) {
 	if r.isCheckMachineAPIFail {
 		return false, errors.New("returning failure")
 	}
 	return r.isCheckMachineAPI, nil
 }
 
-func (r *MockStatusReporter) Available(reason, message string) error {
+func (r *MockStatusReporter) available(reason, message string) error {
 	r.availableCalled = true
 	r.availableReason = reason
 	r.availableMessage = message
 	if !r.isAvailable {
 		return errors.New("returning failure")
-	} else {
-		return nil
 	}
+	return nil
 }
 
-func (r *MockStatusReporter) Progressing() error {
+func (r *MockStatusReporter) progressing() error {
 	r.progressingCalled = true
 	return nil
 }
 
-func (r *MockStatusReporter) Fail(reason, message string) error {
+func (r *MockStatusReporter) fail(reason, message string) error {
 	r.failReason = reason
 	r.failMessage = message
 	return nil
@@ -223,7 +222,7 @@ func TestApplyStatus(t *testing.T) {
 		},
 	}
 	for i, tc := range tCases {
-		ok, _ := ApplyStatus(tc.r, tc.c)
+		ok, _ := applyStatus(tc.r, tc.c)
 		if tc.applyExpectErr {
 			assert.Equal(t, tc.failReason, tc.r.failReason, "case %v: incorrect error return", i)
 		}
