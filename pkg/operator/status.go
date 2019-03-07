@@ -23,6 +23,15 @@ const (
 	ReasonCheckAutoscaler   = "UnableToCheckAutoscalers"
 )
 
+// ApplyStatusInterface is used to enable unit testing and does not
+// implement all methods of StatusReporter.
+type ApplyStatusInterface interface {
+	CheckMachineAPI() (bool, error)
+	Fail(string, string) error
+	Progressing() error
+	Available(string, string) error
+}
+
 // StatusReporter reports the status of the operator to the OpenShift
 // cluster-version-operator via ClusterOperator resource status.
 type StatusReporter struct {
@@ -159,7 +168,8 @@ type AvailableChecker interface {
 
 // Progressing reports the operator as progressing but available, and not
 // failing -- optionally setting a reason and message.
-func (r *StatusReporter) Progressing(reason, message string) error {
+func (r *StatusReporter) Progressing() error {
+	glog.Infof("Syncing to version %v", r.releaseVersion)
 	conditions := []configv1.ClusterOperatorStatusCondition{
 		{
 			Type:   configv1.OperatorAvailable,
@@ -168,8 +178,8 @@ func (r *StatusReporter) Progressing(reason, message string) error {
 		{
 			Type:    configv1.OperatorProgressing,
 			Status:  configv1.ConditionTrue,
-			Reason:  reason,
-			Message: message,
+			Reason:  ReasonSyncing,
+			Message: fmt.Sprintf("Syncing to version %v", r.releaseVersion),
 		},
 		{
 			Type:   configv1.OperatorFailing,
@@ -178,6 +188,35 @@ func (r *StatusReporter) Progressing(reason, message string) error {
 	}
 
 	return r.ApplyConditions(conditions, false)
+}
+
+// ApplyStatusInterface required here for test coverage of critical code.
+// In actual operation, we are passing in StatusReporter.
+func ApplyStatus(r ApplyStatusInterface, check AvailableChecker) (bool, error) {
+	ok, err := r.CheckMachineAPI()
+	if err != nil {
+		r.Fail(ReasonMissingDependency, fmt.Sprintf("error checking machine-api operator status %v", err))
+		return false, nil
+	}
+	if !ok {
+		r.Fail(ReasonMissingDependency, "machine-api operator not ready")
+		return false, nil
+	}
+	ok, err = check.AvailableAndUpdated()
+	if err != nil {
+		r.Fail(ReasonCheckAutoscaler, fmt.Sprintf("error checking autoscaler operator status: %v", err))
+		return false, nil
+	}
+	if !ok {
+		r.Progressing()
+		return false, nil
+	}
+
+	err = r.Available(ReasonEmpty, "")
+	if err != nil {
+		return false, nil
+	}
+	return true, nil
 }
 
 // Report checks the status of dependencies and reports the operator's
@@ -192,31 +231,7 @@ func (r *StatusReporter) Report(stopCh <-chan struct{}, check AvailableChecker) 
 	// accordingly.  Rather than return errors and stop polling, most
 	// errors here should just be reported in the status message.
 	pollFunc := func() (bool, error) {
-		ok, err := r.CheckMachineAPI()
-		if err != nil {
-			r.Fail(ReasonMissingDependency, fmt.Sprintf("error checking machine-api operator status %v", err))
-			return false, nil
-		}
-		if !ok {
-			r.Fail(ReasonMissingDependency, "machine-api operator not ready")
-			return false, nil
-		}
-		ok, err = check.AvailableAndUpdated()
-		if err != nil {
-			r.Fail(ReasonCheckAutoscaler, fmt.Sprintf("error checking autoscaler operator status: %v", err))
-			return false, nil
-		}
-		if !ok {
-			glog.Infof("Syncing to version %v", r.releaseVersion)
-			r.Progressing(ReasonSyncing, fmt.Sprintf("Syncing to version %v", r.releaseVersion))
-			return false, nil
-		}
-
-		err = r.Available(ReasonEmpty, "")
-		if err != nil {
-			return false, nil
-		}
-		return true, nil
+		return ApplyStatus(r, check)
 	}
 
 	return wait.PollImmediateUntil(interval, pollFunc, stopCh)
