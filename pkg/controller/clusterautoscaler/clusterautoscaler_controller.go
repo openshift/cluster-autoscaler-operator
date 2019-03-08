@@ -57,6 +57,13 @@ type Config struct {
 	Verbosity int
 }
 
+// deploymentUpdatedInterface is used to enable unit testing and does not
+// implement all methods of Reconciler.
+type deploymentUpdatedInterface interface {
+	GetAutoscaler(ca *autoscalingv1alpha1.ClusterAutoscaler) (*appsv1.Deployment, error)
+	isDeploymentControllerCurrent(dep *appsv1.Deployment) (bool, error)
+}
+
 var _ reconcile.Reconciler = &Reconciler{}
 
 // Reconciler reconciles a ClusterAutoscaler object
@@ -171,6 +178,16 @@ func (r *Reconciler) AvailableAndUpdated() (bool, error) {
 		}
 		return false, err
 	}
+	return isDeploymentUpdated(r, ca, r.config)
+}
+
+func (r *Reconciler) isDeploymentControllerCurrent(dep *appsv1.Deployment) (bool, error) {
+	return (dep.Status.ObservedGeneration >= dep.Generation && dep.Status.UpdatedReplicas == dep.Status.Replicas && dep.Status.AvailableReplicas > 0), nil
+}
+
+// deploymentUpdatedInterface required here for test coverage of critical code.
+// In actual operation, we are passing in Reconciler.
+func isDeploymentUpdated(r deploymentUpdatedInterface, ca *autoscalingv1alpha1.ClusterAutoscaler, rconfig *Config) (bool, error) {
 	dep, err := r.GetAutoscaler(ca)
 	if err != nil {
 		if errors.IsNotFound(err) {
@@ -179,15 +196,11 @@ func (r *Reconciler) AvailableAndUpdated() (bool, error) {
 		}
 		return false, err
 	}
-	if dep.ObjectMeta.Annotations["release.openshift.io/version"] != r.config.ReleaseVersion {
+	if dep.ObjectMeta.Annotations["release.openshift.io/version"] != rconfig.ReleaseVersion {
 		// still haven't synced the release version
 		return false, nil
 	}
-	if dep.Status.ObservedGeneration < dep.Generation || dep.Status.UpdatedReplicas != dep.Status.Replicas || dep.Status.AvailableReplicas == 0 {
-		// deployment hasn't rolled out a new controller or we still have the old version hanging around
-		return false, nil
-	}
-	return true, nil
+	return r.isDeploymentControllerCurrent(dep)
 }
 
 // SetConfig sets the given config on the reconciler.
