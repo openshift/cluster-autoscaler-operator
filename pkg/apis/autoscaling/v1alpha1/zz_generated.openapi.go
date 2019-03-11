@@ -23,6 +23,7 @@ func schema_pkg_apis_autoscaling_v1alpha1_ClusterAutoscaler(ref common.Reference
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "ClusterAutoscaler is the Schema for the clusterautoscalers API",
+				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"kind": {
 						SchemaProps: spec.SchemaProps{
@@ -66,6 +67,7 @@ func schema_pkg_apis_autoscaling_v1alpha1_MachineAutoscaler(ref common.Reference
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "MachineAutoscaler is the Schema for the machineautoscalers API",
+				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"kind": {
 						SchemaProps: spec.SchemaProps{
