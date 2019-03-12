@@ -383,7 +383,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:d562e86a00e1439011e117b30a4f5872fe4ed448044c4bceaae2d9bbd64b3738"
+  digest = "1:fda26b4b3cc8dc89575c57b4c141db0cf03051c65a7296e143683e1bd8aa9962"
   name = "github.com/openshift/cluster-api-actuator-pkg"
   packages = [
     "pkg/e2e",
@@ -396,7 +396,7 @@
     "pkg/types",
   ]
   pruneopts = "N"
-  revision = "3efa4690c70f9ae43099944c3eb4ba66d9e8c325"
+  revision = "6da15dab1653f3bc0d878366ce9f7c91e4ba08d0"
 
 [[projects]]
   branch = "master"
@@ -882,6 +882,14 @@
     "rest",
     "rest/watch",
     "restmapper",
+    "scale",
+    "scale/scheme",
+    "scale/scheme/appsint",
+    "scale/scheme/appsv1beta1",
+    "scale/scheme/appsv1beta2",
+    "scale/scheme/autoscalingv1",
+    "scale/scheme/extensionsint",
+    "scale/scheme/extensionsv1beta1",
     "testing",
     "third_party/forked/golang/template",
     "tools/auth",
@@ -994,6 +1002,14 @@
   ]
   pruneopts = "NT"
   revision = "d50a959ae76a85c7c262a9767ef29f37093c2b8a"
+
+[[projects]]
+  branch = "master"
+  digest = "1:31548b329da724707853e197eaa60861e5cdad83fa42778196c2ff6f58e91685"
+  name = "k8s.io/utils"
+  packages = ["pointer"]
+  pruneopts = "NT"
+  revision = "21c4ce38f2a793ec01e925ddc31216500183b773"
 
 [[projects]]
   digest = "1:e03ddaf9f31bccbbb8c33eabad2c85025a95ca98905649fd744e0a54c630a064"
