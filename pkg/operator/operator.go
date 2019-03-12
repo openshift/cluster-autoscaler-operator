@@ -86,6 +86,7 @@ func (o *Operator) AddControllers() error {
 		Namespace:      o.config.ClusterAutoscalerNamespace,
 		CloudProvider:  o.config.ClusterAutoscalerCloudProvider,
 		Verbosity:      o.config.ClusterAutoscalerVerbosity,
+		ExtraArgs:      o.config.ClusterAutoscalerExtraArgs,
 	})
 
 	o.checker = ca
