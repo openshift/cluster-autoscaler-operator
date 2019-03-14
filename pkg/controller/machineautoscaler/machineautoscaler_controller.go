@@ -49,23 +49,32 @@ var (
 	ErrNoSupportedTargets = errors.New("no supported target types available")
 )
 
-// SupportedTargetGVKs is the list of GroupVersionKinds supported as targets for
-// a MachineAutocaler instance.
-var SupportedTargetGVKs = []schema.GroupVersionKind{
-	{Group: "cluster.k8s.io", Version: "v1alpha1", Kind: "MachineDeployment"},
-	{Group: "cluster.k8s.io", Version: "v1alpha1", Kind: "MachineSet"},
-	{Group: "machine.openshift.io", Version: "v1beta1", Kind: "MachineDeployment"},
-	{Group: "machine.openshift.io", Version: "v1beta1", Kind: "MachineSet"},
+// DefaultSupportedTargetGVKs returns the default list of GroupVersionKinds
+// supported as targets for a MachineAutocaler instance.
+func DefaultSupportedTargetGVKs() []schema.GroupVersionKind {
+	return []schema.GroupVersionKind{
+		{Group: "cluster.k8s.io", Version: "v1alpha1", Kind: "MachineDeployment"},
+		{Group: "cluster.k8s.io", Version: "v1alpha1", Kind: "MachineSet"},
+		{Group: "machine.openshift.io", Version: "v1beta1", Kind: "MachineDeployment"},
+		{Group: "machine.openshift.io", Version: "v1beta1", Kind: "MachineSet"},
+	}
 }
 
 // Config represents the configuration for a reconciler instance.
 type Config struct {
 	// The namespace for MachineAutosclaers and their targets.
 	Namespace string
+
+	// The list of supported GroupVersionKinds for a reconciler.
+	SupportedTargetGVKs []schema.GroupVersionKind
 }
 
 // NewReconciler returns a new Reconciler.
 func NewReconciler(mgr manager.Manager, cfg *Config) *Reconciler {
+	if cfg == nil {
+		cfg = &Config{}
+	}
+
 	return &Reconciler{
 		client: mgr.GetClient(),
 		scheme: mgr.GetScheme(),
@@ -87,9 +96,11 @@ func (r *Reconciler) AddToManager(mgr manager.Manager) error {
 		return err
 	}
 
+	missingGVKs := []schema.GroupVersionKind{}
+
 	// Watch for changes to each supported target resource type and enqueue
 	// reconcile requests for their owning MachineAutoscaler resources.
-	for _, gvk := range SupportedTargetGVKs {
+	for _, gvk := range r.config.SupportedTargetGVKs {
 		target := &unstructured.Unstructured{}
 		target.SetGroupVersionKind(gvk)
 
@@ -105,14 +116,19 @@ func (r *Reconciler) AddToManager(mgr manager.Manager) error {
 		// it up and properly reconcile any MachineAutoscalers referencing it.
 		if err != nil && meta.IsNoMatchError(err) {
 			glog.Warningf("Removing support for unregistered target type: %s", gvk)
-			SupportedTargetGVKs = removeSupportedGVK(gvk)
+			missingGVKs = append(missingGVKs, gvk)
 		} else if err != nil {
 			return err
 		}
 	}
 
+	// Remove missing GVKs from list of supported GVKs.
+	for _, gvk := range missingGVKs {
+		r.RemoveSupportedGVK(gvk)
+	}
+
 	// Fail if we didn't find any of the supported target types registered.
-	if len(SupportedTargetGVKs) < 1 {
+	if len(r.config.SupportedTargetGVKs) < 1 {
 		return ErrNoSupportedTargets
 	}
 
@@ -275,7 +291,7 @@ func (r *Reconciler) GetTarget(ref *corev1.ObjectReference) (*MachineTarget, err
 	obj := &unstructured.Unstructured{}
 	gvk := ref.GroupVersionKind()
 
-	if valid, err := ValidateReference(ref); !valid {
+	if valid, err := r.ValidateReference(ref); !valid {
 		return nil, err
 	}
 
@@ -377,8 +393,8 @@ func (r *Reconciler) RemoveFinalizer(ma *v1alpha1.MachineAutoscaler) error {
 }
 
 // SupportedTarget indicates whether a GVK is supported as a target.
-func SupportedTarget(gvk schema.GroupVersionKind) bool {
-	for _, supported := range SupportedTargetGVKs {
+func (r *Reconciler) SupportedTarget(gvk schema.GroupVersionKind) bool {
+	for _, supported := range r.config.SupportedTargetGVKs {
 		if gvk == supported {
 			return true
 		}
@@ -387,10 +403,33 @@ func SupportedTarget(gvk schema.GroupVersionKind) bool {
 	return false
 }
 
+// SupportedGVKs returns the list of supported target GroupVersionKinds for this
+// reconciler.  A new copy of the underlying slice is returned.
+func (r *Reconciler) SupportedGVKs() []schema.GroupVersionKind {
+	gvks := make([]schema.GroupVersionKind, len(r.config.SupportedTargetGVKs))
+	copy(gvks, r.config.SupportedTargetGVKs)
+
+	return gvks
+}
+
+// RemoveSupportedGVK removes the given type from the list of supported GVKs for
+// MachineAutoscaler targets.
+func (r *Reconciler) RemoveSupportedGVK(gvk schema.GroupVersionKind) {
+	var newSlice []schema.GroupVersionKind
+
+	for _, x := range r.config.SupportedTargetGVKs {
+		if x != gvk {
+			newSlice = append(newSlice, x)
+		}
+	}
+
+	r.config.SupportedTargetGVKs = newSlice
+}
+
 // ValidateReference validates that an object reference is valid, i.e. that it
 // has a name and a supported GroupVersionKind.  If this method returns false,
 // indicating that the reference is not valid, it MUST return a non-nil error.
-func ValidateReference(obj *corev1.ObjectReference) (bool, error) {
+func (r *Reconciler) ValidateReference(obj *corev1.ObjectReference) (bool, error) {
 	if obj == nil {
 		return false, ErrInvalidTarget
 	}
@@ -399,7 +438,7 @@ func ValidateReference(obj *corev1.ObjectReference) (bool, error) {
 		return false, ErrInvalidTarget
 	}
 
-	if !SupportedTarget(obj.GroupVersionKind()) {
+	if !r.SupportedTarget(obj.GroupVersionKind()) {
 		return false, ErrUnsupportedTarget
 	}
 
@@ -437,18 +476,4 @@ func objectReference(ref v1alpha1.CrossVersionObjectReference) *corev1.ObjectRef
 	obj.Name = ref.Name
 
 	return obj
-}
-
-// removeSupportedGVK removes the given type from the list of supported GVKs for
-// MachineAutoscaler targets.
-func removeSupportedGVK(gvk schema.GroupVersionKind) []schema.GroupVersionKind {
-	newSlice := SupportedTargetGVKs[:0] // Share the backing array.
-
-	for _, x := range SupportedTargetGVKs {
-		if x != gvk {
-			newSlice = append(newSlice, x)
-		}
-	}
-
-	return newSlice
 }

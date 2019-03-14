@@ -27,8 +27,10 @@ func NewTargetOwner(namespace, name string) *TargetOwner {
 
 // NewTarget returns a new MachineTarget.
 func NewTarget() *MachineTarget {
+	firstGVK := DefaultSupportedTargetGVKs()[0]
+
 	u := unstructured.Unstructured{}
-	u.SetGroupVersionKind(SupportedTargetGVKs[0])
+	u.SetGroupVersionKind(firstGVK)
 
 	u.SetName("test")
 	u.SetNamespace("test")
