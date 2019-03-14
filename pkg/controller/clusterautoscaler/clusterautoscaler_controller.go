@@ -137,8 +137,8 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 		glog.Errorf("Error reading ClusterAutoscaler: %v", err)
 		return reconcile.Result{}, err
 	}
-
-	_, err = r.GetAutoscaler(ca)
+	var dep *appsv1.Deployment
+	dep, err = r.GetAutoscaler(ca)
 	if err != nil && !errors.IsNotFound(err) {
 		glog.Errorf("Error getting cluster-autoscaler deployment: %v", err)
 		return reconcile.Result{}, err
@@ -153,7 +153,7 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 		return reconcile.Result{}, nil
 	}
 
-	if err := r.UpdateAutoscaler(ca); err != nil {
+	if err := r.updateAutoscaler(ca, dep); err != nil {
 		glog.Errorf("Error updating cluster-autoscaler deployment: %v", err)
 		return reconcile.Result{}, err
 	}
@@ -225,13 +225,9 @@ func (r *Reconciler) CreateAutoscaler(ca *autoscalingv1alpha1.ClusterAutoscaler)
 	return r.client.Create(context.TODO(), deployment)
 }
 
-// UpdateAutoscaler will retrieve the deployment for the given ClusterAutoscaler
+// updateAutoscaler compares the deployment for the given ClusterAutoscaler
 // custom resource instance and update it to match the expected spec if needed.
-func (r *Reconciler) UpdateAutoscaler(ca *autoscalingv1alpha1.ClusterAutoscaler) error {
-	existingDeployment, err := r.GetAutoscaler(ca)
-	if err != nil {
-		return err
-	}
+func (r *Reconciler) updateAutoscaler(ca *autoscalingv1alpha1.ClusterAutoscaler, existingDeployment *appsv1.Deployment) error {
 
 	existingSpec := existingDeployment.Spec.Template.Spec
 	expectedSpec := r.AutoscalerPodSpec(ca)
