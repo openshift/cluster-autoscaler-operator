@@ -8,8 +8,10 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/scheme"
 	fakeclient "sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"strings"
 	"testing"
 )
@@ -243,8 +245,81 @@ func TestAvailableAndUpdated(t *testing.T) {
 		r := newFakeReconciler(ca, tc.d)
 		r.SetConfig(tc.c)
 		ok, err := r.AvailableAndUpdated()
-		assert.Equal(t, tc.expectedOk, ok, "case %v: expected true", i)
-		assert.Equal(t, tc.expectedError, err, "case %v: expected nil", i)
+		assert.Equal(t, tc.expectedOk, ok, "case %v: expected ok incorrect", i)
+		assert.Equal(t, tc.expectedError, err, "case %v: expected err incorrect", i)
 	}
 
+}
+
+// The only time Reconcile() should fail is if there's a problem calling the
+// api; that failure mode is not currently captured in this test.
+func TestReconcile(t *testing.T) {
+	ca := NewClusterAutoscaler()
+	dep1 := appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "cluster-autoscaler-test",
+			Namespace: TestNamespace,
+			Annotations: map[string]string{
+				"release.openshift.io/version": "test-1",
+			},
+			Generation: 1,
+		},
+		Status: appsv1.DeploymentStatus{
+			ObservedGeneration: 1,
+			UpdatedReplicas:    1,
+			Replicas:           1,
+			AvailableReplicas:  1,
+		},
+	}
+	req := reconcile.Request{
+		NamespacedName: types.NamespacedName{
+			Namespace: TestNamespace,
+			Name:      "test",
+		},
+	}
+	cfg1 := Config{
+		ReleaseVersion: "test-1",
+		Name:           "test",
+		Namespace:      TestNamespace,
+	}
+	cfg2 := Config{
+		ReleaseVersion: "test-1",
+		Name:           "test2",
+		Namespace:      TestNamespace,
+	}
+	tCases := []struct {
+		expectedError error
+		expectedRes   reconcile.Result
+		c             *Config
+		d             *appsv1.Deployment
+	}{
+		// Case 0: should pass, returns {}, nil.
+		{
+			expectedError: nil,
+			expectedRes:   reconcile.Result{},
+			c:             &cfg1,
+			d:             &dep1,
+		},
+		// Case 1: no ca found, should pass, returns {}, nil.
+		{
+			expectedError: nil,
+			expectedRes:   reconcile.Result{},
+			c:             &cfg2,
+			d:             &dep1,
+		},
+		// Case 2: no dep found, should pass, returns {}, nil.
+		{
+			expectedError: nil,
+			expectedRes:   reconcile.Result{},
+			c:             &cfg1,
+			d:             &appsv1.Deployment{},
+		},
+	}
+	for i, tc := range tCases {
+		r := newFakeReconciler(ca, tc.d)
+		r.SetConfig(tc.c)
+		res, err := r.Reconcile(req)
+		assert.Equal(t, tc.expectedRes, res, "case %v: expected res incorrect", i)
+		assert.Equal(t, tc.expectedError, err, "case %v: expected err incorrect", i)
+	}
 }
