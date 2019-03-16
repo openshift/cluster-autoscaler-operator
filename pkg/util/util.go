@@ -4,7 +4,7 @@ package util
 // returns a new slice with all instances of needle removed, and a
 // count of the number instances encountered.
 func FilterString(haystack []string, needle string) ([]string, int) {
-	newSlice := haystack[:0] // Share the backing array.
+	var newSlice []string
 	found := 0
 
 	for _, x := range haystack {
