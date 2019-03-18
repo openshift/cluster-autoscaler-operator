@@ -7,6 +7,11 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
+const (
+	TargetName      = "test-name"
+	TargetNamespace = "test-namespace"
+)
+
 // TargetOwner is a fake Kubernetes object used as an owner for
 // MachineTarget objects in the test suite.
 type TargetOwner struct {
@@ -32,8 +37,8 @@ func NewTarget() *MachineTarget {
 	u := unstructured.Unstructured{}
 	u.SetGroupVersionKind(firstGVK)
 
-	u.SetName("test")
-	u.SetNamespace("test")
+	u.SetName(TargetName)
+	u.SetNamespace(TargetNamespace)
 
 	target, err := MachineTargetFromObject(u.DeepCopyObject())
 	if err != nil {
@@ -261,5 +266,20 @@ func TestFinalize(t *testing.T) {
 
 	if modified {
 		t.Errorf("Finailze() reported modification unnecessarily")
+	}
+}
+
+func TestNamespacedName(t *testing.T) {
+	target := NewTarget()
+	nn := target.NamespacedName()
+
+	if nn.Name != TargetName {
+		t.Errorf("NamespacedName() returned bad name. Got: %s, Want: %s",
+			nn.Name, TargetName)
+	}
+
+	if nn.Namespace != TargetNamespace {
+		t.Errorf("NamespacedName() returned bad namespace. Got: %s, Want: %s",
+			nn.Namespace, TargetNamespace)
 	}
 }

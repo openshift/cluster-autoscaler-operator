@@ -9,6 +9,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/client-go/tools/record"
 	fakeclient "sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
@@ -22,9 +23,10 @@ func init() {
 func newFakeReconciler(cfg *Config, initObjects ...runtime.Object) *Reconciler {
 	fakeClient := fakeclient.NewFakeClient(initObjects...)
 	return &Reconciler{
-		client: fakeClient,
-		scheme: scheme.Scheme,
-		config: cfg,
+		client:   fakeClient,
+		scheme:   scheme.Scheme,
+		recorder: record.NewFakeRecorder(128),
+		config:   cfg,
 	}
 }
 
