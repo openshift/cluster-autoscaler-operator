@@ -3,6 +3,7 @@ package machineautoscaler
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"github.com/golang/glog"
 	"github.com/openshift/cluster-autoscaler-operator/pkg/apis/autoscaling/v1alpha1"
@@ -14,6 +15,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
@@ -33,6 +35,8 @@ const (
 
 	minSizeAnnotation = "machine.openshift.io/cluster-api-autoscaler-node-group-min-size"
 	maxSizeAnnotation = "machine.openshift.io/cluster-api-autoscaler-node-group-max-size"
+
+	controllerName = "machine-autoscaler-controller"
 )
 
 var (
@@ -76,16 +80,17 @@ func NewReconciler(mgr manager.Manager, cfg *Config) *Reconciler {
 	}
 
 	return &Reconciler{
-		client: mgr.GetClient(),
-		scheme: mgr.GetScheme(),
-		config: cfg,
+		client:   mgr.GetClient(),
+		scheme:   mgr.GetScheme(),
+		recorder: mgr.GetRecorder(controllerName),
+		config:   cfg,
 	}
 }
 
 // AddToManager adds a new Controller to mgr with r as the reconcile.Reconciler
 func (r *Reconciler) AddToManager(mgr manager.Manager) error {
 	// Create a new controller
-	c, err := controller.New("machineautoscaler-controller", mgr, controller.Options{Reconciler: r})
+	c, err := controller.New(controllerName, mgr, controller.Options{Reconciler: r})
 	if err != nil {
 		return err
 	}
@@ -141,9 +146,10 @@ var _ reconcile.Reconciler = &Reconciler{}
 type Reconciler struct {
 	// This client, initialized using mgr.Client() above, is a split client
 	// that reads objects from the cache and writes to the apiserver
-	client client.Client
-	scheme *runtime.Scheme
-	config *Config
+	client   client.Client
+	recorder record.EventRecorder
+	scheme   *runtime.Scheme
+	config   *Config
 }
 
 // Reconcile reads that state of the cluster for a MachineAutoscaler object and
@@ -179,14 +185,20 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 
 	target, err := r.GetTarget(targetRef)
 	if err != nil {
-		glog.Errorf("Error getting target: %v", err)
+		errMsg := fmt.Sprintf("Error getting target: %v", err)
+		r.recorder.Event(ma, corev1.EventTypeWarning, "FailedGetTarget", errMsg)
+		glog.Errorf("%s: %s", request.NamespacedName, errMsg)
+
 		return reconcile.Result{}, err
 	}
 
 	// Set the MachineAutoscaler as the owner of the target.
 	ownerModifed, err := target.SetOwner(ma)
 	if err != nil {
-		glog.Errorf("Error setting target owner: %v", err)
+		errMsg := fmt.Sprintf("Error setting target owner: %v", err)
+		r.recorder.Event(ma, corev1.EventTypeWarning, "FailedSetOwner", errMsg)
+		glog.Errorf("%s: %s", request.NamespacedName, errMsg)
+
 		return reconcile.Result{}, err
 	}
 
@@ -209,7 +221,10 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 			// If there was a problem (other than a 404) fetching the
 			// previous target, we should retry.  Otherwise, it may
 			// retain autoscaling configuration.
-			glog.Errorf("Error fetching previous target: %v", err)
+			errMsg := fmt.Sprintf("Error fetching previous target: %v", err)
+			r.recorder.Event(ma, corev1.EventTypeWarning, "FailedGetLastTarget", errMsg)
+			glog.Errorf("%s: %s", request.NamespacedName, errMsg)
+
 			return reconcile.Result{}, err
 		}
 
@@ -220,14 +235,20 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 
 			// Ignore 404s, the resource has most likely been deleted.
 			if err != nil && !apierrors.IsNotFound(err) {
-				glog.Errorf("Error finalizing previous target: %v", err)
+				errMsg := fmt.Sprintf("Error finalizing previous target: %v", err)
+				r.recorder.Event(ma, corev1.EventTypeWarning, "FailedFinalizeTarget", errMsg)
+				glog.Errorf("%s: %s", request.NamespacedName, errMsg)
+
 				return reconcile.Result{}, err
 			}
 		}
 
 		// Set the previous target equal to the current target.
 		if err := r.SetLastTarget(ma, targetRef); err != nil {
-			glog.Errorf("Error setting previous target: %v", err)
+			errMsg := fmt.Sprintf("Error setting previous target: %v", err)
+			r.recorder.Event(ma, corev1.EventTypeWarning, "FailedSetLastTarget", errMsg)
+			glog.Errorf("%s: %s", request.NamespacedName, errMsg)
+
 			return reconcile.Result{}, err
 		}
 	}
@@ -235,7 +256,10 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 	// Set the previous target if we don't have one.
 	if ma.Status.LastTargetRef == nil {
 		if err := r.SetLastTarget(ma, targetRef); err != nil {
-			glog.Errorf("Error setting previous target: %v", err)
+			errMsg := fmt.Sprintf("Error setting previous target: %v", err)
+			r.recorder.Event(ma, corev1.EventTypeWarning, "FailedSetLastTarget", errMsg)
+			glog.Errorf("%s: %s", request.NamespacedName, errMsg)
+
 			return reconcile.Result{}, err
 		}
 	}
@@ -250,9 +274,16 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 	max := int(ma.Spec.MaxReplicas)
 
 	if err := r.UpdateTarget(target, min, max); err != nil {
-		glog.Errorf("Error updating target: %v", err)
+		errMsg := fmt.Sprintf("Error updating target: %v", err)
+		r.recorder.Event(ma, corev1.EventTypeWarning, "FailedUpdateTarget", errMsg)
+		glog.Errorf("%s: %s", request.NamespacedName, errMsg)
+
 		return reconcile.Result{}, err
 	}
+
+	msg := fmt.Sprintf("Updated MachineAutoscaler target: %s", target.NamespacedName())
+	r.recorder.Eventf(ma, corev1.EventTypeNormal, "SuccessfulUpdate", msg)
+	glog.V(2).Infof("%s: %s", request.NamespacedName, msg)
 
 	return reconcile.Result{}, nil
 }

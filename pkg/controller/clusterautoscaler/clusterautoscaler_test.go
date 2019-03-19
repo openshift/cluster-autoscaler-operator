@@ -2,6 +2,9 @@ package clusterautoscaler
 
 import (
 	"fmt"
+	"strings"
+	"testing"
+
 	"github.com/openshift/cluster-autoscaler-operator/pkg/apis"
 	autoscalingv1alpha1 "github.com/openshift/cluster-autoscaler-operator/pkg/apis/autoscaling/v1alpha1"
 	"github.com/stretchr/testify/assert"
@@ -10,10 +13,9 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/client-go/tools/record"
 	fakeclient "sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"strings"
-	"testing"
 )
 
 const (
@@ -145,8 +147,9 @@ func TestCanGetca(t *testing.T) {
 func newFakeReconciler(initObjects ...runtime.Object) *Reconciler {
 	fakeClient := fakeclient.NewFakeClient(initObjects...)
 	return &Reconciler{
-		client: fakeClient,
-		scheme: scheme.Scheme,
+		client:   fakeClient,
+		scheme:   scheme.Scheme,
+		recorder: record.NewFakeRecorder(128),
 	}
 }
 

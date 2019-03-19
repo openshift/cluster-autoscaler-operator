@@ -13,6 +13,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -25,6 +26,7 @@ import (
 )
 
 const (
+	controllerName      = "cluster-autoscaler-controller"
 	criticalPod         = "scheduler.alpha.kubernetes.io/critical-pod"
 	caServiceAccount    = "cluster-autoscaler"
 	caPriorityClassName = "system-cluster-critical"
@@ -33,9 +35,10 @@ const (
 // NewReconciler returns a new Reconciler.
 func NewReconciler(mgr manager.Manager, cfg *Config) *Reconciler {
 	return &Reconciler{
-		client: mgr.GetClient(),
-		scheme: mgr.GetScheme(),
-		config: cfg,
+		client:   mgr.GetClient(),
+		scheme:   mgr.GetScheme(),
+		recorder: mgr.GetRecorder(controllerName),
+		config:   cfg,
 	}
 }
 
@@ -65,15 +68,16 @@ var _ reconcile.Reconciler = &Reconciler{}
 type Reconciler struct {
 	// This client, initialized using mgr.Client() above, is a split client
 	// that reads objects from the cache and writes to the apiserver
-	client client.Client
-	scheme *runtime.Scheme
-	config *Config
+	client   client.Client
+	recorder record.EventRecorder
+	scheme   *runtime.Scheme
+	config   *Config
 }
 
 // AddToManager adds a new Controller to mgr with r as the reconcile.Reconciler
 func (r *Reconciler) AddToManager(mgr manager.Manager) error {
 	// Create a new controller
-	c, err := controller.New("clusterautoscaler-controller", mgr, controller.Options{Reconciler: r})
+	c, err := controller.New(controllerName, mgr, controller.Options{Reconciler: r})
 	if err != nil {
 		return err
 	}
@@ -140,23 +144,40 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 
 	_, err = r.GetAutoscaler(ca)
 	if err != nil && !errors.IsNotFound(err) {
-		glog.Errorf("Error getting cluster-autoscaler deployment: %v", err)
+		errMsg := fmt.Sprintf("Error getting cluster-autoscaler deployment: %v", err)
+		r.recorder.Event(ca, corev1.EventTypeWarning, "FailedGetDeployment", errMsg)
+		glog.Error(errMsg)
+
 		return reconcile.Result{}, err
 	}
 
 	if errors.IsNotFound(err) {
 		if err := r.CreateAutoscaler(ca); err != nil {
-			glog.Errorf("Error creating cluster-autoscaler deployment: %v", err)
+			errMsg := fmt.Sprintf("Error creating ClusterAutoscaler deployment: %v", err)
+			r.recorder.Event(ca, corev1.EventTypeWarning, "FailedCreate", errMsg)
+			glog.Error(errMsg)
+
 			return reconcile.Result{}, err
 		}
+
+		msg := fmt.Sprintf("Created ClusterAutoscaler deployment: %s", r.AutoscalerName(ca))
+		r.recorder.Eventf(ca, corev1.EventTypeNormal, "SuccessfulCreate", msg)
+		glog.V(2).Info(msg)
 
 		return reconcile.Result{}, nil
 	}
 
 	if err := r.UpdateAutoscaler(ca); err != nil {
-		glog.Errorf("Error updating cluster-autoscaler deployment: %v", err)
+		errMsg := fmt.Sprintf("Error updating cluster-autoscaler deployment: %v", err)
+		r.recorder.Event(ca, corev1.EventTypeWarning, "FailedUpdate", errMsg)
+		glog.Error(errMsg)
+
 		return reconcile.Result{}, err
 	}
+
+	msg := fmt.Sprintf("Updated ClusterAutoscaler deployment: %s", r.AutoscalerName(ca))
+	r.recorder.Eventf(ca, corev1.EventTypeNormal, "SuccessfulUpdate", msg)
+	glog.V(2).Info(msg)
 
 	return reconcile.Result{}, nil
 }
@@ -213,7 +234,7 @@ func (r *Reconciler) NamePredicate(meta metav1.Object) bool {
 // CreateAutoscaler will create the deployment for the given the
 // ClusterAutoscaler custom resource instance.
 func (r *Reconciler) CreateAutoscaler(ca *autoscalingv1alpha1.ClusterAutoscaler) error {
-	glog.Infof("Creating cluster-autoscaler deployment %s/%s\n", r.config.Namespace, ca.Name)
+	glog.Infof("Creating ClusterAutoscaler deployment: %s\n", r.AutoscalerName(ca))
 
 	deployment := r.AutoscalerDeployment(ca)
 

@@ -209,3 +209,11 @@ func (mt *MachineTarget) Finalize() bool {
 
 	return limitsModified || ownerModified
 }
+
+// NamespacedName returns a NamespacedName for the target.
+func (mt *MachineTarget) NamespacedName() types.NamespacedName {
+	return types.NamespacedName{
+		Name:      mt.GetName(),
+		Namespace: mt.GetNamespace(),
+	}
+}
