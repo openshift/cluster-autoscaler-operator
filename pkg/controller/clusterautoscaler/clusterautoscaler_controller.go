@@ -134,6 +134,7 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 			// reconcile request.  Owned objects are automatically
 			// garbage collected. For additional cleanup logic use
 			// finalizers.  Return and don't requeue.
+			glog.Infof("ClusterAutoscaler %s not found, will not reconcile", request.Name)
 			return reconcile.Result{}, nil
 		}
 
@@ -162,7 +163,7 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 
 		msg := fmt.Sprintf("Created ClusterAutoscaler deployment: %s", r.AutoscalerName(ca))
 		r.recorder.Eventf(ca, corev1.EventTypeNormal, "SuccessfulCreate", msg)
-		glog.V(2).Info(msg)
+		glog.Info(msg)
 
 		return reconcile.Result{}, nil
 	}
@@ -177,7 +178,7 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 
 	msg := fmt.Sprintf("Updated ClusterAutoscaler deployment: %s", r.AutoscalerName(ca))
 	r.recorder.Eventf(ca, corev1.EventTypeNormal, "SuccessfulUpdate", msg)
-	glog.V(2).Info(msg)
+	glog.Info(msg)
 
 	return reconcile.Result{}, nil
 }
@@ -190,6 +191,7 @@ func (r *Reconciler) AvailableAndUpdated() (bool, error) {
 	if err != nil {
 		if errors.IsNotFound(err) {
 			// no CA, do nothing
+			glog.Infof("Did not find existing ca: %v %v", r.config.Namespace, r.config.Name)
 			return true, nil
 		}
 		return false, err
