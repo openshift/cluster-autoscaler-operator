@@ -1,18 +1,22 @@
 package operator
 
 import (
+	"context"
 	"fmt"
 	"time"
 
 	"github.com/golang/glog"
 	configv1 "github.com/openshift/api/config/v1"
 	osconfig "github.com/openshift/client-go/config/clientset/versioned"
+	autoscalingv1alpha1 "github.com/openshift/cluster-autoscaler-operator/pkg/apis/autoscaling/v1alpha1"
+	"github.com/openshift/cluster-autoscaler-operator/pkg/util"
 	cvorm "github.com/openshift/cluster-version-operator/lib/resourcemerge"
-	"k8s.io/apimachinery/pkg/api/equality"
+	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
-	"k8s.io/client-go/rest"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
 )
 
 // Reason messages used in status conditions.
@@ -23,38 +27,60 @@ const (
 	ReasonCheckAutoscaler   = "UnableToCheckAutoscalers"
 )
 
-// applyStatusInterface is used to enable unit testing and does not
-// implement all methods of StatusReporter.
-type applyStatusInterface interface {
-	checkMachineAPI() (bool, error)
-	fail(string, string) error
-	progressing() error
-	available(string, string) error
-}
-
 // StatusReporter reports the status of the operator to the OpenShift
 // cluster-version-operator via ClusterOperator resource status.
 type StatusReporter struct {
-	client         osconfig.Interface
-	relatedObjects []configv1.ObjectReference
-	releaseVersion string
+	client       client.Client
+	configClient osconfig.Interface
+	config       *StatusReporterConfig
+}
+
+// StatusReporterConfig represents the configuration of a given StatusReporter.
+type StatusReporterConfig struct {
+	ClusterAutoscalerName      string
+	ClusterAutoscalerNamespace string
+	ReleaseVersion             string
+	RelatedObjects             []configv1.ObjectReference
 }
 
 // NewStatusReporter returns a new StatusReporter instance.
-func NewStatusReporter(cfg *rest.Config, relatedObjects []configv1.ObjectReference, releaseVersion string) (*StatusReporter, error) {
+func NewStatusReporter(mgr manager.Manager, cfg *StatusReporterConfig) (*StatusReporter, error) {
 	var err error
+
 	reporter := &StatusReporter{
-		relatedObjects: relatedObjects,
-		releaseVersion: releaseVersion,
+		client: mgr.GetClient(),
+		config: cfg,
 	}
 
 	// Create a client for OpenShift config objects.
-	reporter.client, err = osconfig.NewForConfig(cfg)
+	reporter.configClient, err = osconfig.NewForConfig(mgr.GetConfig())
 	if err != nil {
 		return nil, err
 	}
 
 	return reporter, nil
+}
+
+// SetReleaseVersion sets the configured release version.
+func (r *StatusReporter) SetReleaseVersion(version string) {
+	r.config.ReleaseVersion = version
+}
+
+// SetRelatedObjects sets the configured related objects.
+func (r *StatusReporter) SetRelatedObjects(objs []configv1.ObjectReference) {
+	r.config.RelatedObjects = objs
+}
+
+// AddRelatedObjects adds to the list of related objects.
+func (r *StatusReporter) AddRelatedObjects(objs []configv1.ObjectReference) {
+	for _, obj := range objs {
+		r.config.RelatedObjects = append(r.config.RelatedObjects, obj)
+	}
+}
+
+// GetClusterOperator fetches the the operator's ClusterOperator object.
+func (r *StatusReporter) GetClusterOperator() (*configv1.ClusterOperator, error) {
+	return r.configClient.ConfigV1().ClusterOperators().Get(OperatorName, metav1.GetOptions{})
 }
 
 // GetOrCreateClusterOperator gets, or if necessary, creates the
@@ -66,182 +92,225 @@ func (r *StatusReporter) GetOrCreateClusterOperator() (*configv1.ClusterOperator
 		},
 	}
 
-	existing, err := r.client.ConfigV1().ClusterOperators().
-		Get(OperatorName, metav1.GetOptions{})
+	existing, err := r.GetClusterOperator()
 
 	if errors.IsNotFound(err) {
-		return r.client.ConfigV1().ClusterOperators().Create(clusterOperator)
+		return r.configClient.ConfigV1().ClusterOperators().Create(clusterOperator)
 	}
 
 	return existing, err
 }
 
-// ApplyConditions applies the given conditions to the ClusterOperator
-// resource's status.
-func (r *StatusReporter) ApplyConditions(conds []configv1.ClusterOperatorStatusCondition, reachedLevel bool) error {
-	status := configv1.ClusterOperatorStatus{
-		RelatedObjects: r.relatedObjects,
-	}
-
-	for _, c := range conds {
-		cvorm.SetOperatorStatusCondition(&status.Conditions, c)
-	}
-
-	if reachedLevel {
-		status.Versions = []configv1.OperandVersion{
-			{
-				Name:    "operator",
-				Version: r.releaseVersion,
-			},
-		}
-		glog.Infof("Setting operator version to: %v", r.releaseVersion)
-	} else {
-		status.Versions = nil
-		glog.Info("Setting operator version to nil")
-	}
+// ApplyStatus applies the given ClusterOperator status to the operator's
+// ClusterOperator object if necessary.  The currently configured RelatedObjects
+// are automatically set on the status.  If no ClusterOperator objects exists,
+// one is created.
+func (r *StatusReporter) ApplyStatus(status configv1.ClusterOperatorStatus) error {
+	var modified bool
 
 	co, err := r.GetOrCreateClusterOperator()
 	if err != nil {
 		return err
 	}
 
-	if !equality.Semantic.DeepEqual(co.Status, status) {
-		glog.Info("operator status not current; Updating operator")
-		co.Status = status
-		_, err = r.client.ConfigV1().ClusterOperators().UpdateStatus(co)
+	// Set the currently configured related objects.
+	status.RelatedObjects = r.config.RelatedObjects
+
+	// If no versions were set explicitly, continue reporting previous versions.
+	if status.Versions == nil {
+		status.Versions = co.Status.Versions
 	}
 
-	return err
+	// Update LastTransitionTime for all conditions if necessary.
+	for i := range status.Conditions {
+		condType := status.Conditions[i].Type
+		timestamp := metav1.NewTime(time.Now())
+
+		c := cvorm.FindOperatorStatusCondition(co.Status.Conditions, condType)
+
+		// If found, and status doesn't match, update.
+		if c != nil && c.Status != status.Conditions[i].Status {
+			status.Conditions[i].LastTransitionTime = timestamp
+		}
+
+		// If found, and status matches, copy previous.
+		if c != nil && c.Status == status.Conditions[i].Status {
+			status.Conditions[i].LastTransitionTime = c.LastTransitionTime
+		}
+
+		// If it's still nil, update it.
+		if status.Conditions[i].LastTransitionTime.IsZero() {
+			status.Conditions[i].LastTransitionTime = timestamp
+		}
+	}
+
+	// Copy the current ClusterOperator and overwrite the status.
+	requiredCO := &configv1.ClusterOperator{}
+	co.DeepCopyInto(requiredCO)
+	requiredCO.Status = status
+
+	cvorm.EnsureClusterOperatorStatus(&modified, co, *requiredCO)
+
+	if modified {
+		_, err := r.configClient.ConfigV1().ClusterOperators().UpdateStatus(co)
+		return err
+	}
+
+	return nil
 }
 
 // available reports the operator as available, not progressing, and
-// not failing -- optionally setting a reason and message.
+// not failing -- optionally setting a reason and message.  This will
+// update the reported operator version.  It should only be called if
+// the operands are fully updated and available.
 func (r *StatusReporter) available(reason, message string) error {
-	conditions := []configv1.ClusterOperatorStatusCondition{
-		{
-			Type:    configv1.OperatorAvailable,
-			Status:  configv1.ConditionTrue,
-			Reason:  reason,
-			Message: message,
+	status := configv1.ClusterOperatorStatus{
+		Conditions: []configv1.ClusterOperatorStatusCondition{
+			{
+				Type:    configv1.OperatorAvailable,
+				Status:  configv1.ConditionTrue,
+				Reason:  reason,
+				Message: message,
+			},
+			{
+				Type:   configv1.OperatorProgressing,
+				Status: configv1.ConditionFalse,
+			},
+			{
+				Type:   configv1.OperatorFailing,
+				Status: configv1.ConditionFalse,
+			},
 		},
-		{
-			Type:   configv1.OperatorProgressing,
-			Status: configv1.ConditionFalse,
-		},
-		{
-			Type:   configv1.OperatorFailing,
-			Status: configv1.ConditionFalse,
+		Versions: []configv1.OperandVersion{
+			{
+				Name:    "operator",
+				Version: r.config.ReleaseVersion,
+			},
 		},
 	}
-	glog.Info("Setting operator to available")
-	return r.ApplyConditions(conditions, true)
+
+	glog.Infof("Operator status available: %s", message)
+
+	return r.ApplyStatus(status)
 }
 
-// Fail reports the operator as failing but available, and not
+// failing reports the operator as failing but available, and not
 // progressing -- optionally setting a reason and message.
-func (r *StatusReporter) fail(reason, message string) error {
-	conditions := []configv1.ClusterOperatorStatusCondition{
-		{
-			Type:   configv1.OperatorAvailable,
-			Status: configv1.ConditionTrue,
-		},
-		{
-			Type:   configv1.OperatorProgressing,
-			Status: configv1.ConditionFalse,
-		},
-		{
-			Type:    configv1.OperatorFailing,
-			Status:  configv1.ConditionTrue,
-			Reason:  reason,
-			Message: message,
+func (r *StatusReporter) failing(reason, message string) error {
+	status := configv1.ClusterOperatorStatus{
+		Conditions: []configv1.ClusterOperatorStatusCondition{
+			{
+				Type:   configv1.OperatorAvailable,
+				Status: configv1.ConditionTrue,
+			},
+			{
+				Type:   configv1.OperatorProgressing,
+				Status: configv1.ConditionFalse,
+			},
+			{
+				Type:    configv1.OperatorFailing,
+				Status:  configv1.ConditionTrue,
+				Reason:  reason,
+				Message: message,
+			},
 		},
 	}
 
-	return r.ApplyConditions(conditions, false)
-}
+	glog.Warningf("Operator status failing: %s", message)
 
-type AvailableChecker interface {
-	// AvailableAndUpdated returns true if the reconciler reports all
-	// cluster autoscalers are at the latest version.
-	AvailableAndUpdated() (bool, error)
+	return r.ApplyStatus(status)
 }
 
 // progressing reports the operator as progressing but available, and not
 // failing -- optionally setting a reason and message.
-func (r *StatusReporter) progressing() error {
-	glog.Infof("Syncing to version %v", r.releaseVersion)
-	conditions := []configv1.ClusterOperatorStatusCondition{
-		{
-			Type:   configv1.OperatorAvailable,
-			Status: configv1.ConditionTrue,
-		},
-		{
-			Type:    configv1.OperatorProgressing,
-			Status:  configv1.ConditionTrue,
-			Reason:  ReasonSyncing,
-			Message: fmt.Sprintf("Syncing to version %v", r.releaseVersion),
-		},
-		{
-			Type:   configv1.OperatorFailing,
-			Status: configv1.ConditionFalse,
+func (r *StatusReporter) progressing(reason, message string) error {
+	status := configv1.ClusterOperatorStatus{
+		Conditions: []configv1.ClusterOperatorStatusCondition{
+			{
+				Type:   configv1.OperatorAvailable,
+				Status: configv1.ConditionTrue,
+			},
+			{
+				Type:    configv1.OperatorProgressing,
+				Status:  configv1.ConditionTrue,
+				Reason:  reason,
+				Message: message,
+			},
+			{
+				Type:   configv1.OperatorFailing,
+				Status: configv1.ConditionFalse,
+			},
 		},
 	}
 
-	return r.ApplyConditions(conditions, false)
+	glog.Infof("Operator status progressing: %s", message)
+
+	return r.ApplyStatus(status)
 }
 
-// applyStatusInterface required here for test coverage of critical code.
-// In actual operation, we are passing in StatusReporter.
-func applyStatus(r applyStatusInterface, check AvailableChecker) (bool, error) {
-	ok, err := r.checkMachineAPI()
-	if err != nil {
-		r.fail(ReasonMissingDependency, fmt.Sprintf("error checking machine-api operator status %v", err))
-		return false, nil
-	}
-	if !ok {
-		r.fail(ReasonMissingDependency, "machine-api operator not ready")
-		return false, nil
-	}
-	ok, err = check.AvailableAndUpdated()
-	if err != nil {
-		r.fail(ReasonCheckAutoscaler, fmt.Sprintf("error checking autoscaler operator status: %v", err))
-		return false, nil
-	}
-	if !ok {
-		r.progressing()
-		return false, nil
-	}
-
-	err = r.available(ReasonEmpty, "")
-	if err != nil {
-		return false, nil
-	}
-	return true, nil
-}
-
-// Report checks the status of dependencies and reports the operator's
-// status. It will poll until stopCh is closed or prerequisites are
-// satisfied, in which case it will report the operator as available
-// and return. check is used to verify that the reconciler has reached
-// the desired state.
-func (r *StatusReporter) Report(stopCh <-chan struct{}, check AvailableChecker) error {
+// Start checks the status of dependencies and reports the operator's status. It
+// will poll until stopCh is closed or prerequisites are satisfied, in which
+// case it will report the operator as available the configured version and wait
+// for stopCh to close before returning.
+func (r *StatusReporter) Start(stopCh <-chan struct{}) error {
 	interval := 15 * time.Second
 
 	// Poll the status of our prerequisites and set our status
 	// accordingly.  Rather than return errors and stop polling, most
 	// errors here should just be reported in the status message.
 	pollFunc := func() (bool, error) {
-		return applyStatus(r, check)
+		return r.ReportStatus()
 	}
 
-	return wait.PollImmediateUntil(interval, pollFunc, stopCh)
+	err := wait.PollImmediateUntil(interval, pollFunc, stopCh)
+
+	// Block until the stop channel is closed.
+	<-stopCh
+
+	return err
 }
 
-// checkMachineAPI checks the status of the machine-api-operator as
+// ReportStatus checks the status of each dependency and operand and reports the
+// appropriate status via the operator's ClusterOperator object.
+func (r *StatusReporter) ReportStatus() (bool, error) {
+	// Check that the machine-api-operator is reporting available.
+	ok, err := r.CheckMachineAPI()
+	if err != nil {
+		msg := fmt.Sprintf("error checking machine-api status: %v", err)
+		r.failing(ReasonMissingDependency, msg)
+		return false, nil
+	}
+
+	if !ok {
+		r.failing(ReasonMissingDependency, "machine-api not ready")
+		return false, nil
+	}
+
+	// Check that any CluterAutoscaler deployments are updated and available.
+	ok, err = r.CheckClusterAutoscaler()
+	if err != nil {
+		msg := fmt.Sprintf("error checking autoscaler status: %v", err)
+		r.failing(ReasonCheckAutoscaler, msg)
+		return false, nil
+	}
+
+	if !ok {
+		msg := fmt.Sprintf("updating to %s", r.config.ReleaseVersion)
+		r.progressing(ReasonSyncing, msg)
+		return false, nil
+	}
+
+	msg := fmt.Sprintf("at version %s", r.config.ReleaseVersion)
+	r.available(ReasonEmpty, msg)
+
+	return true, nil
+}
+
+// CheckMachineAPI checks the status of the machine-api-operator as
 // reported to the CVO.  It returns true if the operator is available
 // and not failing.
-func (r *StatusReporter) checkMachineAPI() (bool, error) {
-	mao, err := r.client.ConfigV1().ClusterOperators().
+func (r *StatusReporter) CheckMachineAPI() (bool, error) {
+	mao, err := r.configClient.ConfigV1().ClusterOperators().
 		Get("machine-api", metav1.GetOptions{})
 
 	if err != nil {
@@ -258,4 +327,52 @@ func (r *StatusReporter) checkMachineAPI() (bool, error) {
 
 	glog.Infof("machine-api-operator not ready yet")
 	return false, nil
+}
+
+// CheckClusterAutoscaler checks the status of any cluster-autoscaler
+// deployments. It returns a bool indicating whether the deployments are
+// available and fully updated to the latest version and an error.
+func (r *StatusReporter) CheckClusterAutoscaler() (bool, error) {
+	ca := &autoscalingv1alpha1.ClusterAutoscaler{}
+	caName := client.ObjectKey{Name: r.config.ClusterAutoscalerName}
+
+	if err := r.client.Get(context.TODO(), caName, ca); err != nil {
+		if errors.IsNotFound(err) {
+			glog.Info("No ClusterAutoscaler. Reporting available.")
+			return true, nil
+		}
+
+		glog.Errorf("Error getting ClusterAutoscaler: %v", err)
+		return false, err
+	}
+
+	deployment := &appsv1.Deployment{}
+	deploymentName := client.ObjectKey{
+		Name:      fmt.Sprintf("%s-%s", OperatorName, r.config.ClusterAutoscalerName),
+		Namespace: r.config.ClusterAutoscalerNamespace,
+	}
+
+	if err := r.client.Get(context.TODO(), deploymentName, deployment); err != nil {
+		if errors.IsNotFound(err) {
+			glog.Info("No ClusterAutoscaler deployment. Reporting unavailable.")
+			return false, nil
+		}
+
+		glog.Errorf("Error getting ClusterAutoscaler deployment: %v", err)
+		return false, err
+	}
+
+	if !util.ReleaseVersionMatches(deployment, r.config.ReleaseVersion) {
+		glog.Info("ClusterAutoscaler deployment version not current.")
+		return false, nil
+	}
+
+	if !util.DeploymentUpdated(deployment) {
+		glog.Info("ClusterAutoscaler deployment updating.")
+		return false, nil
+	}
+
+	glog.Info("ClusterAutoscaler deployment is available and updated.")
+
+	return true, nil
 }

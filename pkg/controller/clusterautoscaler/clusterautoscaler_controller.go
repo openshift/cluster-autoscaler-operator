@@ -6,6 +6,7 @@ import (
 
 	"github.com/golang/glog"
 	autoscalingv1alpha1 "github.com/openshift/cluster-autoscaler-operator/pkg/apis/autoscaling/v1alpha1"
+	"github.com/openshift/cluster-autoscaler-operator/pkg/util"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
@@ -27,7 +28,6 @@ import (
 
 const (
 	controllerName      = "cluster-autoscaler-controller"
-	criticalPod         = "scheduler.alpha.kubernetes.io/critical-pod"
 	caServiceAccount    = "cluster-autoscaler"
 	caPriorityClassName = "system-cluster-critical"
 )
@@ -183,38 +183,6 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 	return reconcile.Result{}, nil
 }
 
-// AvailableAndUpdated returns true if all cluster autoscalers are running and at the latest version
-// as defined by the operator.
-func (r *Reconciler) AvailableAndUpdated() (bool, error) {
-	ca := &autoscalingv1alpha1.ClusterAutoscaler{}
-	err := r.client.Get(context.TODO(), types.NamespacedName{Namespace: r.config.Namespace, Name: r.config.Name}, ca)
-	if err != nil {
-		if errors.IsNotFound(err) {
-			// no CA, do nothing
-			glog.Infof("Did not find existing ca: %v %v", r.config.Namespace, r.config.Name)
-			return true, nil
-		}
-		return false, err
-	}
-	dep, err := r.GetAutoscaler(ca)
-	if err != nil {
-		if errors.IsNotFound(err) {
-			// waiting for deployment to be created
-			return false, nil
-		}
-		return false, err
-	}
-	if dep.ObjectMeta.Annotations["release.openshift.io/version"] != r.config.ReleaseVersion {
-		// still haven't synced the release version
-		return false, nil
-	}
-	if dep.Status.ObservedGeneration < dep.Generation || dep.Status.UpdatedReplicas != dep.Status.Replicas || dep.Status.AvailableReplicas == 0 {
-		// deployment hasn't rolled out a new controller or we still have the old version hanging around
-		return false, nil
-	}
-	return true, nil
-}
-
 // SetConfig sets the given config on the reconciler.
 func (r *Reconciler) SetConfig(cfg *Config) {
 	r.config = cfg
@@ -259,12 +227,17 @@ func (r *Reconciler) UpdateAutoscaler(ca *autoscalingv1alpha1.ClusterAutoscaler)
 	existingSpec := existingDeployment.Spec.Template.Spec
 	expectedSpec := r.AutoscalerPodSpec(ca)
 
-	// Only comparing podSpec for now.
-	if equality.Semantic.DeepEqual(existingSpec, expectedSpec) {
+	// Only comparing podSpec and release version for now.
+	if equality.Semantic.DeepEqual(existingSpec, expectedSpec) &&
+		util.ReleaseVersionMatches(ca, r.config.ReleaseVersion) {
 		return nil
 	}
 
 	existingDeployment.Spec.Template.Spec = *expectedSpec
+
+	r.UpdateAnnotations(existingDeployment)
+	r.UpdateAnnotations(&existingDeployment.Spec.Template)
+
 	return r.client.Update(context.TODO(), existingDeployment)
 }
 
@@ -290,6 +263,21 @@ func (r *Reconciler) AutoscalerName(ca *autoscalingv1alpha1.ClusterAutoscaler) t
 	}
 }
 
+// UpdateAnnotations updates the annoations on the given object to the values
+// currently expected by the controller.
+func (r *Reconciler) UpdateAnnotations(obj metav1.Object) {
+	annotations := obj.GetAnnotations()
+
+	if annotations == nil {
+		annotations = map[string]string{}
+	}
+
+	annotations[util.CriticalPodAnnotation] = ""
+	annotations[util.ReleaseVersionAnnotation] = r.config.ReleaseVersion
+
+	obj.SetAnnotations(annotations)
+}
+
 // AutoscalerDeployment returns the expected deployment belonging to the given
 // ClusterAutoscaler.
 func (r *Reconciler) AutoscalerDeployment(ca *autoscalingv1alpha1.ClusterAutoscaler) *appsv1.Deployment {
@@ -301,8 +289,8 @@ func (r *Reconciler) AutoscalerDeployment(ca *autoscalingv1alpha1.ClusterAutosca
 	}
 
 	annotations := map[string]string{
-		criticalPod:                    "",
-		"release.openshift.io/version": r.config.ReleaseVersion,
+		util.CriticalPodAnnotation:    "",
+		util.ReleaseVersionAnnotation: r.config.ReleaseVersion,
 	}
 
 	podSpec := r.AutoscalerPodSpec(ca)
