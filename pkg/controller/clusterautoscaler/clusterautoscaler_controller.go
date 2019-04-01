@@ -269,7 +269,7 @@ func (r *Reconciler) AutoscalerName(ca *autoscalingv1alpha1.ClusterAutoscaler) t
 	}
 }
 
-// UpdateAnnotations updates the annoations on the given object to the values
+// UpdateAnnotations updates the annotations on the given object to the values
 // currently expected by the controller.
 func (r *Reconciler) UpdateAnnotations(obj metav1.Object) {
 	annotations := obj.GetAnnotations()

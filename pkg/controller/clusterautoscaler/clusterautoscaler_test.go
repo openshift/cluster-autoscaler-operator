@@ -8,6 +8,7 @@ import (
 	"github.com/openshift/cluster-autoscaler-operator/pkg/apis"
 	autoscalingv1alpha1 "github.com/openshift/cluster-autoscaler-operator/pkg/apis/autoscaling/v1alpha1"
 	"github.com/openshift/cluster-autoscaler-operator/pkg/util"
+	"github.com/openshift/cluster-autoscaler-operator/test/helpers"
 	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -22,9 +23,10 @@ import (
 )
 
 const (
-	NvidiaGPU         = "nvidia.com/gpu"
-	TestNamespace     = "test-namespace"
-	TestCloudProvider = "testProvider"
+	NvidiaGPU          = "nvidia.com/gpu"
+	TestNamespace      = "test-namespace"
+	TestCloudProvider  = "testProvider"
+	TestReleaseVersion = "v100"
 )
 
 var (
@@ -42,10 +44,10 @@ var (
 )
 
 var TestReconcilerConfig = &Config{
-	ReleaseVersion: "v100",
 	Name:           "test",
 	Namespace:      TestNamespace,
 	CloudProvider:  TestCloudProvider,
+	ReleaseVersion: TestReleaseVersion,
 	Image:          "test/test:v100",
 	Replicas:       10,
 	Verbosity:      10,
@@ -296,6 +298,65 @@ func TestObjectReference(t *testing.T) {
 
 			if !equality.Semantic.DeepEqual(tc.reference, ref) {
 				t.Errorf("got %v, want %v", ref, tc.reference)
+			}
+		})
+	}
+}
+
+func TestUpdateAnnotations(t *testing.T) {
+	deployment := helpers.NewTestDeployment(&appsv1.Deployment{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "apps/v1",
+			Kind:       "Deployment",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test",
+			Namespace: "test-namespace",
+		},
+	})
+
+	expected := map[string]string{
+		util.CriticalPodAnnotation:    "",
+		util.ReleaseVersionAnnotation: TestReleaseVersion,
+	}
+
+	testCases := []struct {
+		label  string
+		object metav1.Object
+	}{
+		{
+			label:  "no prior annotations",
+			object: deployment.DeploymentCopy(),
+		},
+		{
+			label: "missing version annotation",
+			object: deployment.WithAnnotations(map[string]string{
+				util.CriticalPodAnnotation: "",
+			}),
+		},
+		{
+			label: "missing critical-pod annotation",
+			object: deployment.WithAnnotations(map[string]string{
+				util.ReleaseVersionAnnotation: TestReleaseVersion,
+			}),
+		},
+		{
+			label: "old version annotation",
+			object: deployment.WithAnnotations(map[string]string{
+				util.ReleaseVersionAnnotation: "vOLD",
+			}),
+		},
+	}
+
+	r := newFakeReconciler()
+
+	for _, tc := range testCases {
+		t.Run(tc.label, func(t *testing.T) {
+			r.UpdateAnnotations(tc.object)
+
+			got := tc.object.GetAnnotations()
+			if !equality.Semantic.DeepEqual(got, expected) {
+				t.Errorf("got %v, want %v", got, expected)
 			}
 		})
 	}
