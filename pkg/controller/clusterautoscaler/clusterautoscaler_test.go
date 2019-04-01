@@ -10,6 +10,8 @@ import (
 	"github.com/openshift/cluster-autoscaler-operator/pkg/util"
 	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/equality"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -21,7 +23,7 @@ import (
 
 const (
 	NvidiaGPU         = "nvidia.com/gpu"
-	TestNamespace     = "test"
+	TestNamespace     = "test-namespace"
 	TestCloudProvider = "testProvider"
 )
 
@@ -38,6 +40,16 @@ var (
 	NvidiaGPUMin           int32 = 4
 	NvidiaGPUMax           int32 = 8
 )
+
+var TestReconcilerConfig = &Config{
+	ReleaseVersion: "v100",
+	Name:           "test",
+	Namespace:      TestNamespace,
+	CloudProvider:  TestCloudProvider,
+	Image:          "test/test:v100",
+	Replicas:       10,
+	Verbosity:      10,
+}
 
 func init() {
 	apis.AddToScheme(scheme.Scheme)
@@ -151,6 +163,7 @@ func newFakeReconciler(initObjects ...runtime.Object) *Reconciler {
 		client:   fakeClient,
 		scheme:   scheme.Scheme,
 		recorder: record.NewFakeRecorder(128),
+		config:   TestReconcilerConfig,
 	}
 }
 
@@ -224,5 +237,66 @@ func TestReconcile(t *testing.T) {
 		res, err := r.Reconcile(req)
 		assert.Equal(t, tc.expectedRes, res, "case %v: expected res incorrect", i)
 		assert.Equal(t, tc.expectedError, err, "case %v: expected err incorrect", i)
+	}
+}
+
+func TestObjectReference(t *testing.T) {
+	testCases := []struct {
+		label     string
+		object    runtime.Object
+		reference *corev1.ObjectReference
+	}{
+		{
+			label: "no namespace",
+			object: &autoscalingv1alpha1.ClusterAutoscaler{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "ClusterAutoscaler",
+					APIVersion: "autoscaling.openshift.io/v1alpha1",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "cluster-scoped",
+				},
+			},
+			reference: &corev1.ObjectReference{
+				Kind:       "ClusterAutoscaler",
+				APIVersion: "autoscaling.openshift.io/v1alpha1",
+				Name:       "cluster-scoped",
+				Namespace:  TestNamespace,
+			},
+		},
+		{
+			label: "existing namespace",
+			object: &autoscalingv1alpha1.ClusterAutoscaler{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "ClusterAutoscaler",
+					APIVersion: "autoscaling.openshift.io/v1alpha1",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "cluster-scoped",
+					Namespace: "should-not-change",
+				},
+			},
+			reference: &corev1.ObjectReference{
+				Kind:       "ClusterAutoscaler",
+				APIVersion: "autoscaling.openshift.io/v1alpha1",
+				Name:       "cluster-scoped",
+				Namespace:  "should-not-change",
+			},
+		},
+	}
+
+	r := newFakeReconciler()
+
+	for _, tc := range testCases {
+		t.Run(tc.label, func(t *testing.T) {
+			ref := r.objectReference(tc.object)
+			if ref == nil {
+				t.Error("could not create object reference")
+			}
+
+			if !equality.Semantic.DeepEqual(tc.reference, ref) {
+				t.Errorf("got %v, want %v", ref, tc.reference)
+			}
+		})
 	}
 }

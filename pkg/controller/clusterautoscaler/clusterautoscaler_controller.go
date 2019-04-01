@@ -15,6 +15,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
+	"k8s.io/client-go/tools/reference"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -143,10 +144,15 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 		return reconcile.Result{}, err
 	}
 
+	// caRef is a reference to the ClusterAutoscaler object, but with the
+	// namespace for cluster-autoscaler deployments set.  This keeps events
+	// generated for these cluster scoped objects out of the default namespace.
+	caRef := r.objectReference(ca)
+
 	_, err = r.GetAutoscaler(ca)
 	if err != nil && !errors.IsNotFound(err) {
 		errMsg := fmt.Sprintf("Error getting cluster-autoscaler deployment: %v", err)
-		r.recorder.Event(ca, corev1.EventTypeWarning, "FailedGetDeployment", errMsg)
+		r.recorder.Event(caRef, corev1.EventTypeWarning, "FailedGetDeployment", errMsg)
 		glog.Error(errMsg)
 
 		return reconcile.Result{}, err
@@ -155,14 +161,14 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 	if errors.IsNotFound(err) {
 		if err := r.CreateAutoscaler(ca); err != nil {
 			errMsg := fmt.Sprintf("Error creating ClusterAutoscaler deployment: %v", err)
-			r.recorder.Event(ca, corev1.EventTypeWarning, "FailedCreate", errMsg)
+			r.recorder.Event(caRef, corev1.EventTypeWarning, "FailedCreate", errMsg)
 			glog.Error(errMsg)
 
 			return reconcile.Result{}, err
 		}
 
 		msg := fmt.Sprintf("Created ClusterAutoscaler deployment: %s", r.AutoscalerName(ca))
-		r.recorder.Eventf(ca, corev1.EventTypeNormal, "SuccessfulCreate", msg)
+		r.recorder.Eventf(caRef, corev1.EventTypeNormal, "SuccessfulCreate", msg)
 		glog.Info(msg)
 
 		return reconcile.Result{}, nil
@@ -170,14 +176,14 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 
 	if err := r.UpdateAutoscaler(ca); err != nil {
 		errMsg := fmt.Sprintf("Error updating cluster-autoscaler deployment: %v", err)
-		r.recorder.Event(ca, corev1.EventTypeWarning, "FailedUpdate", errMsg)
+		r.recorder.Event(caRef, corev1.EventTypeWarning, "FailedUpdate", errMsg)
 		glog.Error(errMsg)
 
 		return reconcile.Result{}, err
 	}
 
 	msg := fmt.Sprintf("Updated ClusterAutoscaler deployment: %s", r.AutoscalerName(ca))
-	r.recorder.Eventf(ca, corev1.EventTypeNormal, "SuccessfulUpdate", msg)
+	r.recorder.Eventf(caRef, corev1.EventTypeNormal, "SuccessfulUpdate", msg)
 	glog.Info(msg)
 
 	return reconcile.Result{}, nil
@@ -362,4 +368,22 @@ func (r *Reconciler) AutoscalerPodSpec(ca *autoscalingv1alpha1.ClusterAutoscaler
 	}
 
 	return spec
+}
+
+// objectReference returns a reference to the given object, but will set the
+// configured deployment namesapce if no namespace was previously set.  This is
+// useful for referencing cluster scoped objects in events without the events
+// being created in the default namespace.
+func (r *Reconciler) objectReference(obj runtime.Object) *corev1.ObjectReference {
+	ref, err := reference.GetReference(r.scheme, obj)
+	if err != nil {
+		glog.Errorf("Error creating object reference: %v", err)
+		return nil
+	}
+
+	if ref != nil && ref.Namespace == "" {
+		ref.Namespace = r.config.Namespace
+	}
+
+	return ref
 }
