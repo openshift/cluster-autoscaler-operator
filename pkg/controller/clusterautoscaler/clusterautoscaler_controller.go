@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/golang/glog"
 	autoscalingv1alpha1 "github.com/openshift/cluster-autoscaler-operator/pkg/apis/autoscaling/v1alpha1"
 	"github.com/openshift/cluster-autoscaler-operator/pkg/util"
 	appsv1 "k8s.io/api/apps/v1"
@@ -16,6 +15,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/tools/reference"
+	"k8s.io/klog"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -124,7 +124,7 @@ func (r *Reconciler) AddToManager(mgr manager.Manager) error {
 // object and makes changes based on the state read and what is in the
 // ClusterAutoscaler.Spec
 func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, error) {
-	glog.Infof("Reconciling ClusterAutoscaler %s\n", request.Name)
+	klog.Infof("Reconciling ClusterAutoscaler %s\n", request.Name)
 
 	// Fetch the ClusterAutoscaler instance
 	ca := &autoscalingv1alpha1.ClusterAutoscaler{}
@@ -135,12 +135,12 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 			// reconcile request.  Owned objects are automatically
 			// garbage collected. For additional cleanup logic use
 			// finalizers.  Return and don't requeue.
-			glog.Infof("ClusterAutoscaler %s not found, will not reconcile", request.Name)
+			klog.Infof("ClusterAutoscaler %s not found, will not reconcile", request.Name)
 			return reconcile.Result{}, nil
 		}
 
 		// Error reading the object - requeue the request.
-		glog.Errorf("Error reading ClusterAutoscaler: %v", err)
+		klog.Errorf("Error reading ClusterAutoscaler: %v", err)
 		return reconcile.Result{}, err
 	}
 
@@ -153,7 +153,7 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 	if err != nil && !errors.IsNotFound(err) {
 		errMsg := fmt.Sprintf("Error getting cluster-autoscaler deployment: %v", err)
 		r.recorder.Event(caRef, corev1.EventTypeWarning, "FailedGetDeployment", errMsg)
-		glog.Error(errMsg)
+		klog.Error(errMsg)
 
 		return reconcile.Result{}, err
 	}
@@ -162,14 +162,14 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 		if err := r.CreateAutoscaler(ca); err != nil {
 			errMsg := fmt.Sprintf("Error creating ClusterAutoscaler deployment: %v", err)
 			r.recorder.Event(caRef, corev1.EventTypeWarning, "FailedCreate", errMsg)
-			glog.Error(errMsg)
+			klog.Error(errMsg)
 
 			return reconcile.Result{}, err
 		}
 
 		msg := fmt.Sprintf("Created ClusterAutoscaler deployment: %s", r.AutoscalerName(ca))
 		r.recorder.Eventf(caRef, corev1.EventTypeNormal, "SuccessfulCreate", msg)
-		glog.Info(msg)
+		klog.Info(msg)
 
 		return reconcile.Result{}, nil
 	}
@@ -177,14 +177,14 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 	if err := r.UpdateAutoscaler(ca); err != nil {
 		errMsg := fmt.Sprintf("Error updating cluster-autoscaler deployment: %v", err)
 		r.recorder.Event(caRef, corev1.EventTypeWarning, "FailedUpdate", errMsg)
-		glog.Error(errMsg)
+		klog.Error(errMsg)
 
 		return reconcile.Result{}, err
 	}
 
 	msg := fmt.Sprintf("Updated ClusterAutoscaler deployment: %s", r.AutoscalerName(ca))
 	r.recorder.Eventf(caRef, corev1.EventTypeNormal, "SuccessfulUpdate", msg)
-	glog.Info(msg)
+	klog.Info(msg)
 
 	return reconcile.Result{}, nil
 }
@@ -200,7 +200,7 @@ func (r *Reconciler) SetConfig(cfg *Config) {
 func (r *Reconciler) NamePredicate(meta metav1.Object) bool {
 	// Only process events for objects matching the configured resource name.
 	if meta.GetName() != r.config.Name {
-		glog.Warningf("Not processing ClusterAutoscaler %s", meta.GetName())
+		klog.Warningf("Not processing ClusterAutoscaler %s", meta.GetName())
 		return false
 	}
 
@@ -210,7 +210,7 @@ func (r *Reconciler) NamePredicate(meta metav1.Object) bool {
 // CreateAutoscaler will create the deployment for the given the
 // ClusterAutoscaler custom resource instance.
 func (r *Reconciler) CreateAutoscaler(ca *autoscalingv1alpha1.ClusterAutoscaler) error {
-	glog.Infof("Creating ClusterAutoscaler deployment: %s\n", r.AutoscalerName(ca))
+	klog.Infof("Creating ClusterAutoscaler deployment: %s\n", r.AutoscalerName(ca))
 
 	deployment := r.AutoscalerDeployment(ca)
 
@@ -377,7 +377,7 @@ func (r *Reconciler) AutoscalerPodSpec(ca *autoscalingv1alpha1.ClusterAutoscaler
 func (r *Reconciler) objectReference(obj runtime.Object) *corev1.ObjectReference {
 	ref, err := reference.GetReference(r.scheme, obj)
 	if err != nil {
-		glog.Errorf("Error creating object reference: %v", err)
+		klog.Errorf("Error creating object reference: %v", err)
 		return nil
 	}
 
