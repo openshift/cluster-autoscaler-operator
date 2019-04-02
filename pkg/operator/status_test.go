@@ -9,6 +9,7 @@ import (
 	"github.com/openshift/cluster-autoscaler-operator/pkg/apis"
 	autoscalingv1alpha1 "github.com/openshift/cluster-autoscaler-operator/pkg/apis/autoscaling/v1alpha1"
 	"github.com/openshift/cluster-autoscaler-operator/pkg/util"
+	"github.com/openshift/cluster-autoscaler-operator/test/helpers"
 	cvorm "github.com/openshift/cluster-version-operator/lib/resourcemerge"
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
@@ -107,7 +108,7 @@ var clusterAutoscaler = &autoscalingv1alpha1.ClusterAutoscaler{
 
 // machineAPI is a ClusterOperator object representing the status of a mock
 // machine-api-operator.
-var machineAPI = NewTestClusterOperator(&configv1.ClusterOperator{
+var machineAPI = helpers.NewTestClusterOperator(&configv1.ClusterOperator{
 	TypeMeta: metav1.TypeMeta{
 		Kind:       "ClusterOperator",
 		APIVersion: "config.openshift.io/v1",
@@ -118,7 +119,7 @@ var machineAPI = NewTestClusterOperator(&configv1.ClusterOperator{
 })
 
 // deployment represents the default ClusterAutoscaler deployment object.
-var deployment = NewTestDeployment(&appsv1.Deployment{
+var deployment = helpers.NewTestDeployment(&appsv1.Deployment{
 	TypeMeta: metav1.TypeMeta{
 		Kind:       "Deployment",
 		APIVersion: "apps/v1",
@@ -136,78 +137,6 @@ var deployment = NewTestDeployment(&appsv1.Deployment{
 		Replicas:          1,
 	},
 })
-
-// TestDeployment wraps the appsv1.Deployment type to add helper methods.
-type TestDeployment struct {
-	appsv1.Deployment
-}
-
-// NewTestDeployment returns a new TestDeployment wrapping the given
-// appsv1.Deployment object.
-func NewTestDeployment(dep *appsv1.Deployment) *TestDeployment {
-	return &TestDeployment{Deployment: *dep}
-}
-
-// DeploymentCopy returns a deep copy of the wrapped appsv1.Deployment object.
-func (d *TestDeployment) DeploymentCopy() *appsv1.Deployment {
-	newDeployment := &appsv1.Deployment{}
-	d.Deployment.DeepCopyInto(newDeployment)
-
-	return newDeployment
-}
-
-// WithAvailableReplicas returns a copy of the wrapped appsv1.Deployment object
-// with the AvailableReplicas set to the given value.
-func (d *TestDeployment) WithAvailableReplicas(n int32) *appsv1.Deployment {
-	newDeployment := d.DeploymentCopy()
-	newDeployment.Status.AvailableReplicas = n
-
-	return newDeployment
-}
-
-// WithReleaseVersion returns a copy of the wrapped appsv1.Deployment object
-// with the release version annotation set to the given value.
-func (d *TestDeployment) WithReleaseVersion(v string) *appsv1.Deployment {
-	newDeployment := d.DeploymentCopy()
-	annotations := newDeployment.GetAnnotations()
-
-	if annotations == nil {
-		annotations = map[string]string{}
-	}
-
-	annotations[util.ReleaseVersionAnnotation] = v
-	newDeployment.SetAnnotations(annotations)
-
-	return newDeployment
-}
-
-// TestClusterOperator wraps the ClusterOperator type to add helper methods.
-type TestClusterOperator struct {
-	configv1.ClusterOperator
-}
-
-// NewTestClusterOperator returns a new TestDeployment wrapping the given
-// OpenShift ClusterOperator object.
-func NewTestClusterOperator(co *configv1.ClusterOperator) *TestClusterOperator {
-	return &TestClusterOperator{ClusterOperator: *co}
-}
-
-// ClusterOperatorCopy returns a deep copy of the wrapped object.
-func (co *TestClusterOperator) ClusterOperatorCopy() *configv1.ClusterOperator {
-	newCO := &configv1.ClusterOperator{}
-	co.ClusterOperator.DeepCopyInto(newCO)
-
-	return newCO
-}
-
-// WithConditions returns a copy of the wrapped ClusterOperator object with the
-// status conditions set to the given list.
-func (co *TestClusterOperator) WithConditions(conds []configv1.ClusterOperatorStatusCondition) *configv1.ClusterOperator {
-	newCO := co.ClusterOperatorCopy()
-	newCO.Status.Conditions = conds
-
-	return newCO
-}
 
 func TestCheckMachineAPI(t *testing.T) {
 	testCases := []struct {
