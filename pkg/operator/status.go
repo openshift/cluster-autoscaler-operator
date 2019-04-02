@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/golang/glog"
 	configv1 "github.com/openshift/api/config/v1"
 	osconfig "github.com/openshift/client-go/config/clientset/versioned"
 	autoscalingv1alpha1 "github.com/openshift/cluster-autoscaler-operator/pkg/apis/autoscaling/v1alpha1"
@@ -15,6 +14,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/klog"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 )
@@ -189,7 +189,7 @@ func (r *StatusReporter) available(reason, message string) error {
 		},
 	}
 
-	glog.Infof("Operator status available: %s", message)
+	klog.Infof("Operator status available: %s", message)
 
 	return r.ApplyStatus(status)
 }
@@ -216,7 +216,7 @@ func (r *StatusReporter) failing(reason, message string) error {
 		},
 	}
 
-	glog.Warningf("Operator status failing: %s", message)
+	klog.Warningf("Operator status failing: %s", message)
 
 	return r.ApplyStatus(status)
 }
@@ -243,7 +243,7 @@ func (r *StatusReporter) progressing(reason, message string) error {
 		},
 	}
 
-	glog.Infof("Operator status progressing: %s", message)
+	klog.Infof("Operator status progressing: %s", message)
 
 	return r.ApplyStatus(status)
 }
@@ -314,7 +314,7 @@ func (r *StatusReporter) CheckMachineAPI() (bool, error) {
 		Get("machine-api", metav1.GetOptions{})
 
 	if err != nil {
-		glog.Errorf("failed to get dependency machine-api status: %v", err)
+		klog.Errorf("failed to get dependency machine-api status: %v", err)
 		return false, err
 	}
 
@@ -325,7 +325,7 @@ func (r *StatusReporter) CheckMachineAPI() (bool, error) {
 		return true, nil
 	}
 
-	glog.Infof("machine-api-operator not ready yet")
+	klog.Infof("machine-api-operator not ready yet")
 	return false, nil
 }
 
@@ -338,11 +338,11 @@ func (r *StatusReporter) CheckClusterAutoscaler() (bool, error) {
 
 	if err := r.client.Get(context.TODO(), caName, ca); err != nil {
 		if errors.IsNotFound(err) {
-			glog.Info("No ClusterAutoscaler. Reporting available.")
+			klog.Info("No ClusterAutoscaler. Reporting available.")
 			return true, nil
 		}
 
-		glog.Errorf("Error getting ClusterAutoscaler: %v", err)
+		klog.Errorf("Error getting ClusterAutoscaler: %v", err)
 		return false, err
 	}
 
@@ -354,25 +354,25 @@ func (r *StatusReporter) CheckClusterAutoscaler() (bool, error) {
 
 	if err := r.client.Get(context.TODO(), deploymentName, deployment); err != nil {
 		if errors.IsNotFound(err) {
-			glog.Info("No ClusterAutoscaler deployment. Reporting unavailable.")
+			klog.Info("No ClusterAutoscaler deployment. Reporting unavailable.")
 			return false, nil
 		}
 
-		glog.Errorf("Error getting ClusterAutoscaler deployment: %v", err)
+		klog.Errorf("Error getting ClusterAutoscaler deployment: %v", err)
 		return false, err
 	}
 
 	if !util.ReleaseVersionMatches(deployment, r.config.ReleaseVersion) {
-		glog.Info("ClusterAutoscaler deployment version not current.")
+		klog.Info("ClusterAutoscaler deployment version not current.")
 		return false, nil
 	}
 
 	if !util.DeploymentUpdated(deployment) {
-		glog.Info("ClusterAutoscaler deployment updating.")
+		klog.Info("ClusterAutoscaler deployment updating.")
 		return false, nil
 	}
 
-	glog.Info("ClusterAutoscaler deployment is available and updated.")
+	klog.Info("ClusterAutoscaler deployment is available and updated.")
 
 	return true, nil
 }

@@ -4,7 +4,7 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/golang/glog"
+	"k8s.io/klog"
 )
 
 const (
@@ -136,7 +136,7 @@ func ConfigFromEnvironment() *Config {
 		le, err := strconv.ParseBool(leaderElection)
 		if err != nil {
 			le = DefaultLeaderElection
-			glog.Errorf("Error parsing LEADER_ELECTION environment variable: %v", err)
+			klog.Errorf("Error parsing LEADER_ELECTION environment variable: %v", err)
 		}
 
 		config.LeaderElection = le
@@ -170,7 +170,7 @@ func ConfigFromEnvironment() *Config {
 		v, err := strconv.Atoi(caVerbosity)
 		if err != nil {
 			v = DefaultClusterAutoscalerVerbosity
-			glog.Errorf("Error parsing CLUSTER_AUTOSCALER_VERBOSITY environment variable: %v", err)
+			klog.Errorf("Error parsing CLUSTER_AUTOSCALER_VERBOSITY environment variable: %v", err)
 		}
 
 		config.ClusterAutoscalerVerbosity = v

@@ -2,8 +2,9 @@ package main
 
 import (
 	"fmt"
-	"github.com/openshift/cluster-autoscaler-operator/pkg/operator"
 	"time"
+
+	"github.com/openshift/cluster-autoscaler-operator/pkg/operator"
 
 	"context"
 
@@ -13,7 +14,7 @@ import (
 	cvorm "github.com/openshift/cluster-version-operator/lib/resourcemerge"
 	kappsapi "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
