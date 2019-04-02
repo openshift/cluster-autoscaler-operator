@@ -363,7 +363,8 @@
   revision = "31ef839c86359881d2c312c4f0131febc6662400"
 
 [[projects]]
-  digest = "1:8dd66f623f950b0b5d91c96e8eb469f4b7eb506c371136ce1e7b4408398cdddb"
+  branch = "openshift-4.0-cluster-api-0.0.0-alpha.4"
+  digest = "1:9b3599b2a72b85979c01c1991927dda9517417e23d72a070fad86b4fbda54bd5"
   name = "github.com/openshift/cluster-api"
   packages = [
     "pkg/apis/cluster/common",
@@ -379,24 +380,24 @@
     "pkg/util",
   ]
   pruneopts = "NT"
-  revision = "0c3e884db79556cf786aa8436f5be977ef10c211"
+  revision = "5e580f96e63e5db1fc8095ca5f587716a4a8d9e9"
 
 [[projects]]
   branch = "master"
-  digest = "1:fda26b4b3cc8dc89575c57b4c141db0cf03051c65a7296e143683e1bd8aa9962"
+  digest = "1:544368f63e290ecf2f94462fba5f5bb924ef00f57ec7ff56698b395653a916f3"
   name = "github.com/openshift/cluster-api-actuator-pkg"
   packages = [
     "pkg/e2e",
-    "pkg/e2e/actuators",
     "pkg/e2e/autoscaler",
     "pkg/e2e/framework",
     "pkg/e2e/infra",
+    "pkg/e2e/machinehealthcheck",
     "pkg/e2e/operators",
     "pkg/manifests",
     "pkg/types",
   ]
   pruneopts = "N"
-  revision = "6da15dab1653f3bc0d878366ce9f7c91e4ba08d0"
+  revision = "acbcbdc39cb8052eaafe69f8faa575e5d991aee4"
 
 [[projects]]
   branch = "master"
@@ -413,6 +414,20 @@
   packages = ["pkg/config/clusteroperator/v1helpers"]
   pruneopts = "NT"
   revision = "0e0c8d01a19e8a9f2e517596557f4494a2490d88"
+
+[[projects]]
+  digest = "1:92a5a6bfc5b3b2cb1189f6408de941646b366cb67a11b3b7513d56ccd7cbd7c0"
+  name = "github.com/openshift/machine-api-operator"
+  packages = [
+    "pkg/apis/healthchecking",
+    "pkg/apis/healthchecking/v1alpha1",
+    "pkg/generated/clientset/versioned",
+    "pkg/generated/clientset/versioned/scheme",
+    "pkg/generated/clientset/versioned/typed/healthchecking/v1alpha1",
+    "pkg/util/conditions",
+  ]
+  pruneopts = "NT"
+  revision = "9650e16c98802a4b57b7551201b0973fcae2f738"
 
 [[projects]]
   digest = "1:93b1d84c5fa6d1ea52f4114c37714cddd84d5b78f151b62bb101128dd51399bf"
@@ -816,6 +831,7 @@
     "pkg/util/mergepatch",
     "pkg/util/naming",
     "pkg/util/net",
+    "pkg/util/rand",
     "pkg/util/runtime",
     "pkg/util/sets",
     "pkg/util/strategicpatch",
@@ -1020,6 +1036,7 @@
     "pkg/client",
     "pkg/client/apiutil",
     "pkg/client/config",
+    "pkg/client/fake",
     "pkg/controller",
     "pkg/controller/controllerutil",
     "pkg/event",
@@ -1047,14 +1064,6 @@
   pruneopts = "NT"
   revision = "c63ebda0bf4be5f0a8abd4003e4ea546032545ba"
 
-[[projects]]
-  digest = "1:8730e0150dfb2b7e173890c8b9868e7a273082ef8e39f4940e3506a481cf895c"
-  name = "sigs.k8s.io/yaml"
-  packages = ["."]
-  pruneopts = "NT"
-  revision = "fd68e9863619f6ec2fdd8625fe1f02e7c877e480"
-  version = "v1.1.0"
-
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
@@ -1068,9 +1077,9 @@
     "github.com/openshift/client-go/config/clientset/versioned",
     "github.com/openshift/client-go/config/clientset/versioned/fake",
     "github.com/openshift/cluster-api-actuator-pkg/pkg/e2e",
-    "github.com/openshift/cluster-api-actuator-pkg/pkg/e2e/actuators",
     "github.com/openshift/cluster-api-actuator-pkg/pkg/e2e/autoscaler",
     "github.com/openshift/cluster-api-actuator-pkg/pkg/e2e/infra",
+    "github.com/openshift/cluster-api-actuator-pkg/pkg/e2e/machinehealthcheck",
     "github.com/openshift/cluster-api-actuator-pkg/pkg/e2e/operators",
     "github.com/openshift/cluster-version-operator/lib/resourcemerge",
     "github.com/stretchr/testify/assert",
@@ -1089,7 +1098,8 @@
     "k8s.io/apimachinery/pkg/util/wait",
     "k8s.io/client-go/kubernetes/scheme",
     "k8s.io/client-go/plugin/pkg/client/auth/gcp",
-    "k8s.io/client-go/rest",
+    "k8s.io/client-go/tools/record",
+    "k8s.io/client-go/tools/reference",
     "k8s.io/code-generator/cmd/client-gen",
     "k8s.io/code-generator/cmd/conversion-gen",
     "k8s.io/code-generator/cmd/deepcopy-gen",
@@ -1101,6 +1111,7 @@
     "k8s.io/kube-openapi/pkg/common",
     "sigs.k8s.io/controller-runtime/pkg/client",
     "sigs.k8s.io/controller-runtime/pkg/client/config",
+    "sigs.k8s.io/controller-runtime/pkg/client/fake",
     "sigs.k8s.io/controller-runtime/pkg/controller",
     "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil",
     "sigs.k8s.io/controller-runtime/pkg/event",
