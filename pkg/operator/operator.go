@@ -1,13 +1,25 @@
 package operator
 
 import (
+	"encoding/base64"
+	"encoding/json"
+	"fmt"
+	"io/ioutil"
+	"path/filepath"
+
+	"github.com/appscode/jsonpatch"
 	configv1 "github.com/openshift/api/config/v1"
+
 	"github.com/openshift/cluster-autoscaler-operator/pkg/apis"
 	"github.com/openshift/cluster-autoscaler-operator/pkg/controller/clusterautoscaler"
 	"github.com/openshift/cluster-autoscaler-operator/pkg/controller/machineautoscaler"
+	"k8s.io/apimachinery/pkg/types"
+	admissionregistrationv1beta1 "k8s.io/client-go/kubernetes/typed/admissionregistration/v1beta1"
+	"k8s.io/utils/pointer"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/runtime/signals"
+	"sigs.k8s.io/controller-runtime/pkg/webhook"
 )
 
 // OperatorName is the name of this operator.
@@ -40,16 +52,24 @@ func New(cfg *Config) (*Operator, error) {
 
 	operator.manager, err = manager.New(clientConfig, managerOptions)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create manager: %v", err)
 	}
 
 	// Setup Scheme for all resources.
 	if err := apis.AddToScheme(operator.manager.GetScheme()); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to register types: %v", err)
 	}
 
+	// Setup our controllers and add them to the manager.
 	if err := operator.AddControllers(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to add controllers: %v", err)
+	}
+
+	// Setup admission webhooks and add them to the manager.
+	if cfg.WebhooksEnabled {
+		if err := operator.AddWebhooks(); err != nil {
+			return nil, fmt.Errorf("failed to start webhook server: %v", err)
+		}
 	}
 
 	statusConfig := &StatusReporterConfig{
@@ -61,7 +81,7 @@ func New(cfg *Config) (*Operator, error) {
 
 	statusReporter, err := NewStatusReporter(operator.manager, statusConfig)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create status reporter: %v", err)
 	}
 
 	operator.manager.Add(statusReporter)
@@ -127,4 +147,87 @@ func (o *Operator) Start() error {
 	stopCh := signals.SetupSignalHandler()
 
 	return o.manager.Start(stopCh)
+}
+
+// AddWebhooks sets up the webhook server, registers handlers, and adds the
+// server to operator's manager instance.
+func (o *Operator) AddWebhooks() error {
+	// Set the CA certificate on the webhook configs.
+	if err := o.setWebhookCA(); err != nil {
+		return err
+	}
+
+	serverOptions := webhook.ServerOptions{
+		Port:    o.config.WebhooksPort,
+		CertDir: o.config.WebhooksCertDir,
+
+		DisableWebhookConfigInstaller: pointer.BoolPtr(true),
+	}
+
+	server, err := webhook.NewServer(OperatorName, o.manager, serverOptions)
+	if err != nil {
+		return err
+	}
+
+	caValidator, err := clusterautoscaler.NewValidatingWebhook(o.manager)
+	if err != nil {
+		return err
+	}
+
+	return server.Register(caValidator)
+}
+
+// setWebhookCA sets the caBundle field on the admission webhook configuration
+// objects associated with the operator.
+//
+// Hopefully at some point the service-ca-operator will support injection for
+// webhook configurations, at which point this will no longer be necessary.
+func (o *Operator) setWebhookCA() error {
+	config := o.manager.GetConfig()
+	client, err := admissionregistrationv1beta1.NewForConfig(config)
+	if err != nil {
+		return err
+	}
+
+	ca, err := o.getEncodedCA()
+	if err != nil {
+		return err
+	}
+
+	// TODO: This should probably replace the caBundle in all webhook client
+	// configurations in the object, but unfortuntaely that's not easy to do
+	// with a JSON patch.  For now this only modifies the first entry.
+	patch := []jsonpatch.Operation{
+		{
+			Operation: "replace",
+			Path:      "/webhooks/0/clientConfig/caBundle",
+			Value:     ca,
+		},
+	}
+
+	patchBytes, err := json.Marshal(patch)
+	if err != nil {
+		return err
+	}
+
+	_, err = client.ValidatingWebhookConfigurations().
+		Patch("autoscaling.openshift.io", types.JSONPatchType, patchBytes)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// getEncodedCA returns the base64 encoded CA certificate used for securing
+// admission webhook server connections.
+func (o *Operator) getEncodedCA() (string, error) {
+	caPath := filepath.Join(o.config.WebhooksCertDir, "service-ca", "ca-cert.pem")
+
+	ca, err := ioutil.ReadFile(caPath)
+	if err != nil {
+		return "", err
+	}
+
+	return base64.StdEncoding.EncodeToString(ca), nil
 }

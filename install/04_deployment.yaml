@@ -42,10 +42,38 @@ spec:
               fieldPath: metadata.namespace
         - name: CLUSTER_AUTOSCALER_IMAGE
           value: docker.io/openshift/origin-cluster-autoscaler:v4.0
+        - name: WEBHOOKS_CERT_DIR
+          value: /etc/cluster-autoscaler-operator/tls
+        - name: WEBHOOKS_PORT
+          value: "8443"
+        ports:
+        - containerPort: 8443
         resources:
           requests:
             cpu: 20m
             memory: 50Mi
+        volumeMounts:
+        - name: ca-cert
+          mountPath: /etc/cluster-autoscaler-operator/tls/service-ca
+          readOnly: true
+        - name: cert
+          mountPath: /etc/cluster-autoscaler-operator/tls
+          readOnly: true
+      volumes:
+      - name: ca-cert
+        configMap:
+          name: cluster-autoscaler-operator-ca
+          items:
+          - key: service-ca.crt
+            path: ca-cert.pem
+      - name: cert
+        secret:
+          secretName: cluster-autoscaler-operator-cert
+          items:
+          - key: tls.crt
+            path: cert.pem
+          - key: tls.key
+            path: key.pem
       nodeSelector:
         node-role.kubernetes.io/master: ""
       restartPolicy: Always
