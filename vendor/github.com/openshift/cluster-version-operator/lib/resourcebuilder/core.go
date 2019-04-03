@@ -1,6 +1,8 @@
 package resourcebuilder
 
 import (
+	"context"
+
 	"github.com/openshift/cluster-version-operator/lib"
 	"github.com/openshift/cluster-version-operator/lib/resourceapply"
 	"github.com/openshift/cluster-version-operator/lib/resourceread"
@@ -21,12 +23,16 @@ func newServiceAccountBuilder(config *rest.Config, m lib.Manifest) Interface {
 	}
 }
 
+func (b *serviceAccountBuilder) WithMode(m Mode) Interface {
+	return b
+}
+
 func (b *serviceAccountBuilder) WithModifier(f MetaV1ObjectModifierFunc) Interface {
 	b.modifier = f
 	return b
 }
 
-func (b *serviceAccountBuilder) Do() error {
+func (b *serviceAccountBuilder) Do(_ context.Context) error {
 	serviceAccount := resourceread.ReadServiceAccountV1OrDie(b.raw)
 	if b.modifier != nil {
 		b.modifier(serviceAccount)
@@ -48,12 +54,16 @@ func newConfigMapBuilder(config *rest.Config, m lib.Manifest) Interface {
 	}
 }
 
+func (b *configMapBuilder) WithMode(m Mode) Interface {
+	return b
+}
+
 func (b *configMapBuilder) WithModifier(f MetaV1ObjectModifierFunc) Interface {
 	b.modifier = f
 	return b
 }
 
-func (b *configMapBuilder) Do() error {
+func (b *configMapBuilder) Do(_ context.Context) error {
 	configMap := resourceread.ReadConfigMapV1OrDie(b.raw)
 	if b.modifier != nil {
 		b.modifier(configMap)
@@ -75,12 +85,16 @@ func newNamespaceBuilder(config *rest.Config, m lib.Manifest) Interface {
 	}
 }
 
+func (b *namespaceBuilder) WithMode(m Mode) Interface {
+	return b
+}
+
 func (b *namespaceBuilder) WithModifier(f MetaV1ObjectModifierFunc) Interface {
 	b.modifier = f
 	return b
 }
 
-func (b *namespaceBuilder) Do() error {
+func (b *namespaceBuilder) Do(_ context.Context) error {
 	namespace := resourceread.ReadNamespaceV1OrDie(b.raw)
 	if b.modifier != nil {
 		b.modifier(namespace)
@@ -102,12 +116,16 @@ func newServiceBuilder(config *rest.Config, m lib.Manifest) Interface {
 	}
 }
 
+func (b *serviceBuilder) WithMode(m Mode) Interface {
+	return b
+}
+
 func (b *serviceBuilder) WithModifier(f MetaV1ObjectModifierFunc) Interface {
 	b.modifier = f
 	return b
 }
 
-func (b *serviceBuilder) Do() error {
+func (b *serviceBuilder) Do(_ context.Context) error {
 	service := resourceread.ReadServiceV1OrDie(b.raw)
 	if b.modifier != nil {
 		b.modifier(service)

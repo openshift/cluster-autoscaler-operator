@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
 	"time"
 
@@ -150,17 +151,19 @@ func (o *Options) run(ctx context.Context, controllerCtx *Context, lock *resourc
 	}
 
 	exit := make(chan struct{})
+	exitClose := sync.Once{}
 
 	// TODO: when we switch to graceful lock shutdown, this can be
 	// moved back inside RunOrDie
-	go leaderelection.RunOrDie(leaderelection.LeaderElectionConfig{
+	// TODO: properly wire ctx here
+	go leaderelection.RunOrDie(context.TODO(), leaderelection.LeaderElectionConfig{
 		Lock:          lock,
 		LeaseDuration: leaseDuration,
 		RenewDeadline: renewDeadline,
 		RetryPeriod:   retryPeriod,
 		Callbacks: leaderelection.LeaderCallbacks{
-			OnStartedLeading: func(stop <-chan struct{}) {
-				controllerCtx.Start(ctx.Done())
+			OnStartedLeading: func(localCtx context.Context) {
+				controllerCtx.Start(ctx)
 				select {
 				case <-ctx.Done():
 					// WARNING: this is not completely safe until we have Kube 1.14 and ReleaseOnCancel
@@ -179,14 +182,14 @@ func (o *Options) run(ctx context.Context, controllerCtx *Context, lock *resourc
 						}
 					}
 					glog.Infof("Finished shutdown")
-					close(exit)
-				case <-stop:
+					exitClose.Do(func() { close(exit) })
+				case <-localCtx.Done():
 					// we will exit in OnStoppedLeading
 				}
 			},
 			OnStoppedLeading: func() {
 				glog.Warning("leaderelection lost")
-				close(exit)
+				exitClose.Do(func() { close(exit) })
 			},
 		},
 	})
@@ -273,8 +276,12 @@ func newClientBuilder(kubeconfig string) (*ClientBuilder, error) {
 	}, nil
 }
 
-func increaseQPS(config *rest.Config) {
+func defaultQPS(config *rest.Config) {
 	config.RateLimiter = flowcontrol.NewTokenBucketRateLimiter(20, 40)
+}
+
+func highQPS(config *rest.Config) {
+	config.RateLimiter = flowcontrol.NewTokenBucketRateLimiter(40, 80)
 }
 
 func useProtobuf(config *rest.Config) {
@@ -313,7 +320,8 @@ func (o *Options) NewControllerContext(cb *ClientBuilder) *Context {
 			resyncPeriod(o.ResyncInterval)(),
 			cvInformer.Config().V1().ClusterVersions(),
 			sharedInformers.Config().V1().ClusterOperators(),
-			cb.RestConfig(increaseQPS),
+			cb.RestConfig(defaultQPS),
+			cb.RestConfig(highQPS),
 			cb.ClientOrDie(o.Namespace),
 			cb.KubeClientOrDie(o.Namespace, useProtobuf),
 			o.EnableMetrics,
@@ -333,11 +341,12 @@ func (o *Options) NewControllerContext(cb *ClientBuilder) *Context {
 
 // Start launches the controllers in the provided context and any supporting
 // infrastructure. When ch is closed the controllers will be shut down.
-func (ctx *Context) Start(ch <-chan struct{}) {
-	go ctx.CVO.Run(2, ch)
-	if ctx.AutoUpdate != nil {
-		go ctx.AutoUpdate.Run(2, ch)
+func (c *Context) Start(ctx context.Context) {
+	ch := ctx.Done()
+	go c.CVO.Run(ctx, 2)
+	if c.AutoUpdate != nil {
+		go c.AutoUpdate.Run(2, ch)
 	}
-	ctx.CVInformerFactory.Start(ch)
-	ctx.InformerFactory.Start(ch)
+	c.CVInformerFactory.Start(ch)
+	c.InformerFactory.Start(ch)
 }

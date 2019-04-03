@@ -1,6 +1,8 @@
 package resourcebuilder
 
 import (
+	"context"
+
 	"github.com/openshift/cluster-version-operator/lib"
 	"github.com/openshift/cluster-version-operator/lib/resourceapply"
 	"github.com/openshift/cluster-version-operator/lib/resourceread"
@@ -21,12 +23,16 @@ func newClusterRoleBuilder(config *rest.Config, m lib.Manifest) Interface {
 	}
 }
 
+func (b *clusterRoleBuilder) WithMode(m Mode) Interface {
+	return b
+}
+
 func (b *clusterRoleBuilder) WithModifier(f MetaV1ObjectModifierFunc) Interface {
 	b.modifier = f
 	return b
 }
 
-func (b *clusterRoleBuilder) Do() error {
+func (b *clusterRoleBuilder) Do(_ context.Context) error {
 	clusterRole := resourceread.ReadClusterRoleV1OrDie(b.raw)
 	if b.modifier != nil {
 		b.modifier(clusterRole)
@@ -48,12 +54,16 @@ func newClusterRoleBindingBuilder(config *rest.Config, m lib.Manifest) Interface
 	}
 }
 
+func (b *clusterRoleBindingBuilder) WithMode(m Mode) Interface {
+	return b
+}
+
 func (b *clusterRoleBindingBuilder) WithModifier(f MetaV1ObjectModifierFunc) Interface {
 	b.modifier = f
 	return b
 }
 
-func (b *clusterRoleBindingBuilder) Do() error {
+func (b *clusterRoleBindingBuilder) Do(_ context.Context) error {
 	clusterRoleBinding := resourceread.ReadClusterRoleBindingV1OrDie(b.raw)
 	if b.modifier != nil {
 		b.modifier(clusterRoleBinding)
@@ -75,12 +85,16 @@ func newRoleBuilder(config *rest.Config, m lib.Manifest) Interface {
 	}
 }
 
+func (b *roleBuilder) WithMode(m Mode) Interface {
+	return b
+}
+
 func (b *roleBuilder) WithModifier(f MetaV1ObjectModifierFunc) Interface {
 	b.modifier = f
 	return b
 }
 
-func (b *roleBuilder) Do() error {
+func (b *roleBuilder) Do(_ context.Context) error {
 	role := resourceread.ReadRoleV1OrDie(b.raw)
 	if b.modifier != nil {
 		b.modifier(role)
@@ -102,12 +116,16 @@ func newRoleBindingBuilder(config *rest.Config, m lib.Manifest) Interface {
 	}
 }
 
+func (b *roleBindingBuilder) WithMode(m Mode) Interface {
+	return b
+}
+
 func (b *roleBindingBuilder) WithModifier(f MetaV1ObjectModifierFunc) Interface {
 	b.modifier = f
 	return b
 }
 
-func (b *roleBindingBuilder) Do() error {
+func (b *roleBindingBuilder) Do(_ context.Context) error {
 	roleBinding := resourceread.ReadRoleBindingV1OrDie(b.raw)
 	if b.modifier != nil {
 		b.modifier(roleBinding)

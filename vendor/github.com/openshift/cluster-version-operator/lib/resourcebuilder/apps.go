@@ -1,8 +1,8 @@
 package resourcebuilder
 
 import (
+	"context"
 	"fmt"
-	"time"
 
 	"github.com/golang/glog"
 
@@ -30,12 +30,16 @@ func newDeploymentBuilder(config *rest.Config, m lib.Manifest) Interface {
 	}
 }
 
+func (b *deploymentBuilder) WithMode(m Mode) Interface {
+	return b
+}
+
 func (b *deploymentBuilder) WithModifier(f MetaV1ObjectModifierFunc) Interface {
 	b.modifier = f
 	return b
 }
 
-func (b *deploymentBuilder) Do() error {
+func (b *deploymentBuilder) Do(ctx context.Context) error {
 	deployment := resourceread.ReadDeploymentV1OrDie(b.raw)
 	if b.modifier != nil {
 		b.modifier(deployment)
@@ -45,18 +49,12 @@ func (b *deploymentBuilder) Do() error {
 		return err
 	}
 	if updated && actual.Generation > 1 {
-		return waitForDeploymentCompletion(b.client, deployment)
+		return waitForDeploymentCompletion(ctx, b.client, deployment)
 	}
 	return nil
 }
-
-const (
-	deploymentPollInterval = 1 * time.Second
-	deploymentPollTimeout  = 5 * time.Minute
-)
-
-func waitForDeploymentCompletion(client appsclientv1.DeploymentsGetter, deployment *appsv1.Deployment) error {
-	return wait.Poll(deploymentPollInterval, deploymentPollTimeout, func() (bool, error) {
+func waitForDeploymentCompletion(ctx context.Context, client appsclientv1.DeploymentsGetter, deployment *appsv1.Deployment) error {
+	return wait.PollImmediateUntil(defaultObjectPollInterval, func() (bool, error) {
 		d, err := client.Deployments(deployment.Namespace).Get(deployment.Name, metav1.GetOptions{})
 		if errors.IsNotFound(err) {
 			// exit early to recreate the deployment.
@@ -78,7 +76,7 @@ func waitForDeploymentCompletion(client appsclientv1.DeploymentsGetter, deployme
 		}
 		glog.V(4).Infof("Deployment %s is not ready. status: (replicas: %d, updated: %d, ready: %d, unavailable: %d)", d.Name, d.Status.Replicas, d.Status.UpdatedReplicas, d.Status.ReadyReplicas, d.Status.UnavailableReplicas)
 		return false, nil
-	})
+	}, ctx.Done())
 }
 
 type daemonsetBuilder struct {
@@ -94,12 +92,16 @@ func newDaemonsetBuilder(config *rest.Config, m lib.Manifest) Interface {
 	}
 }
 
+func (b *daemonsetBuilder) WithMode(m Mode) Interface {
+	return b
+}
+
 func (b *daemonsetBuilder) WithModifier(f MetaV1ObjectModifierFunc) Interface {
 	b.modifier = f
 	return b
 }
 
-func (b *daemonsetBuilder) Do() error {
+func (b *daemonsetBuilder) Do(ctx context.Context) error {
 	daemonset := resourceread.ReadDaemonSetV1OrDie(b.raw)
 	if b.modifier != nil {
 		b.modifier(daemonset)
@@ -109,18 +111,13 @@ func (b *daemonsetBuilder) Do() error {
 		return err
 	}
 	if updated && actual.Generation > 1 {
-		return waitForDaemonsetRollout(b.client, daemonset)
+		return waitForDaemonsetRollout(ctx, b.client, daemonset)
 	}
 	return nil
 }
 
-const (
-	daemonsetPollInterval = 1 * time.Second
-	daemonsetPollTimeout  = 5 * time.Minute
-)
-
-func waitForDaemonsetRollout(client appsclientv1.DaemonSetsGetter, daemonset *appsv1.DaemonSet) error {
-	return wait.Poll(daemonsetPollInterval, daemonsetPollTimeout, func() (bool, error) {
+func waitForDaemonsetRollout(ctx context.Context, client appsclientv1.DaemonSetsGetter, daemonset *appsv1.DaemonSet) error {
+	return wait.PollImmediateUntil(defaultObjectPollInterval, func() (bool, error) {
 		d, err := client.DaemonSets(daemonset.Namespace).Get(daemonset.Name, metav1.GetOptions{})
 		if errors.IsNotFound(err) {
 			// exit early to recreate the daemonset.
@@ -142,5 +139,5 @@ func waitForDaemonsetRollout(client appsclientv1.DaemonSetsGetter, daemonset *ap
 		}
 		glog.V(4).Infof("Daemonset %s is not ready. status: (desired: %d, updated: %d, ready: %d, unavailable: %d)", d.Name, d.Status.DesiredNumberScheduled, d.Status.UpdatedNumberScheduled, d.Status.NumberReady, d.Status.NumberAvailable)
 		return false, nil
-	})
+	}, ctx.Done())
 }

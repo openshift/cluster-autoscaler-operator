@@ -1,8 +1,10 @@
 package payload
 
 import (
+	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus"
@@ -30,7 +32,7 @@ func init() {
 
 // ResourceBuilder abstracts how a manifest is created on the server. Introduced for testing.
 type ResourceBuilder interface {
-	Apply(*lib.Manifest) error
+	Apply(context.Context, *lib.Manifest, State) error
 }
 
 type Task struct {
@@ -49,42 +51,49 @@ func (st *Task) String() string {
 	return fmt.Sprintf("%s \"%s/%s\" (%d of %d)", strings.ToLower(st.Manifest.GVK.Kind), ns, st.Manifest.Object().GetName(), st.Index, st.Total)
 }
 
-func (st *Task) Run(version string, builder ResourceBuilder) error {
+// Run attempts to create the provided object until it succeeds or context is cancelled. It returns the
+// last error if context is cancelled.
+func (st *Task) Run(ctx context.Context, version string, builder ResourceBuilder, state State) error {
 	var lastErr error
-	if err := wait.ExponentialBackoff(st.Backoff, func() (bool, error) {
-		// run builder for the manifest
-		if err := builder.Apply(st.Manifest); err != nil {
-			utilruntime.HandleError(errors.Wrapf(err, "error running apply for %s", st))
-			lastErr = err
-			metricPayloadErrors.WithLabelValues(version).Inc()
-			if !shouldRequeueApplyOnErr(err) {
-				return false, err
-			}
-			return false, nil
+	backoff := st.Backoff
+	maxDuration := 15 * time.Second // TODO: fold back into Backoff in 1.13
+	for {
+		// attempt the apply, waiting as long as necessary
+		err := builder.Apply(ctx, st.Manifest, state)
+		if err == nil {
+			return nil
 		}
-		return true, nil
-	}); err != nil {
-		if uerr, ok := lastErr.(*UpdateError); ok {
-			return uerr
-		}
-		reason, cause := reasonForPayloadSyncError(lastErr)
-		if len(cause) > 0 {
-			cause = ": " + cause
-		}
-		return &UpdateError{
-			Nested:  lastErr,
-			Reason:  reason,
-			Message: fmt.Sprintf("Could not update %s%s", st, cause),
-		}
-	}
-	return nil
-}
 
-func shouldRequeueApplyOnErr(err error) bool {
-	if apierrors.IsInvalid(err) {
-		return false
+		lastErr = err
+		utilruntime.HandleError(errors.Wrapf(err, "error running apply for %s", st))
+		metricPayloadErrors.WithLabelValues(version).Inc()
+
+		// TODO: this code will become easier in Kube 1.13 because Backoff now supports max
+		d := time.Duration(float64(backoff.Duration) * backoff.Factor)
+		if d > maxDuration {
+			d = maxDuration
+		}
+		d = wait.Jitter(d, backoff.Jitter)
+
+		// sleep or wait for cancellation
+		select {
+		case <-time.After(d):
+			continue
+		case <-ctx.Done():
+			if uerr, ok := lastErr.(*UpdateError); ok {
+				return uerr
+			}
+			reason, cause := reasonForPayloadSyncError(lastErr)
+			if len(cause) > 0 {
+				cause = ": " + cause
+			}
+			return &UpdateError{
+				Nested:  lastErr,
+				Reason:  reason,
+				Message: fmt.Sprintf("Could not update %s%s", st, cause),
+			}
+		}
 	}
-	return true
 }
 
 // UpdateError is a wrapper for errors that occur during a payload sync.
