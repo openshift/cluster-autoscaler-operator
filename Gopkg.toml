@@ -83,9 +83,5 @@ required = [
     go-tests = false
 
 [[constraint]]
-  branch = "master"
-  name = "github.com/golang/glog"
-
-[[constraint]]
   name = "k8s.io/klog"
   version = "0.2.0"
