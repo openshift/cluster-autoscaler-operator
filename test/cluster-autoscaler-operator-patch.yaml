@@ -7,9 +7,11 @@ metadata:
 spec:
   template:
     spec:
+      volumes: []
       containers:
       - name: cluster-autoscaler-operator
         image: quay.io/openshift/origin-cluster-autoscaler-operator:v4.0
+        volumeMounts: []
         env:
         - name: WATCH_NAMESPACE
           value: kube-system
@@ -19,4 +21,7 @@ spec:
           valueFrom:
         - name: LEADER_ELECTION_NAMESPACE
           value: kube-system
+          valueFrom:
+        - name: WEBHOOKS_ENABLED
+          value: "false"
           valueFrom:
