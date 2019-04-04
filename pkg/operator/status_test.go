@@ -3,6 +3,7 @@ package operator
 import (
 	"fmt"
 	"testing"
+	"time"
 
 	configv1 "github.com/openshift/api/config/v1"
 	fakeconfigclient "github.com/openshift/client-go/config/clientset/versioned/fake"
@@ -30,20 +31,29 @@ var ClusterOperatorGroupResource = schema.ParseGroupResource("clusteroperators.c
 var ErrMachineAPINotFound = errors.NewNotFound(ClusterOperatorGroupResource, "machine-api")
 
 var (
+	// ConditionTransitionTime is the default LastTransitionTime for
+	// ClusterOperatorStatusCondition fixture objects.
+	ConditionTransitionTime = metav1.NewTime(time.Date(
+		2009, time.November, 10, 23, 0, 0, 0, time.UTC,
+	))
+
 	// Available is the list of expected conditions for the operator
 	// when reporting as available and updated.
 	AvailableConditions = []configv1.ClusterOperatorStatusCondition{
 		{
-			Type:   configv1.OperatorAvailable,
-			Status: configv1.ConditionTrue,
+			Type:               configv1.OperatorAvailable,
+			Status:             configv1.ConditionTrue,
+			LastTransitionTime: ConditionTransitionTime,
 		},
 		{
-			Type:   configv1.OperatorProgressing,
-			Status: configv1.ConditionFalse,
+			Type:               configv1.OperatorProgressing,
+			Status:             configv1.ConditionFalse,
+			LastTransitionTime: ConditionTransitionTime,
 		},
 		{
-			Type:   configv1.OperatorFailing,
-			Status: configv1.ConditionFalse,
+			Type:               configv1.OperatorFailing,
+			Status:             configv1.ConditionFalse,
+			LastTransitionTime: ConditionTransitionTime,
 		},
 	}
 
@@ -51,16 +61,19 @@ var (
 	// when reporting as failing.
 	FailingConditions = []configv1.ClusterOperatorStatusCondition{
 		{
-			Type:   configv1.OperatorAvailable,
-			Status: configv1.ConditionTrue,
+			Type:               configv1.OperatorAvailable,
+			Status:             configv1.ConditionTrue,
+			LastTransitionTime: ConditionTransitionTime,
 		},
 		{
-			Type:   configv1.OperatorProgressing,
-			Status: configv1.ConditionFalse,
+			Type:               configv1.OperatorProgressing,
+			Status:             configv1.ConditionFalse,
+			LastTransitionTime: ConditionTransitionTime,
 		},
 		{
-			Type:   configv1.OperatorFailing,
-			Status: configv1.ConditionTrue,
+			Type:               configv1.OperatorFailing,
+			Status:             configv1.ConditionTrue,
+			LastTransitionTime: ConditionTransitionTime,
 		},
 	}
 
@@ -68,16 +81,19 @@ var (
 	// when reporting as progressing.
 	ProgressingConditions = []configv1.ClusterOperatorStatusCondition{
 		{
-			Type:   configv1.OperatorAvailable,
-			Status: configv1.ConditionTrue,
+			Type:               configv1.OperatorAvailable,
+			Status:             configv1.ConditionTrue,
+			LastTransitionTime: ConditionTransitionTime,
 		},
 		{
-			Type:   configv1.OperatorProgressing,
-			Status: configv1.ConditionTrue,
+			Type:               configv1.OperatorProgressing,
+			Status:             configv1.ConditionTrue,
+			LastTransitionTime: ConditionTransitionTime,
 		},
 		{
-			Type:   configv1.OperatorFailing,
-			Status: configv1.ConditionFalse,
+			Type:               configv1.OperatorFailing,
+			Status:             configv1.ConditionFalse,
+			LastTransitionTime: ConditionTransitionTime,
 		},
 	}
 )
@@ -106,37 +122,47 @@ var clusterAutoscaler = &autoscalingv1alpha1.ClusterAutoscaler{
 	},
 }
 
-// machineAPI is a ClusterOperator object representing the status of a mock
-// machine-api-operator.
-var machineAPI = helpers.NewTestClusterOperator(&configv1.ClusterOperator{
-	TypeMeta: metav1.TypeMeta{
-		Kind:       "ClusterOperator",
-		APIVersion: "config.openshift.io/v1",
-	},
-	ObjectMeta: metav1.ObjectMeta{
-		Name: "machine-api",
-	},
-})
-
-// deployment represents the default ClusterAutoscaler deployment object.
-var deployment = helpers.NewTestDeployment(&appsv1.Deployment{
-	TypeMeta: metav1.TypeMeta{
-		Kind:       "Deployment",
-		APIVersion: "apps/v1",
-	},
-	ObjectMeta: metav1.ObjectMeta{
-		Name:      fmt.Sprintf("cluster-autoscaler-%s", ClusterAutoscalerName),
-		Namespace: ClusterAutoscalerNamespace,
-		Annotations: map[string]string{
-			util.ReleaseVersionAnnotation: ReleaseVersion,
+// Common Kubernetes fixture objects.
+var (
+	machineAPI = helpers.NewTestClusterOperator(&configv1.ClusterOperator{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "ClusterOperator",
+			APIVersion: "config.openshift.io/v1",
 		},
-	},
-	Status: appsv1.DeploymentStatus{
-		AvailableReplicas: 1,
-		UpdatedReplicas:   1,
-		Replicas:          1,
-	},
-})
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "machine-api",
+		},
+	})
+
+	clusterAutoscalerOperator = helpers.NewTestClusterOperator(&configv1.ClusterOperator{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "ClusterOperator",
+			APIVersion: "config.openshift.io/v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "cluster-autoscaler",
+		},
+	})
+
+	deployment = helpers.NewTestDeployment(&appsv1.Deployment{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Deployment",
+			APIVersion: "apps/v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      fmt.Sprintf("cluster-autoscaler-%s", ClusterAutoscalerName),
+			Namespace: ClusterAutoscalerNamespace,
+			Annotations: map[string]string{
+				util.ReleaseVersionAnnotation: ReleaseVersion,
+			},
+		},
+		Status: appsv1.DeploymentStatus{
+			AvailableReplicas: 1,
+			UpdatedReplicas:   1,
+			Replicas:          1,
+		},
+	})
+)
 
 func TestCheckMachineAPI(t *testing.T) {
 	testCases := []struct {
@@ -150,7 +176,7 @@ func TestCheckMachineAPI(t *testing.T) {
 			expectedBool: true,
 			expectedErr:  nil,
 			configObjs: []runtime.Object{
-				machineAPI.WithConditions(AvailableConditions),
+				machineAPI.WithConditions(AvailableConditions).Object(),
 			},
 		},
 		{
@@ -158,7 +184,7 @@ func TestCheckMachineAPI(t *testing.T) {
 			expectedBool: false,
 			expectedErr:  nil,
 			configObjs: []runtime.Object{
-				machineAPI.WithConditions(FailingConditions),
+				machineAPI.WithConditions(FailingConditions).Object(),
 			},
 		},
 		{
@@ -217,7 +243,7 @@ func TestCheckCheckClusterAutoscaler(t *testing.T) {
 			expectedErr:  nil,
 			objects: []runtime.Object{
 				clusterAutoscaler,
-				deployment.WithReleaseVersion("vBAD"),
+				deployment.WithReleaseVersion("vBAD").Object(),
 			},
 		},
 		{
@@ -226,7 +252,7 @@ func TestCheckCheckClusterAutoscaler(t *testing.T) {
 			expectedErr:  nil,
 			objects: []runtime.Object{
 				clusterAutoscaler,
-				deployment.WithAvailableReplicas(0),
+				deployment.WithAvailableReplicas(0).Object(),
 			},
 		},
 		{
@@ -235,7 +261,7 @@ func TestCheckCheckClusterAutoscaler(t *testing.T) {
 			expectedErr:  nil,
 			objects: []runtime.Object{
 				clusterAutoscaler,
-				deployment.DeploymentCopy(),
+				deployment.Object(),
 			},
 		},
 	}
@@ -324,6 +350,7 @@ func TestStatusChanges(t *testing.T) {
 func TestReportStatus(t *testing.T) {
 	testCases := []struct {
 		label         string
+		versionChange bool
 		expectedBool  bool
 		expectedErr   error
 		expectedConds []configv1.ClusterOperatorStatusCondition
@@ -332,6 +359,7 @@ func TestReportStatus(t *testing.T) {
 	}{
 		{
 			label:         "machine-api not found",
+			versionChange: true,
 			expectedBool:  false,
 			expectedErr:   nil,
 			expectedConds: FailingConditions,
@@ -340,26 +368,29 @@ func TestReportStatus(t *testing.T) {
 		},
 		{
 			label:         "machine-api not ready",
+			versionChange: true,
 			expectedBool:  false,
 			expectedErr:   nil,
 			expectedConds: FailingConditions,
 			clientObjs:    []runtime.Object{},
 			configObjs: []runtime.Object{
-				machineAPI.WithConditions(FailingConditions),
+				machineAPI.WithConditions(FailingConditions).Object(),
 			},
 		},
 		{
 			label:         "no cluster-autoscaler",
+			versionChange: true,
 			expectedBool:  true,
 			expectedErr:   nil,
 			expectedConds: AvailableConditions,
 			clientObjs:    []runtime.Object{},
 			configObjs: []runtime.Object{
-				machineAPI.WithConditions(AvailableConditions),
+				machineAPI.WithConditions(AvailableConditions).Object(),
 			},
 		},
 		{
 			label:         "no cluster-autoscaler deployment",
+			versionChange: true,
 			expectedBool:  false,
 			expectedErr:   nil,
 			expectedConds: ProgressingConditions,
@@ -367,33 +398,65 @@ func TestReportStatus(t *testing.T) {
 				clusterAutoscaler,
 			},
 			configObjs: []runtime.Object{
-				machineAPI.WithConditions(AvailableConditions),
+				machineAPI.WithConditions(AvailableConditions).Object(),
 			},
 		},
 		{
 			label:         "deployment wrong version",
+			versionChange: true,
 			expectedBool:  false,
 			expectedErr:   nil,
 			expectedConds: ProgressingConditions,
 			clientObjs: []runtime.Object{
 				clusterAutoscaler,
-				deployment.WithReleaseVersion("vWRONG"),
+				deployment.WithReleaseVersion("vWRONG").Object(),
 			},
 			configObjs: []runtime.Object{
-				machineAPI.WithConditions(AvailableConditions),
+				machineAPI.WithConditions(AvailableConditions).Object(),
 			},
 		},
 		{
 			label:         "available and updated",
+			versionChange: true,
 			expectedBool:  true,
 			expectedErr:   nil,
 			expectedConds: AvailableConditions,
 			clientObjs: []runtime.Object{
 				clusterAutoscaler,
-				deployment.WithReleaseVersion(ReleaseVersion),
+				deployment.WithReleaseVersion(ReleaseVersion).Object(),
 			},
 			configObjs: []runtime.Object{
-				machineAPI.WithConditions(AvailableConditions),
+				machineAPI.WithConditions(AvailableConditions).Object(),
+			},
+		},
+		{
+			label:         "no version change",
+			versionChange: false,
+			expectedBool:  true,
+			expectedErr:   nil,
+			expectedConds: AvailableConditions,
+			clientObjs:    []runtime.Object{},
+			configObjs: []runtime.Object{
+				machineAPI.WithConditions(AvailableConditions).Object(),
+				clusterAutoscalerOperator.
+					WithConditions(AvailableConditions).
+					WithVersion(ReleaseVersion).
+					Object(),
+			},
+		},
+		{
+			label:         "version change noop",
+			versionChange: true,
+			expectedBool:  true,
+			expectedErr:   nil,
+			expectedConds: AvailableConditions,
+			clientObjs:    []runtime.Object{},
+			configObjs: []runtime.Object{
+				machineAPI.WithConditions(AvailableConditions).Object(),
+				clusterAutoscalerOperator.
+					WithConditions(AvailableConditions).
+					WithVersion("vOLD").
+					Object(),
 			},
 		},
 	}
@@ -416,12 +479,13 @@ func TestReportStatus(t *testing.T) {
 				t.Errorf("got %v, want %v", err, tc.expectedErr)
 			}
 
-			// Check that the ClusterOperator status is updated.
+			// Check that the ClusterOperator status is created.
 			co, err := reporter.GetClusterOperator()
 			if err != nil {
 				t.Errorf("error getting ClusterOperator: %v", err)
 			}
 
+			// Check that all conditions have the expected status.
 			for _, cond := range tc.expectedConds {
 				ok := cvorm.IsOperatorStatusConditionPresentAndEqual(
 					co.Status.Conditions, cond.Type, cond.Status,
@@ -429,6 +493,40 @@ func TestReportStatus(t *testing.T) {
 
 				if !ok {
 					t.Errorf("wrong status for condition: %s", cond.Type)
+				}
+			}
+
+			// Check the LastTransitionTime of the Progressing condition.
+			for _, v := range co.Status.Versions {
+				if v.Name != "operator" {
+					continue
+				}
+
+				p := cvorm.FindOperatorStatusCondition(
+					co.Status.Conditions, configv1.OperatorProgressing,
+				)
+
+				if p == nil {
+					t.Fatal("expected Progressing condition not found")
+				}
+
+				switch tc.versionChange {
+				case true:
+					// If the version changed, the last transition time should
+					// be more recent than the original.
+					if !ConditionTransitionTime.Before(&p.LastTransitionTime) {
+						t.Error("expected Progressing condition transition time update")
+					}
+
+				case false:
+					// If the version did not change, the last transition time
+					// should remain unchanged.
+					if !ConditionTransitionTime.Equal(&p.LastTransitionTime) {
+						t.Error("unexpected Progressing condition transition time update")
+					}
+
+				default:
+					panic("back away slowly...")
 				}
 			}
 		})

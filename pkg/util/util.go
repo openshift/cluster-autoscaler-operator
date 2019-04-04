@@ -1,6 +1,8 @@
 package util
 
 import (
+	configv1 "github.com/openshift/api/config/v1"
+	cvorm "github.com/openshift/cluster-version-operator/lib/resourcemerge"
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -58,4 +60,23 @@ func DeploymentUpdated(dep *appsv1.Deployment) bool {
 	}
 
 	return true
+}
+
+// ResetProgressingTime finds the Progressing condition in the given slice, or
+// creates a default one if none is found, and sets the LastTransitionTime to
+// the current time.
+func ResetProgressingTime(conds *[]configv1.ClusterOperatorStatusCondition) {
+	prog := cvorm.FindOperatorStatusCondition(*conds, configv1.OperatorProgressing)
+
+	// If the Progressing condition wasn't found, set a default one.
+	if prog == nil {
+		prog = &configv1.ClusterOperatorStatusCondition{
+			Type:   configv1.OperatorProgressing,
+			Status: configv1.ConditionFalse,
+		}
+	}
+
+	prog.LastTransitionTime = metav1.Now()
+
+	cvorm.SetOperatorStatusCondition(conds, *prog)
 }
