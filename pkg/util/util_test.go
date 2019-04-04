@@ -3,7 +3,9 @@ package util
 import (
 	"reflect"
 	"testing"
+	"time"
 
+	configv1 "github.com/openshift/api/config/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -174,6 +176,56 @@ func TestDeploymentUpdated(t *testing.T) {
 			ok := DeploymentUpdated(deployment)
 			if ok != tc.expectedBool {
 				t.Errorf("got %t, want %t", ok, tc.expectedBool)
+			}
+		})
+	}
+}
+
+func TestResetProgressingTime(t *testing.T) {
+	ConditionTransitionTime := metav1.NewTime(time.Date(
+		2009, time.November, 10, 23, 0, 0, 0, time.UTC,
+	))
+
+	testCases := []struct {
+		label      string
+		conditions []configv1.ClusterOperatorStatusCondition
+	}{
+		{
+			label:      "no progressing condition",
+			conditions: []configv1.ClusterOperatorStatusCondition{},
+		},
+		{
+			label: "existing progressing condition",
+			conditions: []configv1.ClusterOperatorStatusCondition{
+				{
+					Type:               configv1.OperatorProgressing,
+					Status:             configv1.ConditionFalse,
+					LastTransitionTime: ConditionTransitionTime,
+				},
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.label, func(t *testing.T) {
+			ResetProgressingTime(&tc.conditions)
+
+			found := false
+
+			for _, c := range tc.conditions {
+				if c.Type != configv1.OperatorProgressing {
+					continue
+				}
+
+				found = true
+
+				if !ConditionTransitionTime.Before(&c.LastTransitionTime) {
+					t.Error("expected Progressing condition transition time update")
+				}
+			}
+
+			if !found {
+				t.Error("did not find expected Progressing condition")
 			}
 		})
 	}

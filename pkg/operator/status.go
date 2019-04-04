@@ -11,6 +11,7 @@ import (
 	"github.com/openshift/cluster-autoscaler-operator/pkg/util"
 	cvorm "github.com/openshift/cluster-version-operator/lib/resourcemerge"
 	appsv1 "k8s.io/api/apps/v1"
+	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -142,6 +143,12 @@ func (r *StatusReporter) ApplyStatus(status configv1.ClusterOperatorStatus) erro
 		if status.Conditions[i].LastTransitionTime.IsZero() {
 			status.Conditions[i].LastTransitionTime = timestamp
 		}
+	}
+
+	// If any versions have changed, we need to reset the transition time on the
+	// Progressing condition whether or not we actually had any work to do.
+	if !equality.Semantic.DeepEqual(status.Versions, co.Status.Versions) {
+		util.ResetProgressingTime(&status.Conditions)
 	}
 
 	// Copy the current ClusterOperator and overwrite the status.

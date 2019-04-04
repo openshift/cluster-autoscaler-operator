@@ -326,25 +326,25 @@ func TestUpdateAnnotations(t *testing.T) {
 	}{
 		{
 			label:  "no prior annotations",
-			object: deployment.DeploymentCopy(),
+			object: deployment.Object(),
 		},
 		{
 			label: "missing version annotation",
 			object: deployment.WithAnnotations(map[string]string{
 				util.CriticalPodAnnotation: "",
-			}),
+			}).Object(),
 		},
 		{
 			label: "missing critical-pod annotation",
 			object: deployment.WithAnnotations(map[string]string{
 				util.ReleaseVersionAnnotation: TestReleaseVersion,
-			}),
+			}).Object(),
 		},
 		{
 			label: "old version annotation",
 			object: deployment.WithAnnotations(map[string]string{
 				util.ReleaseVersionAnnotation: "vOLD",
-			}),
+			}).Object(),
 		},
 	}
 
