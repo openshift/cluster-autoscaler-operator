@@ -13,4 +13,4 @@ resources:
 - install/04_deployment.yaml
 
 patches:
-- cluster-autoscaler-operator-patch.yaml
+- test/cluster-autoscaler-operator-patch.yaml

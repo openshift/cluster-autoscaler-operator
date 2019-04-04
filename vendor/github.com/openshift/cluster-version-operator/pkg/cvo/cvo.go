@@ -1,6 +1,7 @@
 package cvo
 
 import (
+	"context"
 	"fmt"
 	"strconv"
 	"sync"
@@ -30,7 +31,6 @@ import (
 	"github.com/openshift/cluster-version-operator/lib"
 	"github.com/openshift/cluster-version-operator/lib/resourceapply"
 	"github.com/openshift/cluster-version-operator/lib/resourcebuilder"
-	"github.com/openshift/cluster-version-operator/lib/resourcemerge"
 	"github.com/openshift/cluster-version-operator/lib/validation"
 	"github.com/openshift/cluster-version-operator/pkg/cvo/internal"
 	"github.com/openshift/cluster-version-operator/pkg/cvo/internal/dynamicclient"
@@ -82,9 +82,6 @@ type Operator struct {
 	// releaseCreated, if set, is the timestamp of the current update.
 	releaseCreated time.Time
 
-	// restConfig is used to create resourcebuilder.
-	restConfig *rest.Config
-
 	client        clientset.Interface
 	kubeClient    kubernetes.Interface
 	eventRecorder record.EventRecorder
@@ -132,6 +129,7 @@ func New(
 	cvInformer configinformersv1.ClusterVersionInformer,
 	coInformer configinformersv1.ClusterOperatorInformer,
 	restConfig *rest.Config,
+	burstRestConfig *rest.Config,
 	client clientset.Interface,
 	kubeClient kubernetes.Interface,
 	enableMetrics bool,
@@ -151,18 +149,17 @@ func New(
 		payloadDir:                 overridePayloadDir,
 		defaultUpstreamServer:      "https://api.openshift.com/api/upgrades_info/v1/graph",
 
-		restConfig:    restConfig,
 		client:        client,
 		kubeClient:    kubeClient,
 		eventRecorder: eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: namespace}),
 
-		queue: workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "clusterversion"),
+		queue:                 workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "clusterversion"),
 		availableUpdatesQueue: workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "availableupdates"),
 	}
 
 	optr.configSync = NewSyncWorker(
 		optr.defaultPayloadRetriever(),
-		NewResourceBuilder(optr.restConfig),
+		NewResourceBuilder(restConfig, burstRestConfig, coInformer.Lister()),
 		minimumInterval,
 		wait.Backoff{
 			Duration: time.Second * 10,
@@ -201,9 +198,10 @@ func New(
 }
 
 // Run runs the cluster version operator until stopCh is completed. Workers is ignored for now.
-func (optr *Operator) Run(workers int, stopCh <-chan struct{}) {
+func (optr *Operator) Run(ctx context.Context, workers int) {
 	defer utilruntime.HandleCrash()
 	defer optr.queue.ShutDown()
+	stopCh := ctx.Done()
 
 	glog.Infof("Starting ClusterVersionOperator with minimum reconcile period %s", optr.minimumUpdateCheckInterval)
 	defer glog.Info("Shutting down ClusterVersionOperator")
@@ -218,7 +216,7 @@ func (optr *Operator) Run(workers int, stopCh <-chan struct{}) {
 
 	// start the config sync loop, and have it notify the queue when new status is detected
 	go runThrottledStatusNotifier(stopCh, optr.statusInterval, 2, optr.configSync.StatusCh(), func() { optr.queue.Add(optr.queueKey()) })
-	go optr.configSync.Start(8, stopCh)
+	go optr.configSync.Start(ctx, 16)
 
 	go wait.Until(func() { optr.worker(optr.queue, optr.sync) }, time.Second, stopCh)
 	go wait.Until(func() { optr.worker(optr.availableUpdatesQueue, optr.availableUpdatesSync) }, time.Second, stopCh)
@@ -333,10 +331,19 @@ func (optr *Operator) sync(key string) error {
 		}, errs)
 	}
 
+	// identify an initial state to inform the sync loop of
+	var state payload.State
+	switch {
+	case hasNeverReachedLevel(config):
+		state = payload.InitializingPayload
+	case hasReachedLevel(config, desired):
+		state = payload.ReconcilingPayload
+	default:
+		state = payload.UpdatingPayload
+	}
+
 	// inform the config sync loop about our desired state
-	reconciling := resourcemerge.IsOperatorStatusConditionTrue(config.Status.Conditions, configv1.OperatorAvailable) &&
-		resourcemerge.IsOperatorStatusConditionFalse(config.Status.Conditions, configv1.OperatorProgressing)
-	status := optr.configSync.Update(config.Generation, desired, config.Spec.Overrides, reconciling)
+	status := optr.configSync.Update(config.Generation, desired, config.Spec.Overrides, state)
 
 	// write cluster version status
 	return optr.syncStatus(original, config, status, errs)
@@ -459,33 +466,81 @@ func (optr *Operator) SetSyncWorkerForTesting(worker ConfigSyncWorker) {
 // resourceBuilder provides the default builder implementation for the operator.
 // It is abstracted for testing.
 type resourceBuilder struct {
-	config   *rest.Config
-	modifier resourcebuilder.MetaV1ObjectModifierFunc
+	config      *rest.Config
+	burstConfig *rest.Config
+	modifier    resourcebuilder.MetaV1ObjectModifierFunc
+
+	clusterOperators internal.ClusterOperatorsGetter
 }
 
 // NewResourceBuilder creates the default resource builder implementation.
-func NewResourceBuilder(config *rest.Config) ResourceBuilder {
-	return &resourceBuilder{config: config}
+func NewResourceBuilder(config, burstConfig *rest.Config, clusterOperators configlistersv1.ClusterOperatorLister) payload.ResourceBuilder {
+	return &resourceBuilder{
+		config:           config,
+		burstConfig:      burstConfig,
+		clusterOperators: clusterOperators,
+	}
 }
 
-func (b *resourceBuilder) BuilderFor(m *lib.Manifest) (resourcebuilder.Interface, error) {
-	if resourcebuilder.Mapper.Exists(m.GVK) {
-		return resourcebuilder.New(resourcebuilder.Mapper, b.config, *m)
+func (b *resourceBuilder) builderFor(m *lib.Manifest, state payload.State) (resourcebuilder.Interface, error) {
+	config := b.config
+	if state == payload.InitializingPayload {
+		config = b.burstConfig
 	}
-	client, err := dynamicclient.New(b.config, m.GVK, m.Object().GetNamespace())
+
+	if b.clusterOperators != nil && m.GVK == configv1.SchemeGroupVersion.WithKind("ClusterOperator") {
+		return internal.NewClusterOperatorBuilder(b.clusterOperators, *m), nil
+	}
+	if resourcebuilder.Mapper.Exists(m.GVK) {
+		return resourcebuilder.New(resourcebuilder.Mapper, config, *m)
+	}
+	client, err := dynamicclient.New(config, m.GVK, m.Object().GetNamespace())
 	if err != nil {
 		return nil, err
 	}
 	return internal.NewGenericBuilder(client, *m)
 }
 
-func (b *resourceBuilder) Apply(m *lib.Manifest) error {
-	builder, err := b.BuilderFor(m)
+func (b *resourceBuilder) Apply(ctx context.Context, m *lib.Manifest, state payload.State) error {
+	builder, err := b.builderFor(m, state)
 	if err != nil {
 		return err
 	}
 	if b.modifier != nil {
 		builder = builder.WithModifier(b.modifier)
 	}
-	return builder.Do()
+	return builder.WithMode(stateToMode(state)).Do(ctx)
+}
+
+func stateToMode(state payload.State) resourcebuilder.Mode {
+	switch state {
+	case payload.InitializingPayload:
+		return resourcebuilder.InitializingMode
+	case payload.UpdatingPayload:
+		return resourcebuilder.UpdatingMode
+	case payload.ReconcilingPayload:
+		return resourcebuilder.ReconcilingMode
+	default:
+		panic(fmt.Sprintf("unexpected payload state %d", int(state)))
+	}
+}
+
+func hasNeverReachedLevel(cv *configv1.ClusterVersion) bool {
+	for _, version := range cv.Status.History {
+		if version.State == configv1.CompletedUpdate {
+			return false
+		}
+	}
+	// TODO: check the payload, just in case
+	return true
+}
+
+func hasReachedLevel(cv *configv1.ClusterVersion, desired configv1.Update) bool {
+	if len(cv.Status.History) == 0 {
+		return false
+	}
+	if cv.Status.History[0].State != configv1.CompletedUpdate {
+		return false
+	}
+	return desired.Image == cv.Status.History[0].Image
 }

@@ -5,8 +5,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/golang/glog"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/klog"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -19,6 +19,18 @@ type Recorder interface {
 	Eventf(reason, messageFmt string, args ...interface{})
 	Warning(reason, message string)
 	Warningf(reason, messageFmt string, args ...interface{})
+
+	// ForComponent allows to fiddle the component name before sending the event to sink.
+	// Making more unique components will prevent the spam filter in upstream event sink from dropping
+	// events.
+	ForComponent(componentName string) Recorder
+
+	// WithComponentSuffix is similar to ForComponent except it just suffix the current component name instead of overriding.
+	WithComponentSuffix(componentNameSuffix string) Recorder
+
+	// ComponentName returns the current source component name for the event.
+	// This allows to suffix the original component name with 'sub-component'.
+	ComponentName() string
 }
 
 // podNameEnv is a name of environment variable inside container that specifies the name of the current replica set.
@@ -121,6 +133,20 @@ type recorder struct {
 	sourceComponent   string
 }
 
+func (r *recorder) ComponentName() string {
+	return r.sourceComponent
+}
+
+func (r *recorder) ForComponent(componentName string) Recorder {
+	newRecorderForComponent := *r
+	newRecorderForComponent.sourceComponent = componentName
+	return &newRecorderForComponent
+}
+
+func (r *recorder) WithComponentSuffix(suffix string) Recorder {
+	return r.ForComponent(fmt.Sprintf("%s-%s", r.ComponentName(), suffix))
+}
+
 // Event emits the normal type event and allow formatting of message.
 func (r *recorder) Eventf(reason, messageFmt string, args ...interface{}) {
 	r.Event(reason, fmt.Sprintf(messageFmt, args...))
@@ -135,7 +161,7 @@ func (r *recorder) Warningf(reason, messageFmt string, args ...interface{}) {
 func (r *recorder) Event(reason, message string) {
 	event := makeEvent(r.involvedObjectRef, r.sourceComponent, corev1.EventTypeNormal, reason, message)
 	if _, err := r.eventClient.Create(event); err != nil {
-		glog.Warningf("Error creating event %+v: %v", event, err)
+		klog.Warningf("Error creating event %+v: %v", event, err)
 	}
 }
 
@@ -143,7 +169,7 @@ func (r *recorder) Event(reason, message string) {
 func (r *recorder) Warning(reason, message string) {
 	event := makeEvent(r.involvedObjectRef, r.sourceComponent, corev1.EventTypeWarning, reason, message)
 	if _, err := r.eventClient.Create(event); err != nil {
-		glog.Warningf("Error creating event %+v: %v", event, err)
+		klog.Warningf("Error creating event %+v: %v", event, err)
 	}
 }
 

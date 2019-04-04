@@ -1,8 +1,10 @@
 package resourcebuilder
 
 import (
+	"context"
 	"fmt"
 	"sync"
+	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -62,9 +64,19 @@ type MetaV1ObjectModifierFunc func(metav1.Object)
 // and the Manifest.
 type NewInteraceFunc func(rest *rest.Config, m lib.Manifest) Interface
 
+// Mode is how this builder is being used.
+type Mode int
+
+const (
+	UpdatingMode Mode = iota
+	ReconcilingMode
+	InitializingMode
+)
+
 type Interface interface {
 	WithModifier(MetaV1ObjectModifierFunc) Interface
-	Do() error
+	WithMode(Mode) Interface
+	Do(context.Context) error
 }
 
 // New returns Interface using the mapping stored in mapper for m Manifest.
@@ -75,3 +87,7 @@ func New(mapper *ResourceMapper, rest *rest.Config, m lib.Manifest) (Interface, 
 	}
 	return f(rest, m), nil
 }
+
+// defaultObjectPollInterval is the default interval to poll the API to determine whether an object
+// is ready. Use this when a more specific interval is not necessary.
+const defaultObjectPollInterval = 3 * time.Second

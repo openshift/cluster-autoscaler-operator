@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"sort"
@@ -49,16 +50,43 @@ func readClusterOperatorV1OrDie(objBytes []byte) *configv1.ClusterOperator {
 }
 
 type clusterOperatorBuilder struct {
-	client   configclientv1.ConfigV1Interface
+	client   ClusterOperatorsGetter
 	raw      []byte
 	modifier resourcebuilder.MetaV1ObjectModifierFunc
+	mode     resourcebuilder.Mode
 }
 
 func newClusterOperatorBuilder(config *rest.Config, m lib.Manifest) resourcebuilder.Interface {
+	return NewClusterOperatorBuilder(clientClusterOperatorsGetter{
+		getter: configclientv1.NewForConfigOrDie(config).ClusterOperators(),
+	}, m)
+}
+
+// ClusterOperatorsGetter abstracts object access with a client or a cache lister.
+type ClusterOperatorsGetter interface {
+	Get(name string) (*configv1.ClusterOperator, error)
+}
+
+type clientClusterOperatorsGetter struct {
+	getter configclientv1.ClusterOperatorInterface
+}
+
+func (g clientClusterOperatorsGetter) Get(name string) (*configv1.ClusterOperator, error) {
+	return g.getter.Get(name, metav1.GetOptions{})
+}
+
+// NewClusterOperatorBuilder accepts the ClusterOperatorsGetter interface which may be implemented by a
+// client or a lister cache.
+func NewClusterOperatorBuilder(client ClusterOperatorsGetter, m lib.Manifest) resourcebuilder.Interface {
 	return &clusterOperatorBuilder{
-		client: configclientv1.NewForConfigOrDie(config),
+		client: client,
 		raw:    m.Raw,
 	}
+}
+
+func (b *clusterOperatorBuilder) WithMode(m resourcebuilder.Mode) resourcebuilder.Interface {
+	b.mode = m
+	return b
 }
 
 func (b *clusterOperatorBuilder) WithModifier(f resourcebuilder.MetaV1ObjectModifierFunc) resourcebuilder.Interface {
@@ -66,24 +94,18 @@ func (b *clusterOperatorBuilder) WithModifier(f resourcebuilder.MetaV1ObjectModi
 	return b
 }
 
-func (b *clusterOperatorBuilder) Do() error {
+func (b *clusterOperatorBuilder) Do(ctx context.Context) error {
 	os := readClusterOperatorV1OrDie(b.raw)
 	if b.modifier != nil {
 		b.modifier(os)
 	}
-
-	return waitForOperatorStatusToBeDone(osPollInternal, osPollTimeout, b.client, os)
+	return waitForOperatorStatusToBeDone(ctx, 1*time.Second, b.client, os, b.mode)
 }
 
-const (
-	osPollInternal = 1 * time.Second
-	osPollTimeout  = 1 * time.Minute
-)
-
-func waitForOperatorStatusToBeDone(interval, timeout time.Duration, client configclientv1.ClusterOperatorsGetter, expected *configv1.ClusterOperator) error {
+func waitForOperatorStatusToBeDone(ctx context.Context, interval time.Duration, client ClusterOperatorsGetter, expected *configv1.ClusterOperator, mode resourcebuilder.Mode) error {
 	var lastErr error
-	err := wait.Poll(interval, timeout, func() (bool, error) {
-		actual, err := client.ClusterOperators().Get(expected.Name, metav1.GetOptions{})
+	err := wait.PollImmediateUntil(interval, func() (bool, error) {
+		actual, err := client.Get(expected.Name)
 		if err != nil {
 			lastErr = &payload.UpdateError{
 				Nested:  err,
@@ -155,9 +177,19 @@ func waitForOperatorStatusToBeDone(interval, timeout time.Duration, client confi
 				failing = false
 			}
 		}
-		// if we're at the correct version, and available, not progressing, and not failing, we are done
-		if available && !progressing && !failing {
-			return true, nil
+		switch mode {
+		case resourcebuilder.InitializingMode:
+			// during initialization we allow failing as long as the component goes available
+			if available && (!progressing || len(expected.Status.Versions) > 0) {
+				return true, nil
+			}
+		default:
+			// if we're at the correct version, and available, and not failing, we are done
+			// if we're available, not failing, and not progressing, we're also done
+			// TODO: remove progressing once all cluster operators report expected versions
+			if available && (!progressing || len(expected.Status.Versions) > 0) && !failing {
+				return true, nil
+			}
 		}
 
 		if c := resourcemerge.FindOperatorStatusCondition(actual.Status.Conditions, configv1.OperatorFailing); c != nil && c.Status == configv1.ConditionTrue {
@@ -183,7 +215,7 @@ func waitForOperatorStatusToBeDone(interval, timeout time.Duration, client confi
 			Name:    actual.Name,
 		}
 		return false, nil
-	})
+	}, ctx.Done())
 	if err != nil {
 		if err == wait.ErrWaitTimeout && lastErr != nil {
 			return lastErr

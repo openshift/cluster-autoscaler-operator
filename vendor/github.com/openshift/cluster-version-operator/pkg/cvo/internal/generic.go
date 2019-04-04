@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 
@@ -32,7 +33,7 @@ func applyUnstructured(client dynamic.ResourceInterface, required *unstructured.
 	}
 	existing, err := client.Get(required.GetName(), metav1.GetOptions{})
 	if apierrors.IsNotFound(err) {
-		actual, err := client.Create(required)
+		actual, err := client.Create(required, metav1.CreateOptions{})
 		return actual, true, err
 	}
 	if err != nil {
@@ -50,7 +51,7 @@ func applyUnstructured(client dynamic.ResourceInterface, required *unstructured.
 		existing.Object[k] = v
 	}
 
-	actual, err := client.Update(existing)
+	actual, err := client.Update(existing, metav1.UpdateOptions{})
 	if err != nil {
 		return nil, false, err
 	}
@@ -72,12 +73,16 @@ func NewGenericBuilder(client dynamic.ResourceInterface, m lib.Manifest) (resour
 	}, nil
 }
 
+func (b *genericBuilder) WithMode(m resourcebuilder.Mode) resourcebuilder.Interface {
+	return b
+}
+
 func (b *genericBuilder) WithModifier(f resourcebuilder.MetaV1ObjectModifierFunc) resourcebuilder.Interface {
 	b.modifier = f
 	return b
 }
 
-func (b *genericBuilder) Do() error {
+func (b *genericBuilder) Do(_ context.Context) error {
 	ud := readUnstructuredV1OrDie(b.raw)
 	if b.modifier != nil {
 		b.modifier(ud)
