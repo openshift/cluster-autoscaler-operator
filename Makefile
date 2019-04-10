@@ -85,6 +85,7 @@ test-e2e: ## Run e2e tests
 		-kubeconfig $${KUBECONFIG:-~/.kube/config} \
 		-machine-api-namespace $${NAMESPACE:-openshift-machine-api} \
 		-ginkgo.v \
+		-ginkgo.noColor=true \
 		-args -v 5 -logtostderr true
 
 .PHONY: lint
