@@ -384,7 +384,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:544368f63e290ecf2f94462fba5f5bb924ef00f57ec7ff56698b395653a916f3"
+  digest = "1:7ac5313f041acd49774d3aa8728526123bd9bb46d5b2c5eff41ba23f24ea879d"
   name = "github.com/openshift/cluster-api-actuator-pkg"
   packages = [
     "pkg/e2e",
@@ -397,7 +397,7 @@
     "pkg/types",
   ]
   pruneopts = "N"
-  revision = "acbcbdc39cb8052eaafe69f8faa575e5d991aee4"
+  revision = "480b54695c31cb66af3b8d0925d5c3adef044b05"
 
 [[projects]]
   branch = "master"
@@ -770,8 +770,7 @@
   version = "kubernetes-1.13.4"
 
 [[projects]]
-  branch = "origin-4.0-kubernetes-1.12.4"
-  digest = "1:78445593faf6655aef02024437a2ce0c4330ac76843b4c15d1bf205d3d2c524a"
+  digest = "1:c6f23048e162e65d586c809fd02e263e180ad157f110df17437c22517bb59a4b"
   name = "k8s.io/apiextensions-apiserver"
   packages = [
     "pkg/apis/apiextensions",
@@ -781,8 +780,9 @@
     "pkg/client/clientset/clientset/typed/apiextensions/v1beta1",
   ]
   pruneopts = "NT"
-  revision = "36be1826c980fa7ca82d91645e06e3157f159322"
+  revision = "d002e88f6236312f0289d9d1deab106751718ff0"
   source = "https://github.com/openshift/kubernetes-apiextensions-apiserver"
+  version = "kubernetes-1.13.4"
 
 [[projects]]
   digest = "1:f44b5a32a31245ea062cd397cc343bda06d75c731596589996c1f77634e653af"
