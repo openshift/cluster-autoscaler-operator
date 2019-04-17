@@ -8,7 +8,7 @@ import (
 	configv1 "github.com/openshift/api/config/v1"
 	fakeconfigclient "github.com/openshift/client-go/config/clientset/versioned/fake"
 	"github.com/openshift/cluster-autoscaler-operator/pkg/apis"
-	autoscalingv1alpha1 "github.com/openshift/cluster-autoscaler-operator/pkg/apis/autoscaling/v1alpha1"
+	autoscalingv1beta1 "github.com/openshift/cluster-autoscaler-operator/pkg/apis/autoscaling/v1beta1"
 	"github.com/openshift/cluster-autoscaler-operator/pkg/util"
 	"github.com/openshift/cluster-autoscaler-operator/test/helpers"
 	cvorm "github.com/openshift/cluster-version-operator/lib/resourcemerge"
@@ -112,10 +112,10 @@ var TestStatusReporterConfig = StatusReporterConfig{
 }
 
 // clusterAutoscaler is the default ClusterAutoscaler object used in test setup.
-var clusterAutoscaler = &autoscalingv1alpha1.ClusterAutoscaler{
+var clusterAutoscaler = &autoscalingv1beta1.ClusterAutoscaler{
 	TypeMeta: metav1.TypeMeta{
 		Kind:       "ClusterAutoscaler",
-		APIVersion: "autoscaling.openshift.io/v1alpha1",
+		APIVersion: "autoscaling.openshift.io/v1beta1",
 	},
 	ObjectMeta: metav1.ObjectMeta{
 		Name: ClusterAutoscalerName,

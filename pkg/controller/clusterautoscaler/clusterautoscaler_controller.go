@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	autoscalingv1alpha1 "github.com/openshift/cluster-autoscaler-operator/pkg/apis/autoscaling/v1alpha1"
+	autoscalingv1beta1 "github.com/openshift/cluster-autoscaler-operator/pkg/apis/autoscaling/v1beta1"
 	"github.com/openshift/cluster-autoscaler-operator/pkg/util"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -102,7 +102,7 @@ func (r *Reconciler) AddToManager(mgr manager.Manager) error {
 	}
 
 	// Watch for changes to primary resource ClusterAutoscaler
-	err = c.Watch(&source.Kind{Type: &autoscalingv1alpha1.ClusterAutoscaler{}}, &handler.EnqueueRequestForObject{}, p)
+	err = c.Watch(&source.Kind{Type: &autoscalingv1beta1.ClusterAutoscaler{}}, &handler.EnqueueRequestForObject{}, p)
 	if err != nil {
 		return err
 	}
@@ -110,7 +110,7 @@ func (r *Reconciler) AddToManager(mgr manager.Manager) error {
 	// Watch for changes to secondary resources owned by a ClusterAutoscaler
 	err = c.Watch(&source.Kind{Type: &appsv1.Deployment{}}, &handler.EnqueueRequestForOwner{
 		IsController: true,
-		OwnerType:    &autoscalingv1alpha1.ClusterAutoscaler{},
+		OwnerType:    &autoscalingv1beta1.ClusterAutoscaler{},
 	})
 
 	if err != nil {
@@ -127,7 +127,7 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 	klog.Infof("Reconciling ClusterAutoscaler %s\n", request.Name)
 
 	// Fetch the ClusterAutoscaler instance
-	ca := &autoscalingv1alpha1.ClusterAutoscaler{}
+	ca := &autoscalingv1beta1.ClusterAutoscaler{}
 	err := r.client.Get(context.TODO(), request.NamespacedName, ca)
 	if err != nil {
 		if errors.IsNotFound(err) {
@@ -209,7 +209,7 @@ func (r *Reconciler) NamePredicate(meta metav1.Object) bool {
 
 // CreateAutoscaler will create the deployment for the given the
 // ClusterAutoscaler custom resource instance.
-func (r *Reconciler) CreateAutoscaler(ca *autoscalingv1alpha1.ClusterAutoscaler) error {
+func (r *Reconciler) CreateAutoscaler(ca *autoscalingv1beta1.ClusterAutoscaler) error {
 	klog.Infof("Creating ClusterAutoscaler deployment: %s\n", r.AutoscalerName(ca))
 
 	deployment := r.AutoscalerDeployment(ca)
@@ -224,7 +224,7 @@ func (r *Reconciler) CreateAutoscaler(ca *autoscalingv1alpha1.ClusterAutoscaler)
 
 // UpdateAutoscaler will retrieve the deployment for the given ClusterAutoscaler
 // custom resource instance and update it to match the expected spec if needed.
-func (r *Reconciler) UpdateAutoscaler(ca *autoscalingv1alpha1.ClusterAutoscaler) error {
+func (r *Reconciler) UpdateAutoscaler(ca *autoscalingv1beta1.ClusterAutoscaler) error {
 	existingDeployment, err := r.GetAutoscaler(ca)
 	if err != nil {
 		return err
@@ -249,7 +249,7 @@ func (r *Reconciler) UpdateAutoscaler(ca *autoscalingv1alpha1.ClusterAutoscaler)
 
 // GetAutoscaler will return the deployment for the given ClusterAutoscaler
 // custom resource instance.
-func (r *Reconciler) GetAutoscaler(ca *autoscalingv1alpha1.ClusterAutoscaler) (*appsv1.Deployment, error) {
+func (r *Reconciler) GetAutoscaler(ca *autoscalingv1beta1.ClusterAutoscaler) (*appsv1.Deployment, error) {
 	deployment := &appsv1.Deployment{}
 	nn := r.AutoscalerName(ca)
 
@@ -262,7 +262,7 @@ func (r *Reconciler) GetAutoscaler(ca *autoscalingv1alpha1.ClusterAutoscaler) (*
 
 // AutoscalerName returns the expected NamespacedName for the deployment
 // belonging to the given ClusterAutoscaler.
-func (r *Reconciler) AutoscalerName(ca *autoscalingv1alpha1.ClusterAutoscaler) types.NamespacedName {
+func (r *Reconciler) AutoscalerName(ca *autoscalingv1beta1.ClusterAutoscaler) types.NamespacedName {
 	return types.NamespacedName{
 		Name:      fmt.Sprintf("cluster-autoscaler-%s", ca.Name),
 		Namespace: r.config.Namespace,
@@ -286,7 +286,7 @@ func (r *Reconciler) UpdateAnnotations(obj metav1.Object) {
 
 // AutoscalerDeployment returns the expected deployment belonging to the given
 // ClusterAutoscaler.
-func (r *Reconciler) AutoscalerDeployment(ca *autoscalingv1alpha1.ClusterAutoscaler) *appsv1.Deployment {
+func (r *Reconciler) AutoscalerDeployment(ca *autoscalingv1beta1.ClusterAutoscaler) *appsv1.Deployment {
 	namespacedName := r.AutoscalerName(ca)
 
 	labels := map[string]string{
@@ -331,7 +331,7 @@ func (r *Reconciler) AutoscalerDeployment(ca *autoscalingv1alpha1.ClusterAutosca
 
 // AutoscalerPodSpec returns the expected podSpec for the deployment belonging
 // to the given ClusterAutoscaler.
-func (r *Reconciler) AutoscalerPodSpec(ca *autoscalingv1alpha1.ClusterAutoscaler) *corev1.PodSpec {
+func (r *Reconciler) AutoscalerPodSpec(ca *autoscalingv1beta1.ClusterAutoscaler) *corev1.PodSpec {
 	args := AutoscalerArgs(ca, r.config)
 
 	if r.config.ExtraArgs != "" {

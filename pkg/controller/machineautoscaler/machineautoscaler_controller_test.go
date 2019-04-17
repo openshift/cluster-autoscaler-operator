@@ -41,10 +41,10 @@ func TestRemoveSupportedGVK(t *testing.T) {
 			label:  "remove one",
 			before: DefaultSupportedTargetGVKs(),
 			remove: []schema.GroupVersionKind{
-				{Group: "cluster.k8s.io", Version: "v1alpha1", Kind: "MachineDeployment"},
+				{Group: "cluster.k8s.io", Version: "v1beta1", Kind: "MachineDeployment"},
 			},
 			after: []schema.GroupVersionKind{
-				{Group: "cluster.k8s.io", Version: "v1alpha1", Kind: "MachineSet"},
+				{Group: "cluster.k8s.io", Version: "v1beta1", Kind: "MachineSet"},
 				{Group: "machine.openshift.io", Version: "v1beta1", Kind: "MachineDeployment"},
 				{Group: "machine.openshift.io", Version: "v1beta1", Kind: "MachineSet"},
 			},
@@ -53,11 +53,11 @@ func TestRemoveSupportedGVK(t *testing.T) {
 			label:  "remove multiple",
 			before: DefaultSupportedTargetGVKs(),
 			remove: []schema.GroupVersionKind{
-				{Group: "cluster.k8s.io", Version: "v1alpha1", Kind: "MachineDeployment"},
+				{Group: "cluster.k8s.io", Version: "v1beta1", Kind: "MachineDeployment"},
 				{Group: "machine.openshift.io", Version: "v1beta1", Kind: "MachineSet"},
 			},
 			after: []schema.GroupVersionKind{
-				{Group: "cluster.k8s.io", Version: "v1alpha1", Kind: "MachineSet"},
+				{Group: "cluster.k8s.io", Version: "v1beta1", Kind: "MachineSet"},
 				{Group: "machine.openshift.io", Version: "v1beta1", Kind: "MachineDeployment"},
 			},
 		},
@@ -118,7 +118,7 @@ func TestValidateReference(t *testing.T) {
 			ref: &corev1.ObjectReference{
 				Name:       "test",
 				Kind:       "MachineSet",
-				APIVersion: "cluster.k8s.io/v1alpha1",
+				APIVersion: "cluster.k8s.io/v1beta1",
 			},
 		},
 	}
