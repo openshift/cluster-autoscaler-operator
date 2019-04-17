@@ -10,7 +10,7 @@ import (
 	o "github.com/onsi/gomega"
 	e2e "github.com/openshift/cluster-api-actuator-pkg/pkg/e2e/framework"
 	mapiv1beta1 "github.com/openshift/cluster-api/pkg/apis/machine/v1beta1"
-	caov1alpha1 "github.com/openshift/cluster-autoscaler-operator/pkg/apis/autoscaling/v1alpha1"
+	caov1beta1 "github.com/openshift/cluster-autoscaler-operator/pkg/apis/autoscaling/v1beta1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -123,9 +123,9 @@ func labelMachineSetNodes(client runtimeclient.Client, ms *mapiv1beta1.MachineSe
 }
 
 // Build default CA resource to allow fast scaling up and down
-func clusterAutoscalerResource() *caov1alpha1.ClusterAutoscaler {
+func clusterAutoscalerResource() *caov1beta1.ClusterAutoscaler {
 	tenSecondString := "10s"
-	return &caov1alpha1.ClusterAutoscaler{
+	return &caov1beta1.ClusterAutoscaler{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "default",
 			Namespace: e2e.TestContext.MachineApiNamespace,
@@ -137,8 +137,8 @@ func clusterAutoscalerResource() *caov1alpha1.ClusterAutoscaler {
 			Kind:       "ClusterAutoscaler",
 			APIVersion: "autoscaling.openshift.io/v1alpha1",
 		},
-		Spec: caov1alpha1.ClusterAutoscalerSpec{
-			ScaleDown: &caov1alpha1.ScaleDownConfig{
+		Spec: caov1beta1.ClusterAutoscalerSpec{
+			ScaleDown: &caov1beta1.ScaleDownConfig{
 				Enabled:           true,
 				DelayAfterAdd:     &tenSecondString,
 				DelayAfterDelete:  &tenSecondString,
@@ -150,8 +150,8 @@ func clusterAutoscalerResource() *caov1alpha1.ClusterAutoscaler {
 }
 
 // Build MA resource from targeted machineset
-func machineAutoscalerResource(targetMachineSet *mapiv1beta1.MachineSet, minReplicas, maxReplicas int32) *caov1alpha1.MachineAutoscaler {
-	return &caov1alpha1.MachineAutoscaler{
+func machineAutoscalerResource(targetMachineSet *mapiv1beta1.MachineSet, minReplicas, maxReplicas int32) *caov1beta1.MachineAutoscaler {
+	return &caov1beta1.MachineAutoscaler{
 		ObjectMeta: metav1.ObjectMeta{
 			GenerateName: fmt.Sprintf("autoscale-%s", targetMachineSet.Name),
 			Namespace:    e2e.TestContext.MachineApiNamespace,
@@ -163,10 +163,10 @@ func machineAutoscalerResource(targetMachineSet *mapiv1beta1.MachineSet, minRepl
 			Kind:       "MachineAutoscaler",
 			APIVersion: "autoscaling.openshift.io/v1alpha1",
 		},
-		Spec: caov1alpha1.MachineAutoscalerSpec{
+		Spec: caov1beta1.MachineAutoscalerSpec{
 			MaxReplicas: maxReplicas,
 			MinReplicas: minReplicas,
-			ScaleTargetRef: caov1alpha1.CrossVersionObjectReference{
+			ScaleTargetRef: caov1beta1.CrossVersionObjectReference{
 				Name:       targetMachineSet.Name,
 				Kind:       "MachineSet",
 				APIVersion: "machine.openshift.io/v1beta1",
@@ -195,7 +195,7 @@ var _ = g.Describe("[Feature:Machines] Autoscaler should", func() {
 				glog.Info("Deleted workload object")
 			}
 
-			err = e2e.DeleteObjectsByLabels(context.TODO(), client, map[string]string{autoscalingTestLabel: ""}, &caov1alpha1.MachineAutoscalerList{})
+			err = e2e.DeleteObjectsByLabels(context.TODO(), client, map[string]string{autoscalingTestLabel: ""}, &caov1beta1.MachineAutoscalerList{})
 			if err != nil {
 				// if this one fails, there are still other resources to be deleted.
 				glog.Warning(err)
@@ -203,7 +203,7 @@ var _ = g.Describe("[Feature:Machines] Autoscaler should", func() {
 				glog.Info("Deleted machineAutoscaler object")
 			}
 
-			err = e2e.DeleteObjectsByLabels(context.TODO(), client, map[string]string{autoscalingTestLabel: ""}, &caov1alpha1.ClusterAutoscalerList{})
+			err = e2e.DeleteObjectsByLabels(context.TODO(), client, map[string]string{autoscalingTestLabel: ""}, &caov1beta1.ClusterAutoscalerList{})
 			if err != nil {
 				// if this one fails, there is no point of returning an error as this is the last resource deletion action
 				glog.Warning(err)

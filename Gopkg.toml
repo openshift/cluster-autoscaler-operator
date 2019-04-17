@@ -22,6 +22,12 @@ required = [
 [[override]]
   name = "github.com/openshift/cluster-autoscaler-operator"
 
+# This is temporary until the version change is merged.
+[[override]]
+  name = "github.com/openshift/cluster-api-actuator-pkg"
+  source = "https://github.com/bison/cluster-api-actuator-pkg.git"
+  branch = "cao-v1beta1"
+
 [[override]]
   name = "k8s.io/code-generator"
   version = "kubernetes-1.13.4"
