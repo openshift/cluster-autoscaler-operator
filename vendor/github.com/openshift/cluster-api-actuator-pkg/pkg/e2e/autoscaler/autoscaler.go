@@ -10,6 +10,7 @@ import (
 	o "github.com/onsi/gomega"
 	e2e "github.com/openshift/cluster-api-actuator-pkg/pkg/e2e/framework"
 	mapiv1beta1 "github.com/openshift/cluster-api/pkg/apis/machine/v1beta1"
+	caov1 "github.com/openshift/cluster-autoscaler-operator/pkg/apis/autoscaling/v1"
 	caov1beta1 "github.com/openshift/cluster-autoscaler-operator/pkg/apis/autoscaling/v1beta1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -123,9 +124,9 @@ func labelMachineSetNodes(client runtimeclient.Client, ms *mapiv1beta1.MachineSe
 }
 
 // Build default CA resource to allow fast scaling up and down
-func clusterAutoscalerResource() *caov1beta1.ClusterAutoscaler {
+func clusterAutoscalerResource() *caov1.ClusterAutoscaler {
 	tenSecondString := "10s"
-	return &caov1beta1.ClusterAutoscaler{
+	return &caov1.ClusterAutoscaler{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "default",
 			Namespace: e2e.TestContext.MachineApiNamespace,
@@ -135,10 +136,10 @@ func clusterAutoscalerResource() *caov1beta1.ClusterAutoscaler {
 		},
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "ClusterAutoscaler",
-			APIVersion: "autoscaling.openshift.io/v1alpha1",
+			APIVersion: "autoscaling.openshift.io/v1",
 		},
-		Spec: caov1beta1.ClusterAutoscalerSpec{
-			ScaleDown: &caov1beta1.ScaleDownConfig{
+		Spec: caov1.ClusterAutoscalerSpec{
+			ScaleDown: &caov1.ScaleDownConfig{
 				Enabled:           true,
 				DelayAfterAdd:     &tenSecondString,
 				DelayAfterDelete:  &tenSecondString,
@@ -161,7 +162,7 @@ func machineAutoscalerResource(targetMachineSet *mapiv1beta1.MachineSet, minRepl
 		},
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "MachineAutoscaler",
-			APIVersion: "autoscaling.openshift.io/v1alpha1",
+			APIVersion: "autoscaling.openshift.io/v1beta1",
 		},
 		Spec: caov1beta1.MachineAutoscalerSpec{
 			MaxReplicas: maxReplicas,
@@ -203,7 +204,7 @@ var _ = g.Describe("[Feature:Machines] Autoscaler should", func() {
 				glog.Info("Deleted machineAutoscaler object")
 			}
 
-			err = e2e.DeleteObjectsByLabels(context.TODO(), client, map[string]string{autoscalingTestLabel: ""}, &caov1beta1.ClusterAutoscalerList{})
+			err = e2e.DeleteObjectsByLabels(context.TODO(), client, map[string]string{autoscalingTestLabel: ""}, &caov1.ClusterAutoscalerList{})
 			if err != nil {
 				// if this one fails, there is no point of returning an error as this is the last resource deletion action
 				glog.Warning(err)

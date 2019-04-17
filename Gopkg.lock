@@ -384,7 +384,7 @@
 
 [[projects]]
   branch = "cao-v1beta1"
-  digest = "1:6955a2c60ea7cdd77c761e66483fa2fb774a72364484cef96a97855bac7766ca"
+  digest = "1:79a6ed849848dd57a77c4c91bdd58049be2411471449c70806e7e950bd5b3921"
   name = "github.com/openshift/cluster-api-actuator-pkg"
   packages = [
     "pkg/e2e",
@@ -397,7 +397,7 @@
     "pkg/types",
   ]
   pruneopts = "N"
-  revision = "c993240b40340c65e60659a6c145098b1bdee19e"
+  revision = "dfe93de1579dbaf5ca015760f22536f1e12660d0"
   source = "https://github.com/bison/cluster-api-actuator-pkg.git"
 
 [[projects]]
@@ -782,7 +782,7 @@
   ]
   pruneopts = "NT"
   revision = "d002e88f6236312f0289d9d1deab106751718ff0"
-  source = "https://github.com/openshift/kubernetes-apiextensions-apiserver"
+  source = "https://github.com/openshift/kubernetes-apiextensions-apiserver.git"
   version = "kubernetes-1.13.4"
 
 [[projects]]

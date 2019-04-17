@@ -6,6 +6,7 @@ import (
 	"time"
 
 	mapiv1beta1 "github.com/openshift/cluster-api/pkg/apis/machine/v1beta1"
+	caov1 "github.com/openshift/cluster-autoscaler-operator/pkg/apis/autoscaling/v1"
 	caov1beta1 "github.com/openshift/cluster-autoscaler-operator/pkg/apis/autoscaling/v1beta1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -89,7 +90,7 @@ func GetMachine(ctx context.Context, client runtimeclient.Client, machineName st
 // DeleteObjectsByLabels list all objects of a given kind by labels and deletes them.
 // Currently supported kinds:
 // - caov1beta1.MachineAutoscalerList
-// - caov1beta1.ClusterAutoscalerList
+// - caov1.ClusterAutoscalerList
 // - batchv1.JobList
 func DeleteObjectsByLabels(ctx context.Context, client runtimeclient.Client, labels map[string]string, list runtime.Object) error {
 	if err := client.List(ctx, runtimeclient.MatchingLabels(labels), list); err != nil {
@@ -103,7 +104,7 @@ func DeleteObjectsByLabels(ctx context.Context, client runtimeclient.Client, lab
 		for _, item := range d.Items {
 			objs = append(objs, runtime.Object(&item))
 		}
-	case *caov1beta1.ClusterAutoscalerList:
+	case *caov1.ClusterAutoscalerList:
 		for _, item := range d.Items {
 			objs = append(objs, runtime.Object(&item))
 		}
