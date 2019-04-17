@@ -7,7 +7,7 @@ import (
 
 	configv1 "github.com/openshift/api/config/v1"
 	osconfig "github.com/openshift/client-go/config/clientset/versioned"
-	autoscalingv1beta1 "github.com/openshift/cluster-autoscaler-operator/pkg/apis/autoscaling/v1beta1"
+	autoscalingv1 "github.com/openshift/cluster-autoscaler-operator/pkg/apis/autoscaling/v1"
 	"github.com/openshift/cluster-autoscaler-operator/pkg/util"
 	cvorm "github.com/openshift/cluster-version-operator/lib/resourcemerge"
 	appsv1 "k8s.io/api/apps/v1"
@@ -340,7 +340,7 @@ func (r *StatusReporter) CheckMachineAPI() (bool, error) {
 // deployments. It returns a bool indicating whether the deployments are
 // available and fully updated to the latest version and an error.
 func (r *StatusReporter) CheckClusterAutoscaler() (bool, error) {
-	ca := &autoscalingv1beta1.ClusterAutoscaler{}
+	ca := &autoscalingv1.ClusterAutoscaler{}
 	caName := client.ObjectKey{Name: r.config.ClusterAutoscalerName}
 
 	if err := r.client.Get(context.TODO(), caName, ca); err != nil {
