@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/openshift/cluster-autoscaler-operator/pkg/apis/autoscaling/v1alpha1"
+	"github.com/openshift/cluster-autoscaler-operator/pkg/apis/autoscaling/v1beta1"
 	"github.com/openshift/cluster-autoscaler-operator/pkg/util"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
@@ -57,8 +57,8 @@ var (
 // supported as targets for a MachineAutocaler instance.
 func DefaultSupportedTargetGVKs() []schema.GroupVersionKind {
 	return []schema.GroupVersionKind{
-		{Group: "cluster.k8s.io", Version: "v1alpha1", Kind: "MachineDeployment"},
-		{Group: "cluster.k8s.io", Version: "v1alpha1", Kind: "MachineSet"},
+		{Group: "cluster.k8s.io", Version: "v1beta1", Kind: "MachineDeployment"},
+		{Group: "cluster.k8s.io", Version: "v1beta1", Kind: "MachineSet"},
 		{Group: "machine.openshift.io", Version: "v1beta1", Kind: "MachineDeployment"},
 		{Group: "machine.openshift.io", Version: "v1beta1", Kind: "MachineSet"},
 	}
@@ -96,7 +96,7 @@ func (r *Reconciler) AddToManager(mgr manager.Manager) error {
 	}
 
 	// Watch for changes to primary resource MachineAutoscaler
-	err = c.Watch(&source.Kind{Type: &v1alpha1.MachineAutoscaler{}}, &handler.EnqueueRequestForObject{})
+	err = c.Watch(&source.Kind{Type: &v1beta1.MachineAutoscaler{}}, &handler.EnqueueRequestForObject{})
 	if err != nil {
 		return err
 	}
@@ -159,7 +159,7 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 	klog.Infof("Reconciling MachineAutoscaler %s/%s\n", request.Namespace, request.Name)
 
 	// Fetch the MachineAutoscaler instance
-	ma := &v1alpha1.MachineAutoscaler{}
+	ma := &v1beta1.MachineAutoscaler{}
 	err := r.client.Get(context.TODO(), request.NamespacedName, ma)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
@@ -290,7 +290,7 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 
 // HandleDelete is called by Reconcile to handle MachineAutoscaler deletion,
 // i.e. finalize the resource and remove finalizers.
-func (r *Reconciler) HandleDelete(ma *v1alpha1.MachineAutoscaler) (reconcile.Result, error) {
+func (r *Reconciler) HandleDelete(ma *v1beta1.MachineAutoscaler) (reconcile.Result, error) {
 	targetRef := objectReference(ma.Spec.ScaleTargetRef)
 
 	target, err := r.GetTarget(targetRef)
@@ -371,7 +371,7 @@ func (r *Reconciler) FinalizeTarget(target *MachineTarget) error {
 
 // TargetChanged indicates whether a MachineAutoscaler's current target has
 // changed relative to the last observed target noted in the status.
-func (r *Reconciler) TargetChanged(ma *v1alpha1.MachineAutoscaler) bool {
+func (r *Reconciler) TargetChanged(ma *v1beta1.MachineAutoscaler) bool {
 	currentRef := ma.Spec.ScaleTargetRef
 	lastRef := ma.Status.LastTargetRef
 
@@ -384,8 +384,8 @@ func (r *Reconciler) TargetChanged(ma *v1alpha1.MachineAutoscaler) bool {
 
 // SetLastTarget updates the give MachineAutoscaler's status with the given
 // object as the last observed target.
-func (r *Reconciler) SetLastTarget(ma *v1alpha1.MachineAutoscaler, ref *corev1.ObjectReference) error {
-	ma.Status.LastTargetRef = &v1alpha1.CrossVersionObjectReference{
+func (r *Reconciler) SetLastTarget(ma *v1beta1.MachineAutoscaler, ref *corev1.ObjectReference) error {
+	ma.Status.LastTargetRef = &v1beta1.CrossVersionObjectReference{
 		APIVersion: ref.APIVersion,
 		Kind:       ref.Kind,
 		Name:       ref.Name,
@@ -395,7 +395,7 @@ func (r *Reconciler) SetLastTarget(ma *v1alpha1.MachineAutoscaler, ref *corev1.O
 }
 
 // EnsureFinalizer adds finalizers to the given MachineAutoscaler if necessary.
-func (r *Reconciler) EnsureFinalizer(ma *v1alpha1.MachineAutoscaler) error {
+func (r *Reconciler) EnsureFinalizer(ma *v1beta1.MachineAutoscaler) error {
 	for _, f := range ma.GetFinalizers() {
 		// Bail early if we already have the finalizer.
 		if f == MachineTargetFinalizer {
@@ -411,7 +411,7 @@ func (r *Reconciler) EnsureFinalizer(ma *v1alpha1.MachineAutoscaler) error {
 
 // RemoveFinalizer removes this packages's finalizers from the given
 // MachineAutoscaler instance.
-func (r *Reconciler) RemoveFinalizer(ma *v1alpha1.MachineAutoscaler) error {
+func (r *Reconciler) RemoveFinalizer(ma *v1beta1.MachineAutoscaler) error {
 	f, found := util.FilterString(ma.GetFinalizers(), MachineTargetFinalizer)
 
 	if found == 0 {
@@ -499,7 +499,7 @@ func targetOwnerRequest(a handler.MapObject) []reconcile.Request {
 
 // objectReference returns a new corev1.ObjectReference for the given
 // CrossVersionObjectReference from a MachineAutoscaler target.
-func objectReference(ref v1alpha1.CrossVersionObjectReference) *corev1.ObjectReference {
+func objectReference(ref v1beta1.CrossVersionObjectReference) *corev1.ObjectReference {
 	obj := &corev1.ObjectReference{}
 	gvk := schema.FromAPIVersionAndKind(ref.APIVersion, ref.Kind)
 

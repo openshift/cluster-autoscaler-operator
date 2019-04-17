@@ -42,16 +42,16 @@ generate: ## Code generation (requires operator-sdk >= v0.5.0)
 	mkdir -p deploy/crds
 
 	cp install/01_clusterautoscaler.crd.yaml \
-	  deploy/crds/autoscaling_v1alpha1_clusterautoscaler_crd.yaml
+	  deploy/crds/autoscaling_v1beta1_clusterautoscaler_crd.yaml
 	cp install/02_machineautoscaler.crd.yaml \
-	  deploy/crds/autoscaling_v1alpha1_machineautoscaler_crd.yaml
+	  deploy/crds/autoscaling_v1beta1_machineautoscaler_crd.yaml
 
 	operator-sdk generate k8s
 	operator-sdk generate openapi
 
-	cp deploy/crds/autoscaling_v1alpha1_clusterautoscaler_crd.yaml \
+	cp deploy/crds/autoscaling_v1beta1_clusterautoscaler_crd.yaml \
 	  install/01_clusterautoscaler.crd.yaml
-	cp deploy/crds/autoscaling_v1alpha1_machineautoscaler_crd.yaml \
+	cp deploy/crds/autoscaling_v1beta1_machineautoscaler_crd.yaml \
 	  install/02_machineautoscaler.crd.yaml
 
 .PHONY: build
