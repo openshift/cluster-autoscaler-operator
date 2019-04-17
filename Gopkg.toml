@@ -38,6 +38,7 @@ required = [
 
 [[override]]
   name = "k8s.io/apiextensions-apiserver"
+  source = "https://github.com/openshift/kubernetes-apiextensions-apiserver.git"
   version = "kubernetes-1.13.4"
 
 [[override]]

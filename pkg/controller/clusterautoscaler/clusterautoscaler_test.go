@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/openshift/cluster-autoscaler-operator/pkg/apis"
-	autoscalingv1beta1 "github.com/openshift/cluster-autoscaler-operator/pkg/apis/autoscaling/v1beta1"
+	autoscalingv1 "github.com/openshift/cluster-autoscaler-operator/pkg/apis/autoscaling/v1"
 	"github.com/openshift/cluster-autoscaler-operator/pkg/util"
 	"github.com/openshift/cluster-autoscaler-operator/test/helpers"
 	"github.com/stretchr/testify/assert"
@@ -57,31 +57,31 @@ func init() {
 	apis.AddToScheme(scheme.Scheme)
 }
 
-func NewClusterAutoscaler() *autoscalingv1beta1.ClusterAutoscaler {
+func NewClusterAutoscaler() *autoscalingv1.ClusterAutoscaler {
 	// TODO: Maybe just deserialize this from a YAML file?
-	return &autoscalingv1beta1.ClusterAutoscaler{
+	return &autoscalingv1.ClusterAutoscaler{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "ClusterAutoscaler",
-			APIVersion: "autoscaling.openshift.io/v1beta1",
+			APIVersion: "autoscaling.openshift.io/v1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test",
 			Namespace: TestNamespace,
 		},
-		Spec: autoscalingv1beta1.ClusterAutoscalerSpec{
+		Spec: autoscalingv1.ClusterAutoscalerSpec{
 			MaxPodGracePeriod:    &MaxPodGracePeriod,
 			PodPriorityThreshold: &PodPriorityThreshold,
-			ResourceLimits: &autoscalingv1beta1.ResourceLimits{
+			ResourceLimits: &autoscalingv1.ResourceLimits{
 				MaxNodesTotal: &MaxNodesTotal,
-				Cores: &autoscalingv1beta1.ResourceRange{
+				Cores: &autoscalingv1.ResourceRange{
 					Min: CoresMin,
 					Max: CoresMax,
 				},
-				Memory: &autoscalingv1beta1.ResourceRange{
+				Memory: &autoscalingv1.ResourceRange{
 					Min: MemoryMin,
 					Max: MemoryMax,
 				},
-				GPUS: []autoscalingv1beta1.GPULimit{
+				GPUS: []autoscalingv1.GPULimit{
 					{
 						Type: NvidiaGPU,
 						Min:  NvidiaGPUMin,
@@ -89,7 +89,7 @@ func NewClusterAutoscaler() *autoscalingv1beta1.ClusterAutoscaler {
 					},
 				},
 			},
-			ScaleDown: &autoscalingv1beta1.ScaleDownConfig{
+			ScaleDown: &autoscalingv1.ScaleDownConfig{
 				Enabled:       true,
 				DelayAfterAdd: &ScaleDownDelayAfterAdd,
 				UnneededTime:  &ScaleDownUnneededTime,
@@ -250,10 +250,10 @@ func TestObjectReference(t *testing.T) {
 	}{
 		{
 			label: "no namespace",
-			object: &autoscalingv1beta1.ClusterAutoscaler{
+			object: &autoscalingv1.ClusterAutoscaler{
 				TypeMeta: metav1.TypeMeta{
 					Kind:       "ClusterAutoscaler",
-					APIVersion: "autoscaling.openshift.io/v1beta1",
+					APIVersion: "autoscaling.openshift.io/v1",
 				},
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "cluster-scoped",
@@ -261,17 +261,17 @@ func TestObjectReference(t *testing.T) {
 			},
 			reference: &corev1.ObjectReference{
 				Kind:       "ClusterAutoscaler",
-				APIVersion: "autoscaling.openshift.io/v1beta1",
+				APIVersion: "autoscaling.openshift.io/v1",
 				Name:       "cluster-scoped",
 				Namespace:  TestNamespace,
 			},
 		},
 		{
 			label: "existing namespace",
-			object: &autoscalingv1beta1.ClusterAutoscaler{
+			object: &autoscalingv1.ClusterAutoscaler{
 				TypeMeta: metav1.TypeMeta{
 					Kind:       "ClusterAutoscaler",
-					APIVersion: "autoscaling.openshift.io/v1beta1",
+					APIVersion: "autoscaling.openshift.io/v1",
 				},
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "cluster-scoped",
@@ -280,7 +280,7 @@ func TestObjectReference(t *testing.T) {
 			},
 			reference: &corev1.ObjectReference{
 				Kind:       "ClusterAutoscaler",
-				APIVersion: "autoscaling.openshift.io/v1beta1",
+				APIVersion: "autoscaling.openshift.io/v1",
 				Name:       "cluster-scoped",
 				Namespace:  "should-not-change",
 			},
