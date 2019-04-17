@@ -402,11 +402,11 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:4a7b49c4c8fdd26ff18256599deeff054be6c5929a2a02f9f6bc51c88ad2521c"
+  digest = "1:3fbb49711ca3622090d276277461ecaf021df10253c0025cfc881bf316f97244"
   name = "github.com/openshift/cluster-version-operator"
   packages = ["lib/resourcemerge"]
   pruneopts = "NT"
-  revision = "b72cf639fd562bd76d7025a60e074b3817974ef9"
+  revision = "797a840d7ea27fa6985b9da4601a6fd1e9286e94"
 
 [[projects]]
   branch = "master"
