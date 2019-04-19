@@ -383,7 +383,7 @@
   revision = "5e580f96e63e5db1fc8095ca5f587716a4a8d9e9"
 
 [[projects]]
-  branch = "cao-v1beta1"
+  branch = "master"
   digest = "1:79a6ed849848dd57a77c4c91bdd58049be2411471449c70806e7e950bd5b3921"
   name = "github.com/openshift/cluster-api-actuator-pkg"
   packages = [
@@ -397,8 +397,7 @@
     "pkg/types",
   ]
   pruneopts = "N"
-  revision = "dfe93de1579dbaf5ca015760f22536f1e12660d0"
-  source = "https://github.com/bison/cluster-api-actuator-pkg.git"
+  revision = "f9b241eadbe0f38b075e4c307f4e50d655d62155"
 
 [[projects]]
   branch = "master"
