@@ -338,15 +338,14 @@
   version = "v1.5.0"
 
 [[projects]]
-  branch = "master"
-  digest = "1:65f27352945521c648be4070c006062a990fd6987d536cdc275002f698e12f32"
+  digest = "1:089d12b21181b39d795d8e62e1197ec1ea61afe393f0d2abf12339d888d7357e"
   name = "github.com/openshift/api"
   packages = [
     "config/v1",
     "security/v1",
   ]
   pruneopts = "NT"
-  revision = "d2f01e7b77a6fc78b328db20285423838419fef7"
+  revision = "8e476cb7322e59919cbb6482fd076ec5a214df25"
 
 [[projects]]
   branch = "master"
@@ -384,7 +383,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:79a6ed849848dd57a77c4c91bdd58049be2411471449c70806e7e950bd5b3921"
+  digest = "1:eafab113b2b239ce2084185e26910539af8762ce72d6b64ddf465fa9a1c312d9"
   name = "github.com/openshift/cluster-api-actuator-pkg"
   packages = [
     "pkg/e2e",
@@ -397,15 +396,15 @@
     "pkg/types",
   ]
   pruneopts = "N"
-  revision = "f9b241eadbe0f38b075e4c307f4e50d655d62155"
+  revision = "cd01e806d9c5624889678f4893da3d228a791a2e"
 
 [[projects]]
   branch = "master"
-  digest = "1:3fbb49711ca3622090d276277461ecaf021df10253c0025cfc881bf316f97244"
+  digest = "1:67bee13d597afd627a9eb8c126765b1ce852a1846cfdda7fe573b4725a8ed9ad"
   name = "github.com/openshift/cluster-version-operator"
   packages = ["lib/resourcemerge"]
   pruneopts = "NT"
-  revision = "797a840d7ea27fa6985b9da4601a6fd1e9286e94"
+  revision = "f355f763fb0a1fc0fd016b02d7b043e64bdb8938"
 
 [[projects]]
   branch = "master"
