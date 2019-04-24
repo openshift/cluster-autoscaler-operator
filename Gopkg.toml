@@ -56,10 +56,6 @@ required = [
   version = "v0.1.10"
 
 [[override]]
-  name = "github.com/openshift/api"
-  branch = "master"
-
-[[override]]
   name = "github.com/openshift/client-go"
   branch = "master"
 
