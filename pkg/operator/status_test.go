@@ -51,15 +51,15 @@ var (
 			LastTransitionTime: ConditionTransitionTime,
 		},
 		{
-			Type:               configv1.OperatorFailing,
+			Type:               configv1.OperatorDegraded,
 			Status:             configv1.ConditionFalse,
 			LastTransitionTime: ConditionTransitionTime,
 		},
 	}
 
-	// FailingConditions is the list of expected conditions for the operator
-	// when reporting as failing.
-	FailingConditions = []configv1.ClusterOperatorStatusCondition{
+	// DegradedConditions is the list of expected conditions for the operator
+	// when reporting as degraded.
+	DegradedConditions = []configv1.ClusterOperatorStatusCondition{
 		{
 			Type:               configv1.OperatorAvailable,
 			Status:             configv1.ConditionTrue,
@@ -71,7 +71,7 @@ var (
 			LastTransitionTime: ConditionTransitionTime,
 		},
 		{
-			Type:               configv1.OperatorFailing,
+			Type:               configv1.OperatorDegraded,
 			Status:             configv1.ConditionTrue,
 			LastTransitionTime: ConditionTransitionTime,
 		},
@@ -91,7 +91,7 @@ var (
 			LastTransitionTime: ConditionTransitionTime,
 		},
 		{
-			Type:               configv1.OperatorFailing,
+			Type:               configv1.OperatorDegraded,
 			Status:             configv1.ConditionFalse,
 			LastTransitionTime: ConditionTransitionTime,
 		},
@@ -180,11 +180,11 @@ func TestCheckMachineAPI(t *testing.T) {
 			},
 		},
 		{
-			label:        "machine-api failing",
+			label:        "machine-api degraded",
 			expectedBool: false,
 			expectedErr:  nil,
 			configObjs: []runtime.Object{
-				machineAPI.WithConditions(FailingConditions).Object(),
+				machineAPI.WithConditions(DegradedConditions).Object(),
 			},
 		},
 		{
@@ -308,10 +308,10 @@ func TestStatusChanges(t *testing.T) {
 			},
 		},
 		{
-			label:    "failing",
-			expected: FailingConditions,
+			label:    "degraded",
+			expected: DegradedConditions,
 			transition: func(r *StatusReporter) error {
-				return r.failing("FailingReason", "failing message")
+				return r.degraded("DegradedReason", "degraded message")
 			},
 		},
 	}
@@ -362,7 +362,7 @@ func TestReportStatus(t *testing.T) {
 			versionChange: true,
 			expectedBool:  false,
 			expectedErr:   nil,
-			expectedConds: FailingConditions,
+			expectedConds: DegradedConditions,
 			clientObjs:    []runtime.Object{},
 			configObjs:    []runtime.Object{},
 		},
@@ -371,10 +371,10 @@ func TestReportStatus(t *testing.T) {
 			versionChange: true,
 			expectedBool:  false,
 			expectedErr:   nil,
-			expectedConds: FailingConditions,
+			expectedConds: DegradedConditions,
 			clientObjs:    []runtime.Object{},
 			configObjs: []runtime.Object{
-				machineAPI.WithConditions(FailingConditions).Object(),
+				machineAPI.WithConditions(DegradedConditions).Object(),
 			},
 		},
 		{
