@@ -290,9 +290,13 @@ func (cm *controllerManager) startLeaderElection() (err error) {
 		Lock: cm.resourceLock,
 		// Values taken from: https://github.com/kubernetes/apiserver/blob/master/pkg/apis/config/v1alpha1/defaults.go
 		// TODO(joelspeed): These timings should be configurable
-		LeaseDuration: 15 * time.Second,
-		RenewDeadline: 10 * time.Second,
-		RetryPeriod:   2 * time.Second,
+		//LeaseDuration: 15 * time.Second,
+		//RenewDeadline: 10 * time.Second,
+		//RetryPeriod:   2 * time.Second,
+		// TODO(vikasc): Revisit once https://github.com/kubernetes-sigs/controller-runtime/pull/412 gets merged.
+		LeaseDuration: 120 * time.Second,
+		RenewDeadline: 100 * time.Second,
+		RetryPeriod:   20 * time.Second,
 		Callbacks: leaderelection.LeaderCallbacks{
 			OnStartedLeading: func(_ context.Context) {
 				cm.start()
