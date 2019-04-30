@@ -328,8 +328,7 @@ func (r *StatusReporter) CheckMachineAPI() (bool, error) {
 	conds := mao.Status.Conditions
 
 	if cvorm.IsOperatorStatusConditionTrue(conds, configv1.OperatorAvailable) &&
-		(cvorm.IsOperatorStatusConditionFalse(conds, configv1.OperatorFailing) ||
-			cvorm.IsOperatorStatusConditionFalse(conds, configv1.OperatorDegraded)) {
+		cvorm.IsOperatorStatusConditionFalse(conds, configv1.OperatorDegraded) {
 		return true, nil
 	}
 
