@@ -7,9 +7,12 @@ import (
 	"sync"
 	"time"
 
+	"github.com/openshift/cluster-version-operator/pkg/verify"
+
 	"github.com/blang/semver"
 	"github.com/golang/glog"
 	"github.com/google/uuid"
+
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -109,6 +112,10 @@ type Operator struct {
 	statusLock       sync.Mutex
 	availableUpdates *availableUpdates
 
+	// verifier, if provided, will be used to check an update before it is executed.
+	// Any error will prevent an update payload from being accessed.
+	verifier verify.Interface
+
 	configSync ConfigSyncWorker
 	// statusInterval is how often the configSync worker is allowed to retrigger
 	// the main sync status loop.
@@ -128,8 +135,6 @@ func New(
 	minimumInterval time.Duration,
 	cvInformer configinformersv1.ClusterVersionInformer,
 	coInformer configinformersv1.ClusterOperatorInformer,
-	restConfig *rest.Config,
-	burstRestConfig *rest.Config,
 	client clientset.Interface,
 	kubeClient kubernetes.Interface,
 	enableMetrics bool,
@@ -157,17 +162,6 @@ func New(
 		availableUpdatesQueue: workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "availableupdates"),
 	}
 
-	optr.configSync = NewSyncWorker(
-		optr.defaultPayloadRetriever(),
-		NewResourceBuilder(restConfig, burstRestConfig, coInformer.Lister()),
-		minimumInterval,
-		wait.Backoff{
-			Duration: time.Second * 10,
-			Factor:   1.3,
-			Steps:    3,
-		},
-	)
-
 	cvInformer.Informer().AddEventHandler(optr.eventHandler())
 
 	optr.coLister = coInformer.Lister()
@@ -184,8 +178,10 @@ func New(
 	return optr
 }
 
-// InitializeFromPayload retrieves the payload contents and verifies the initial state.
-func (optr *Operator) InitializeFromPayload() error {
+// InitializeFromPayload retrieves the payload contents and verifies the initial state, then configures the
+// controller that loads and applies content to the cluster. It returns an error if the payload appears to
+// be in error rather than continuing.
+func (optr *Operator) InitializeFromPayload(restConfig *rest.Config, burstRestConfig *rest.Config) error {
 	update, err := payload.LoadUpdate(optr.defaultPayloadDir(), optr.releaseImage)
 	if err != nil {
 		return fmt.Errorf("the local release contents are invalid - no current version can be determined from disk: %v", err)
@@ -197,14 +193,44 @@ func (optr *Operator) InitializeFromPayload() error {
 
 	optr.releaseCreated = update.ImageRef.CreationTimestamp.Time
 	optr.releaseVersion = update.ImageRef.Name
+
+	// attempt to load a verifier as defined in the payload
+	verifier, err := verify.LoadFromPayload(update)
+	if err != nil {
+		return err
+	}
+	if verifier != nil {
+		glog.Infof("Verifying release authenticity: %v", verifier)
+	} else {
+		glog.Warningf("WARNING: No release authenticity verification is configured, all releases are considered unverified")
+		verifier = verify.Reject
+	}
+	optr.verifier = verifier
+
+	// after the verifier has been loaded, initialize the sync worker with a payload retriever
+	// which will consume the verifier
+	optr.configSync = NewSyncWorker(
+		optr.defaultPayloadRetriever(),
+		NewResourceBuilder(restConfig, burstRestConfig, optr.coLister),
+		optr.minimumUpdateCheckInterval,
+		wait.Backoff{
+			Duration: time.Second * 10,
+			Factor:   1.3,
+			Steps:    3,
+		},
+	)
+
 	return nil
 }
 
 // Run runs the cluster version operator until stopCh is completed. Workers is ignored for now.
 func (optr *Operator) Run(ctx context.Context, workers int) {
 	defer utilruntime.HandleCrash()
-	defer optr.queue.ShutDown()
+	// TODO: when Kube 77170 is fixed we can remove the use of the once here
+	var shutdownOnce sync.Once
+	defer shutdownOnce.Do(func() { optr.queue.ShutDown() })
 	stopCh := ctx.Done()
+	workerStopCh := make(chan struct{})
 
 	glog.Infof("Starting ClusterVersionOperator with minimum reconcile period %s", optr.minimumUpdateCheckInterval)
 	defer glog.Info("Shutting down ClusterVersionOperator")
@@ -220,11 +246,22 @@ func (optr *Operator) Run(ctx context.Context, workers int) {
 	// start the config sync loop, and have it notify the queue when new status is detected
 	go runThrottledStatusNotifier(stopCh, optr.statusInterval, 2, optr.configSync.StatusCh(), func() { optr.queue.Add(optr.queueKey()) })
 	go optr.configSync.Start(ctx, 16)
-
-	go wait.Until(func() { optr.worker(optr.queue, optr.sync) }, time.Second, stopCh)
 	go wait.Until(func() { optr.worker(optr.availableUpdatesQueue, optr.availableUpdatesSync) }, time.Second, stopCh)
+	go wait.Until(func() {
+		defer close(workerStopCh)
+
+		// run the worker, then when the queue is closed sync one final time to flush any pending status
+		optr.worker(optr.queue, optr.sync)
+		if err := optr.sync(optr.queueKey()); err != nil {
+			utilruntime.HandleError(fmt.Errorf("unable to perform final sync: %v", err))
+		}
+	}, time.Second, stopCh)
 
 	<-stopCh
+
+	// stop the queue, then wait for the worker to exit
+	shutdownOnce.Do(func() { optr.queue.ShutDown() })
+	<-workerStopCh
 }
 
 func (optr *Operator) queueKey() string {

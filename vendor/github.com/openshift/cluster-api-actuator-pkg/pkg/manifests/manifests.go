@@ -24,14 +24,14 @@ func ClusterCRDManifest() *v1beta1.CustomResourceDefinition {
 			APIVersion: "apiextensions.k8s.io/v1beta1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: "clusters.machine.openshift.io",
+			Name: "clusters.cluster.k8s.io",
 			Labels: map[string]string{
 				"controller-tools.k8s.io": "1.0",
 			},
 		},
 		Spec: v1beta1.CustomResourceDefinitionSpec{
-			Group:   "machine.openshift.io",
-			Version: "v1beta1",
+			Group:   "cluster.k8s.io",
+			Version: "v1alpha1",
 			Names: v1beta1.CustomResourceDefinitionNames{
 				Plural: "clusters",
 				Kind:   "Cluster",
@@ -958,10 +958,6 @@ func TestingMachine(clusterID string, namespace string, providerSpec machinev1be
 				},
 			},
 			ProviderSpec: providerSpec,
-			Versions: machinev1beta1.MachineVersionInfo{
-				Kubelet:      "1.10.1",
-				ControlPlane: "1.10.1",
-			},
 		},
 	}
 
@@ -981,10 +977,6 @@ func MasterMachine(clusterID, namespace string, providerSpec machinev1beta1.Prov
 		},
 		Spec: machinev1beta1.MachineSpec{
 			ProviderSpec: providerSpec,
-			Versions: machinev1beta1.MachineVersionInfo{
-				Kubelet:      "1.10.1",
-				ControlPlane: "1.10.1",
-			},
 		},
 	}
 
@@ -1076,10 +1068,6 @@ func WorkerMachineSet(clusterID, namespace string, providerSpec machinev1beta1.P
 						},
 					},
 					ProviderSpec: providerSpec,
-					Versions: machinev1beta1.MachineVersionInfo{
-						Kubelet:      "1.10.1",
-						ControlPlane: "1.10.1",
-					},
 				},
 			},
 		},
