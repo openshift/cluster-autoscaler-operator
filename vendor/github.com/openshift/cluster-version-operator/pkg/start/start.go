@@ -110,9 +110,9 @@ func (o *Options) Run() error {
 		return err
 	}
 
-	// initilialize the controllers and attempt to load the payload information
+	// initialize the controllers and attempt to load the payload information
 	controllerCtx := o.NewControllerContext(cb)
-	if err := controllerCtx.CVO.InitializeFromPayload(); err != nil {
+	if err := controllerCtx.CVO.InitializeFromPayload(cb.RestConfig(defaultQPS), cb.RestConfig(highQPS)); err != nil {
 		return err
 	}
 
@@ -132,7 +132,7 @@ func (o *Options) Run() error {
 
 		// exit after 2s no matter what
 		select {
-		case <-time.After(2 * time.Second):
+		case <-time.After(5 * time.Second):
 			glog.Fatalf("Exiting")
 		case <-ch:
 			glog.Fatalf("Received shutdown signal twice, exiting")
@@ -325,8 +325,6 @@ func (o *Options) NewControllerContext(cb *ClientBuilder) *Context {
 			resyncPeriod(o.ResyncInterval)(),
 			cvInformer.Config().V1().ClusterVersions(),
 			sharedInformers.Config().V1().ClusterOperators(),
-			cb.RestConfig(defaultQPS),
-			cb.RestConfig(highQPS),
 			cb.ClientOrDie(o.Namespace),
 			cb.KubeClientOrDie(o.Namespace, useProtobuf),
 			o.EnableMetrics,
