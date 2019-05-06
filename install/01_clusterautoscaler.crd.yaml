@@ -2,14 +2,14 @@ apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
 metadata:
   creationTimestamp: null
+  labels:
+    controller-tools.k8s.io: "1.0"
   name: clusterautoscalers.autoscaling.openshift.io
 spec:
   group: autoscaling.openshift.io
   names:
     kind: ClusterAutoscaler
-    listKind: ClusterAutoscalerList
     plural: clusterautoscalers
-    singular: clusterautoscaler
   scope: Cluster
   subresources:
     status: {}
@@ -17,22 +17,37 @@ spec:
     openAPIV3Schema:
       properties:
         apiVersion:
+          description: 'APIVersion defines the versioned schema of this representation
+            of an object. Servers should convert recognized schemas to the latest
+            internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#resources'
           type: string
         kind:
+          description: 'Kind is a string value representing the REST resource this
+            object represents. Servers may infer this from the endpoint the client
+            submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#types-kinds'
           type: string
         metadata:
           type: object
         spec:
+          description: Desired state of ClusterAutoscaler resource
           properties:
             maxPodGracePeriod:
+              description: Gives pods graceful termination time before scaling down
               format: int32
               type: integer
             podPriorityThreshold:
+              description: 'To allow users to schedule "best-effort" pods, which shouldn''t
+                trigger Cluster Autoscaler actions, but only run when there are spare
+                resources available, More info: https://github.com/kubernetes/autoscaler/blob/master/cluster-autoscaler/FAQ.md#how-does-cluster-autoscaler-work-with-pod-priority-and-preemption'
               format: int32
               type: integer
             resourceLimits:
+              description: Constraints of autoscaling resources
               properties:
                 cores:
+                  description: Minimum and maximum number of cores in cluster, in
+                    the format <min>:<max>. Cluster autoscaler will not scale the
+                    cluster beyond these numbers.
                   properties:
                     max:
                       format: int32
@@ -46,6 +61,10 @@ spec:
                   - max
                   type: object
                 gpus:
+                  description: Minimum and maximum number of different GPUs in cluster,
+                    in the format <gpu_type>:<min>:<max>. Cluster autoscaler will
+                    not scale the cluster beyond these numbers. Can be passed multiple
+                    times.
                   items:
                     properties:
                       max:
@@ -66,10 +85,15 @@ spec:
                     type: object
                   type: array
                 maxNodesTotal:
+                  description: Maximum number of nodes in all node groups. Cluster
+                    autoscaler will not grow the cluster beyond this number.
                   format: int32
                   minimum: 0
                   type: integer
                 memory:
+                  description: Minimum and maximum number of gigabytes of memory in
+                    cluster, in the format <min>:<max>. Cluster autoscaler will not
+                    scale the cluster beyond these numbers.
                   properties:
                     max:
                       format: int32
@@ -84,19 +108,29 @@ spec:
                   type: object
               type: object
             scaleDown:
+              description: Configuration of scale down operation
               properties:
                 delayAfterAdd:
+                  description: How long after scale up that scale down evaluation
+                    resumes
                   pattern: ([0-9]*(\.[0-9]*)?[a-z]+)+
                   type: string
                 delayAfterDelete:
+                  description: How long after node deletion that scale down evaluation
+                    resumes, defaults to scan-interval
                   pattern: ([0-9]*(\.[0-9]*)?[a-z]+)+
                   type: string
                 delayAfterFailure:
+                  description: How long after scale down failure that scale down evaluation
+                    resumes
                   pattern: ([0-9]*(\.[0-9]*)?[a-z]+)+
                   type: string
                 enabled:
+                  description: Should CA scale down the cluster
                   type: boolean
                 unneededTime:
+                  description: How long a node should be unneeded before it is eligible
+                    for scale down
                   pattern: ([0-9]*(\.[0-9]*)?[a-z]+)+
                   type: string
               required:
@@ -104,9 +138,12 @@ spec:
               type: object
           type: object
         status:
+          description: Most recently observed status of ClusterAutoscaler resource
           type: object
   version: v1
-  versions:
-  - name: v1
-    served: true
-    storage: true
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []
