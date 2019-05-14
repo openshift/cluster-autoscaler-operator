@@ -161,6 +161,9 @@ func (o *Operator) AddWebhooks() error {
 		CertDir: o.config.WebhooksCertDir,
 	}
 
+	server.Register("/validate-clusterautoscalers",
+		&webhook.Admission{Handler: &clusterautoscaler.Validator{}})
+
 	return o.manager.Add(server)
 }
 
