@@ -71,9 +71,9 @@ spec:
           secretName: cluster-autoscaler-operator-cert
           items:
           - key: tls.crt
-            path: cert.pem
+            path: tls.crt
           - key: tls.key
-            path: key.pem
+            path: tls.key
       nodeSelector:
         node-role.kubernetes.io/master: ""
       restartPolicy: Always

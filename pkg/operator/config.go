@@ -117,7 +117,7 @@ type Config struct {
 	WebhooksEnabled bool
 
 	// WebhookPort is the port the webhook server listens on if enabled.
-	WebhooksPort int32
+	WebhooksPort int
 
 	// WebhookCertDir is the directory containing TLS assets for the admission
 	// webhook server.
@@ -221,7 +221,7 @@ func ConfigFromEnvironment() *Config {
 			klog.Errorf("Error parsing WEBHOOKS_PORT environment variable: %v", err)
 		}
 
-		config.WebhooksPort = int32(v)
+		config.WebhooksPort = int(v)
 	}
 
 	if webhooksCertDir, ok := os.LookupEnv("WEBHOOKS_CERT_DIR"); ok {

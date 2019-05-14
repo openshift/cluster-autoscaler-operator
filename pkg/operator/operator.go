@@ -15,7 +15,6 @@ import (
 	"github.com/openshift/cluster-autoscaler-operator/pkg/controller/machineautoscaler"
 	"k8s.io/apimachinery/pkg/types"
 	admissionregistrationv1beta1 "k8s.io/client-go/kubernetes/typed/admissionregistration/v1beta1"
-	"k8s.io/utils/pointer"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/runtime/signals"
@@ -157,24 +156,12 @@ func (o *Operator) AddWebhooks() error {
 		return err
 	}
 
-	serverOptions := webhook.ServerOptions{
+	server := &webhook.Server{
 		Port:    o.config.WebhooksPort,
 		CertDir: o.config.WebhooksCertDir,
-
-		DisableWebhookConfigInstaller: pointer.BoolPtr(true),
 	}
 
-	server, err := webhook.NewServer(OperatorName, o.manager, serverOptions)
-	if err != nil {
-		return err
-	}
-
-	caValidator, err := clusterautoscaler.NewValidatingWebhook(o.manager)
-	if err != nil {
-		return err
-	}
-
-	return server.Register(caValidator)
+	return o.manager.Add(server)
 }
 
 // setWebhookCA sets the caBundle field on the admission webhook configuration
