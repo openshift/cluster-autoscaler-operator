@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/golang/glog"
+	"k8s.io/klog"
 
 	"k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -19,6 +19,13 @@ import (
 
 	"github.com/openshift/cluster-version-operator/lib/resourcemerge"
 	"github.com/openshift/cluster-version-operator/pkg/payload"
+)
+
+const (
+	// ClusterStatusFailing is set on the ClusterVersion status when a cluster
+	// cannot reach the desired state. It is considered more serious than Degraded
+	// and indicates the cluster is not healthy.
+	ClusterStatusFailing = configv1.ClusterStatusConditionType("Failing")
 )
 
 func mergeEqualVersions(current *configv1.UpdateHistory, desired configv1.Update) bool {
@@ -51,7 +58,7 @@ func mergeOperatorHistory(config *configv1.ClusterVersion, desired configv1.Upda
 	}
 
 	if len(config.Status.History) == 0 {
-		glog.V(5).Infof("initialize new history completed=%t desired=%#v", completed, desired)
+		klog.V(5).Infof("initialize new history completed=%t desired=%#v", completed, desired)
 		config.Status.History = append(config.Status.History, configv1.UpdateHistory{
 			Version: desired.Version,
 			Image:   desired.Image,
@@ -68,7 +75,7 @@ func mergeOperatorHistory(config *configv1.ClusterVersion, desired configv1.Upda
 	}
 
 	if mergeEqualVersions(last, desired) {
-		glog.V(5).Infof("merge into existing history completed=%t desired=%#v last=%#v", completed, desired, last)
+		klog.V(5).Infof("merge into existing history completed=%t desired=%#v last=%#v", completed, desired, last)
 		if completed {
 			last.State = configv1.CompletedUpdate
 			if last.CompletionTime == nil {
@@ -76,7 +83,7 @@ func mergeOperatorHistory(config *configv1.ClusterVersion, desired configv1.Upda
 			}
 		}
 	} else {
-		glog.V(5).Infof("must add a new history entry completed=%t desired=%#v != last=%#v", completed, desired, last)
+		klog.V(5).Infof("must add a new history entry completed=%t desired=%#v != last=%#v", completed, desired, last)
 		last.CompletionTime = &now
 		if completed {
 			config.Status.History = append([]configv1.UpdateHistory{
@@ -103,7 +110,7 @@ func mergeOperatorHistory(config *configv1.ClusterVersion, desired configv1.Upda
 	}
 
 	// leave this here in case we find other future history bugs and need to debug it
-	if glog.V(5) && len(config.Status.History) > 1 {
+	if klog.V(5) && len(config.Status.History) > 1 {
 		if config.Status.History[0].Image == config.Status.History[1].Image && config.Status.History[0].Version == config.Status.History[1].Version {
 			data, _ := json.MarshalIndent(config.Status.History, "", "  ")
 			panic(fmt.Errorf("tried to update cluster version history to contain duplicate image entries: %s", string(data)))
@@ -146,7 +153,7 @@ const ClusterVersionInvalid configv1.ClusterStatusConditionType = "Invalid"
 // syncStatus calculates the new status of the ClusterVersion based on the current sync state and any
 // validation errors found. We allow the caller to pass the original object to avoid DeepCopying twice.
 func (optr *Operator) syncStatus(original, config *configv1.ClusterVersion, status *SyncWorkerStatus, validationErrs field.ErrorList) error {
-	glog.V(5).Infof("Synchronizing errs=%#v status=%#v", validationErrs, status)
+	klog.V(5).Infof("Synchronizing errs=%#v status=%#v", validationErrs, status)
 
 	// update the config with the latest available updates
 	if updated := optr.getAvailableUpdates().NeedsUpdate(config); updated != nil {
@@ -221,7 +228,7 @@ func (optr *Operator) syncStatus(original, config *configv1.ClusterVersion, stat
 
 		// set the failing condition
 		resourcemerge.SetOperatorStatusCondition(&config.Status.Conditions, configv1.ClusterOperatorStatusCondition{
-			Type:               configv1.ClusterStatusConditionType("Failing"),
+			Type:               ClusterStatusFailing,
 			Status:             configv1.ConditionTrue,
 			Reason:             reason,
 			Message:            err.Error(),
@@ -249,7 +256,7 @@ func (optr *Operator) syncStatus(original, config *configv1.ClusterVersion, stat
 
 	} else {
 		// clear the failure condition
-		resourcemerge.SetOperatorStatusCondition(&config.Status.Conditions, configv1.ClusterOperatorStatusCondition{Type: configv1.ClusterStatusConditionType("Failing"), Status: configv1.ConditionFalse, LastTransitionTime: now})
+		resourcemerge.SetOperatorStatusCondition(&config.Status.Conditions, configv1.ClusterOperatorStatusCondition{Type: ClusterStatusFailing, Status: configv1.ConditionFalse, LastTransitionTime: now})
 
 		// update progressing
 		if status.Reconciling {
@@ -304,8 +311,8 @@ func (optr *Operator) syncStatus(original, config *configv1.ClusterVersion, stat
 		})
 	}
 
-	if glog.V(6) {
-		glog.Infof("Apply config: %s", diff.ObjectReflectDiff(original, config))
+	if klog.V(6) {
+		klog.Infof("Apply config: %s", diff.ObjectReflectDiff(original, config))
 	}
 	updated, err := applyClusterVersionStatus(optr.client.ConfigV1(), config, original)
 	optr.rememberLastUpdate(updated)
@@ -365,7 +372,7 @@ func (optr *Operator) syncFailingStatus(original *configv1.ClusterVersion, ierr 
 
 	// reset the failing message
 	resourcemerge.SetOperatorStatusCondition(&config.Status.Conditions, configv1.ClusterOperatorStatusCondition{
-		Type:               configv1.ClusterStatusConditionType("Failing"),
+		Type:               ClusterStatusFailing,
 		Status:             configv1.ConditionTrue,
 		Message:            ierr.Error(),
 		LastTransitionTime: now,
