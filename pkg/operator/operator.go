@@ -3,6 +3,7 @@ package operator
 import (
 	"fmt"
 	"path/filepath"
+	"time"
 
 	configv1 "github.com/openshift/api/config/v1"
 
@@ -17,6 +18,12 @@ import (
 
 // OperatorName is the name of this operator.
 const OperatorName = "cluster-autoscaler"
+
+var (
+	leaderElectionLeaseDuration = 120 * time.Second
+	leaderElectionRenewDeadline = 100 * time.Second
+	leaderElectionRetryPeriod   = 20 * time.Second
+)
 
 // Operator represents an instance of the cluster-autoscaler-operator.
 type Operator struct {
@@ -41,6 +48,9 @@ func New(cfg *Config) (*Operator, error) {
 		LeaderElection:          cfg.LeaderElection,
 		LeaderElectionNamespace: cfg.LeaderElectionNamespace,
 		LeaderElectionID:        cfg.LeaderElectionID,
+		LeaseDuration:           &leaderElectionLeaseDuration,
+		RenewDeadline:           &leaderElectionRenewDeadline,
+		RetryPeriod:             &leaderElectionRetryPeriod,
 	}
 
 	operator.manager, err = manager.New(clientConfig, managerOptions)
