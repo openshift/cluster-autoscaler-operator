@@ -971,8 +971,8 @@
   revision = "21c4ce38f2a793ec01e925ddc31216500183b773"
 
 [[projects]]
-  branch = "tls-reload"
-  digest = "1:d17e98e181ecb03504590bd6d96f989a11c25a7501ee5c5147d2b6b445c166a9"
+  branch = "master"
+  digest = "1:4d0f1aaba3d754432e1d1fdb0082d399bc6ca7a36ee8fb2eb49dcb5a3cb945eb"
   name = "sigs.k8s.io/controller-runtime"
   packages = [
     "pkg/cache",
@@ -983,6 +983,7 @@
     "pkg/client/fake",
     "pkg/controller",
     "pkg/controller/controllerutil",
+    "pkg/conversion",
     "pkg/event",
     "pkg/handler",
     "pkg/internal/controller",
@@ -1001,16 +1002,17 @@
     "pkg/runtime/inject",
     "pkg/runtime/scheme",
     "pkg/runtime/signals",
+    "pkg/scheme",
     "pkg/source",
     "pkg/source/internal",
     "pkg/webhook",
     "pkg/webhook/admission",
+    "pkg/webhook/conversion",
     "pkg/webhook/internal/certwatcher",
     "pkg/webhook/internal/metrics",
   ]
   pruneopts = "NT"
-  revision = "794b6862fe79c2c1e5f7811ae95e5ff7a86dc573"
-  source = "https://github.com/bison/controller-runtime.git"
+  revision = "96b67f231945a8e8550dbdd8bfbd550a0c68097b"
 
 [[projects]]
   digest = "1:8730e0150dfb2b7e173890c8b9868e7a273082ef8e39f4940e3506a481cf895c"
@@ -1024,6 +1026,7 @@
   analyzer-name = "dep"
   analyzer-version = 1
   input-imports = [
+    "github.com/appscode/jsonpatch",
     "github.com/blang/semver",
     "github.com/go-openapi/spec",
     "github.com/onsi/ginkgo",
@@ -1050,6 +1053,7 @@
     "k8s.io/apimachinery/pkg/types",
     "k8s.io/apimachinery/pkg/util/wait",
     "k8s.io/client-go/kubernetes/scheme",
+    "k8s.io/client-go/kubernetes/typed/admissionregistration/v1beta1",
     "k8s.io/client-go/tools/record",
     "k8s.io/client-go/tools/reference",
     "k8s.io/code-generator/cmd/client-gen",
@@ -1071,9 +1075,11 @@
     "sigs.k8s.io/controller-runtime/pkg/manager",
     "sigs.k8s.io/controller-runtime/pkg/predicate",
     "sigs.k8s.io/controller-runtime/pkg/reconcile",
-    "sigs.k8s.io/controller-runtime/pkg/runtime/scheme",
     "sigs.k8s.io/controller-runtime/pkg/runtime/signals",
+    "sigs.k8s.io/controller-runtime/pkg/scheme",
     "sigs.k8s.io/controller-runtime/pkg/source",
+    "sigs.k8s.io/controller-runtime/pkg/webhook",
+    "sigs.k8s.io/controller-runtime/pkg/webhook/admission",
   ]
   solver-name = "gps-cdcl"
   solver-version = 1

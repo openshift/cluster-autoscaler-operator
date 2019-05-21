@@ -51,12 +51,9 @@ required = [
   name = "k8s.io/kube-aggregator"
   version = "kubernetes-1.13.4"
 
-# Temporarily using tls-reload branch of controller-runtime.
-# See: https://github.com/kubernetes-sigs/controller-runtime/pull/421
 [[override]]
   name = "sigs.k8s.io/controller-runtime"
-  source = "https://github.com/bison/controller-runtime.git"
-  branch = "tls-reload"
+  branch = "master"
 
 [[override]]
   name = "github.com/openshift/client-go"
