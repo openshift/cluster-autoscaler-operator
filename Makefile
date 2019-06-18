@@ -54,6 +54,10 @@ generate: ## Code generation (requires operator-sdk >= v0.5.0)
 	cp deploy/crds/autoscaling_v1beta1_machineautoscaler_crd.yaml \
 	  install/02_machineautoscaler.crd.yaml
 
+.PHONY: gen-crd
+gen-crd:
+	$(DOCKER_CMD) ./hack/gen-crd.sh
+
 .PHONY: build
 build: ## build binaries
 	$(DOCKER_CMD) go build $(GOGCFLAGS) -ldflags "$(LD_FLAGS)" -o "$(BUILD_DEST)" "$(REPO_PATH)/cmd/manager"

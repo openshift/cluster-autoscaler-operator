@@ -10,6 +10,7 @@ required = [
   "github.com/openshift/api/config/v1",
   "github.com/onsi/ginkgo",
   "github.com/onsi/gomega",
+  "sigs.k8s.io/controller-tools/cmd/controller-gen", # for crd/rbac generation
 ]
 
 [[override]]
