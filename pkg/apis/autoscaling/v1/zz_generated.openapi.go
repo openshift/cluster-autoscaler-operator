@@ -45,12 +45,14 @@ func schema_pkg_apis_autoscaling_v1_ClusterAutoscaler(ref common.ReferenceCallba
 					},
 					"spec": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("github.com/openshift/cluster-autoscaler-operator/pkg/apis/autoscaling/v1.ClusterAutoscalerSpec"),
+							Description: "Desired state of ClusterAutoscaler resource",
+							Ref:         ref("github.com/openshift/cluster-autoscaler-operator/pkg/apis/autoscaling/v1.ClusterAutoscalerSpec"),
 						},
 					},
 					"status": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("github.com/openshift/cluster-autoscaler-operator/pkg/apis/autoscaling/v1.ClusterAutoscalerStatus"),
+							Description: "Most recently observed status of ClusterAutoscaler resource",
+							Ref:         ref("github.com/openshift/cluster-autoscaler-operator/pkg/apis/autoscaling/v1.ClusterAutoscalerStatus"),
 						},
 					},
 				},
