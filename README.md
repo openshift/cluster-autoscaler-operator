@@ -26,6 +26,7 @@ The operator manages the following custom resources:
       cluster-autoscaler
     Args:
       --logtostderr
+      --balance-similar-node-groups
       --cloud-provider=cluster-api
       --namespace=openshift-machine-api
       --expendable-pods-priority-cutoff=-10

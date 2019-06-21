@@ -23,6 +23,13 @@ type ClusterAutoscalerSpec struct {
 	// Cluster Autoscaler actions, but only run when there are spare resources available,
 	// More info: https://github.com/kubernetes/autoscaler/blob/master/cluster-autoscaler/FAQ.md#how-does-cluster-autoscaler-work-with-pod-priority-and-preemption
 	PodPriorityThreshold *int32 `json:"podPriorityThreshold,omitempty"`
+
+	// BalanceSimilarNodeGroups enables/disables the
+	// `--balance-similar-node-groups` cluster-autocaler feature.
+	// This feature will automatically identify node groups with
+	// the same instance type and the same set of labels and try
+	// to keep the respective sizes of those node groups balanced.
+	BalanceSimilarNodeGroups *bool `json:"balanceSimilarNodeGroups,omitempty"`
 }
 
 // ClusterAutoscalerStatus defines the observed state of ClusterAutoscaler
