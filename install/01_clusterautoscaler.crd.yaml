@@ -31,6 +31,12 @@ spec:
         spec:
           description: Desired state of ClusterAutoscaler resource
           properties:
+            balanceSimilarNodeGroups:
+              description: BalanceSimilarNodeGroups enables/disables the `--balance-similar-node-groups`
+                cluster-autocaler feature. This feature will automatically identify
+                node groups with the same instance type and the same set of labels
+                and try to keep the respective sizes of those node groups balanced.
+              type: boolean
             maxPodGracePeriod:
               description: Gives pods graceful termination time before scaling down
               format: int32
