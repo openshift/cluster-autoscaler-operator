@@ -23,7 +23,10 @@ func main() {
 
 	printVersion()
 
-	config := operator.ConfigFromEnvironment()
+	config, err := operator.ConfigFromEnvironment()
+	if err != nil {
+		klog.Fatalf("Failed to get config from environment: %v", err)
+	}
 
 	operator, err := operator.New(config)
 	if err != nil {
