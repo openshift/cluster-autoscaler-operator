@@ -28,7 +28,7 @@ import (
 )
 
 const (
-	controllerName      = "cluster-autoscaler-controller"
+	controllerName      = "cluster_autoscaler_controller"
 	caServiceAccount    = "cluster-autoscaler"
 	caPriorityClassName = "system-cluster-critical"
 )

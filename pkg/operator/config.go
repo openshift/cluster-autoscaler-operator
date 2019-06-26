@@ -1,10 +1,9 @@
 package operator
 
 import (
+	"fmt"
 	"os"
 	"strconv"
-
-	"k8s.io/klog"
 )
 
 const (
@@ -58,6 +57,9 @@ const (
 	// DefaultWebhooksCertDir is the default directory for admission webhook
 	// server TLS assets.
 	DefaultWebhooksCertDir = "/etc/cluster-autoscaler-operator/tls"
+
+	// DefaultMetricsPort is the default port to expose metrics.
+	DefaultMetricsPort = 8080
 )
 
 // Config represents the runtime configuration for the operator.
@@ -122,6 +124,9 @@ type Config struct {
 	// WebhookCertDir is the directory containing TLS assets for the admission
 	// webhook server.
 	WebhooksCertDir string
+
+	// metricsPort is the port the metrics are exposed.
+	MetricsPort int
 }
 
 // NewConfig returns a new Config object with defaults set.
@@ -140,12 +145,13 @@ func NewConfig() *Config {
 		WebhooksEnabled:                DefaultWebhooksEnabled,
 		WebhooksPort:                   DefaultWebhooksPort,
 		WebhooksCertDir:                DefaultWebhooksCertDir,
+		MetricsPort:                    DefaultMetricsPort,
 	}
 }
 
 // ConfigFromEnvironment returns a new Config object with defaults
 // overridden by environment variables when set.
-func ConfigFromEnvironment() *Config {
+func ConfigFromEnvironment() (*Config, error) {
 	config := NewConfig()
 
 	if releaseVersion, ok := os.LookupEnv("RELEASE_VERSION"); ok {
@@ -159,8 +165,7 @@ func ConfigFromEnvironment() *Config {
 	if leaderElection, ok := os.LookupEnv("LEADER_ELECTION"); ok {
 		le, err := strconv.ParseBool(leaderElection)
 		if err != nil {
-			le = DefaultLeaderElection
-			klog.Errorf("Error parsing LEADER_ELECTION environment variable: %v", err)
+			return nil, fmt.Errorf("error parsing LEADER_ELECTION (%q) environment variable: %v", leaderElection, err)
 		}
 
 		config.LeaderElection = le
@@ -193,8 +198,7 @@ func ConfigFromEnvironment() *Config {
 	if caVerbosity, ok := os.LookupEnv("CLUSTER_AUTOSCALER_VERBOSITY"); ok {
 		v, err := strconv.Atoi(caVerbosity)
 		if err != nil {
-			v = DefaultClusterAutoscalerVerbosity
-			klog.Errorf("Error parsing CLUSTER_AUTOSCALER_VERBOSITY environment variable: %v", err)
+			return nil, fmt.Errorf("error parsing CLUSTER_AUTOSCALER_VERBOSITY (%q) environment variable: %v", caVerbosity, err)
 		}
 
 		config.ClusterAutoscalerVerbosity = v
@@ -207,26 +211,33 @@ func ConfigFromEnvironment() *Config {
 	if webhooksEnabled, ok := os.LookupEnv("WEBHOOKS_ENABLED"); ok {
 		enabled, err := strconv.ParseBool(webhooksEnabled)
 		if err != nil {
-			enabled = DefaultWebhooksEnabled
-			klog.Errorf("Error parsing WEBHOOKS_ENABLED environment variable: %v", err)
+			return nil, fmt.Errorf("error parsing WEBHOOKS_ENABLED (%q) environment variable: %v", webhooksEnabled, err)
 		}
 
 		config.WebhooksEnabled = enabled
 	}
 
 	if webhooksPort, ok := os.LookupEnv("WEBHOOKS_PORT"); ok {
-		v, err := strconv.ParseInt(webhooksPort, 10, 32)
+		v, err := strconv.Atoi(webhooksPort)
 		if err != nil {
-			v = DefaultWebhooksPort
-			klog.Errorf("Error parsing WEBHOOKS_PORT environment variable: %v", err)
+			return nil, fmt.Errorf("error parsing WEBHOOKS_PORT (%q) environment variable: %v", webhooksPort, err)
 		}
 
-		config.WebhooksPort = int(v)
+		config.WebhooksPort = v
 	}
 
 	if webhooksCertDir, ok := os.LookupEnv("WEBHOOKS_CERT_DIR"); ok {
 		config.WebhooksCertDir = webhooksCertDir
 	}
 
-	return config
+	if metricsPort, ok := os.LookupEnv("METRICS_PORT"); ok {
+		v, err := strconv.Atoi(metricsPort)
+		if err != nil {
+			return nil, fmt.Errorf("error parsing METRICS_PORT (%q) environment variable: %v", metricsPort, err)
+		}
+
+		config.MetricsPort = v
+	}
+
+	return config, nil
 }
