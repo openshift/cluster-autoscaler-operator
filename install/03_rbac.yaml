@@ -8,12 +8,8 @@ rules:
   - admissionregistration.k8s.io
   resources:
   - validatingwebhookconfigurations
-  - mutatingwebhookconfigurations
   verbs:
-  - get
-  - patch
-  resourceNames:
-  - autoscaling.openshift.io
+  - "*"
 - apiGroups:
   - autoscaling.openshift.io
   resources:

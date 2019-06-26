@@ -1,14 +1,16 @@
 package operator
 
 import (
+	"context"
 	"encoding/base64"
-	"encoding/json"
 	"io/ioutil"
 
-	"github.com/appscode/jsonpatch"
-	"k8s.io/apimachinery/pkg/types"
-	admissionregistrationv1beta1 "k8s.io/client-go/kubernetes/typed/admissionregistration/v1beta1"
+	admissionregistrationv1beta1 "k8s.io/api/admissionregistration/v1beta1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog"
+	"k8s.io/utils/pointer"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 )
 
@@ -16,59 +18,54 @@ import (
 // updated with the current CA certificate.
 const WebhookConfigurationName = "autoscaling.openshift.io"
 
-// WebhookCAUpdater updates webhook configuratons to inject the CA certficiate
-// bundle read from disk at the configured location.
-type WebhookCAUpdater struct {
-	caPath string
-	client *admissionregistrationv1beta1.AdmissionregistrationV1beta1Client
+// WebhookConfigUpdater updates webhook configurations to point the Kubernetes
+// API server at the operator's validating or mutating webhook server.  It would
+// be nice if the CVO could apply the configuration as it is mostly static.
+// Unfortunately, the CA bundle is not known until runtime.
+type WebhookConfigUpdater struct {
+	caPath    string
+	namespace string
+	client    client.Client
 }
 
-// NewWebhookCAUpdater returns a new WebhookCAUpdater.
-func NewWebhookCAUpdater(mgr manager.Manager, caPath string) (*WebhookCAUpdater, error) {
-	var err error
-
-	w := &WebhookCAUpdater{caPath: caPath}
-
-	w.client, err = admissionregistrationv1beta1.NewForConfig(mgr.GetConfig())
-	if err != nil {
-		return nil, err
+// NewWebhookConfigUpdater returns a new WebhookConfigUpdater instance.
+func NewWebhookConfigUpdater(mgr manager.Manager, namespace, caPath string) (*WebhookConfigUpdater, error) {
+	w := &WebhookConfigUpdater{
+		caPath:    caPath,
+		namespace: namespace,
+		client:    mgr.GetClient(),
 	}
 
 	return w, nil
 }
 
-// Start fetches the current CA bundle from disk and sets it on the webhook
-// configurations, then simply waits for the stop channel to close.
-func (w *WebhookCAUpdater) Start(stopCh <-chan struct{}) error {
-	ca, err := w.GetEncodedCA()
-	if err != nil {
-		return err
-	}
-
-	// TODO: This should probably replace the caBundle in all webhook client
-	// configurations in the object, but unfortuntaely that's not easy to do
-	// with a JSON patch.  For now this only modifies the first entry.
-	patch := []jsonpatch.Operation{
-		{
-			Operation: "replace",
-			Path:      "/webhooks/0/clientConfig/caBundle",
-			Value:     ca,
+// Start creates or updates the webhook configurations then waits for the stop
+// channel to be closed.
+func (w *WebhookConfigUpdater) Start(stopCh <-chan struct{}) error {
+	vc := &admissionregistrationv1beta1.ValidatingWebhookConfiguration{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "admissionregistration.k8s.io/v1beta1",
+			Kind:       "ValidatingWebhookConfiguration",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: WebhookConfigurationName,
+			Labels: map[string]string{
+				"k8s-app": OperatorName,
+			},
 		},
 	}
 
-	patchBytes, err := json.Marshal(patch)
+	op, err := controllerutil.CreateOrUpdate(context.TODO(), w.client, vc, func() error {
+		var err error
+		vc.Webhooks, err = w.ValidatingWebhooks()
+		return err
+	})
+
 	if err != nil {
 		return err
 	}
 
-	_, err = w.client.ValidatingWebhookConfigurations().
-		Patch(WebhookConfigurationName, types.JSONPatchType, patchBytes)
-
-	if err != nil {
-		return err
-	}
-
-	klog.Info("Updated webhook configuration CA certificates.")
+	klog.Infof("Webhook configuration status: %s", op)
 
 	// Block until the stop channel is closed.
 	<-stopCh
@@ -76,9 +73,51 @@ func (w *WebhookCAUpdater) Start(stopCh <-chan struct{}) error {
 	return nil
 }
 
+// ValidatingWebhooks returns the validating webhook configurations.
+func (w *WebhookConfigUpdater) ValidatingWebhooks() ([]admissionregistrationv1beta1.Webhook, error) {
+	caBundle, err := w.GetEncodedCA()
+	if err != nil {
+		return nil, err
+	}
+
+	failurePolicy := admissionregistrationv1beta1.Ignore
+	sideEffects := admissionregistrationv1beta1.SideEffectClassNone
+
+	webhooks := []admissionregistrationv1beta1.Webhook{
+		{
+			Name: "clusterautoscalers.autoscaling.openshift.io",
+			ClientConfig: admissionregistrationv1beta1.WebhookClientConfig{
+				Service: &admissionregistrationv1beta1.ServiceReference{
+					Name:      OperatorName,
+					Namespace: w.namespace,
+					Path:      pointer.StringPtr("/validate-clusterautoscalers"),
+				},
+				CABundle: []byte(caBundle),
+			},
+			FailurePolicy: &failurePolicy,
+			SideEffects:   &sideEffects,
+			Rules: []admissionregistrationv1beta1.RuleWithOperations{
+				{
+					Rule: admissionregistrationv1beta1.Rule{
+						APIGroups:   []string{"autoscaling.openshift.io"},
+						APIVersions: []string{"v1"},
+						Resources:   []string{"clusterautoscalers"},
+					},
+					Operations: []admissionregistrationv1beta1.OperationType{
+						admissionregistrationv1beta1.Create,
+						admissionregistrationv1beta1.Update,
+					},
+				},
+			},
+		},
+	}
+
+	return webhooks, nil
+}
+
 // GetEncodedCA returns the base64 encoded CA certificate used for securing
 // admission webhook server connections.
-func (w *WebhookCAUpdater) GetEncodedCA() (string, error) {
+func (w *WebhookConfigUpdater) GetEncodedCA() (string, error) {
 	ca, err := ioutil.ReadFile(w.caPath)
 	if err != nil {
 		return "", err
