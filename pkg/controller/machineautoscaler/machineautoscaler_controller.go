@@ -36,7 +36,7 @@ const (
 	minSizeAnnotation = "machine.openshift.io/cluster-api-autoscaler-node-group-min-size"
 	maxSizeAnnotation = "machine.openshift.io/cluster-api-autoscaler-node-group-max-size"
 
-	controllerName = "machine-autoscaler-controller"
+	controllerName = "machine_autoscaler_controller"
 )
 
 var (
