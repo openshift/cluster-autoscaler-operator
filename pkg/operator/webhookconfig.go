@@ -2,7 +2,6 @@ package operator
 
 import (
 	"context"
-	"encoding/base64"
 	"fmt"
 	"io/ioutil"
 
@@ -76,7 +75,7 @@ func (w *WebhookConfigUpdater) Start(stopCh <-chan struct{}) error {
 
 // ValidatingWebhooks returns the validating webhook configurations.
 func (w *WebhookConfigUpdater) ValidatingWebhooks() ([]admissionregistrationv1beta1.Webhook, error) {
-	caBundle, err := w.GetEncodedCA()
+	caBundle, err := ioutil.ReadFile(w.caPath)
 	if err != nil {
 		return nil, err
 	}
@@ -93,7 +92,7 @@ func (w *WebhookConfigUpdater) ValidatingWebhooks() ([]admissionregistrationv1be
 					Namespace: w.namespace,
 					Path:      pointer.StringPtr("/validate-clusterautoscalers"),
 				},
-				CABundle: []byte(caBundle),
+				CABundle: caBundle,
 			},
 			FailurePolicy: &failurePolicy,
 			SideEffects:   &sideEffects,
@@ -114,15 +113,4 @@ func (w *WebhookConfigUpdater) ValidatingWebhooks() ([]admissionregistrationv1be
 	}
 
 	return webhooks, nil
-}
-
-// GetEncodedCA returns the base64 encoded CA certificate used for securing
-// admission webhook server connections.
-func (w *WebhookConfigUpdater) GetEncodedCA() (string, error) {
-	ca, err := ioutil.ReadFile(w.caPath)
-	if err != nil {
-		return "", err
-	}
-
-	return base64.StdEncoding.EncodeToString(ca), nil
 }
