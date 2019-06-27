@@ -152,16 +152,17 @@ func (o *Operator) AddControllers() error {
 // server to operator's manager instance.
 func (o *Operator) AddWebhooks() error {
 	caPath := filepath.Join(o.config.WebhooksCertDir, "service-ca", "ca-cert.pem")
+	namespace := o.config.WatchNamespace
 
-	// Set up the CA updater and add it to the manager.  This will update the
-	// webhook configurations with the proper CA certificate when and if this
-	// instance becomes the leader.
-	caUpdater, err := NewWebhookCAUpdater(o.manager, caPath)
+	// Set up the webhook config updater and add it to the manager.  This will
+	// update the webhook configurations when and if this instance becomes the
+	// leader.
+	webhookUpdater, err := NewWebhookConfigUpdater(o.manager, namespace, caPath)
 	if err != nil {
 		return err
 	}
 
-	if err := o.manager.Add(caUpdater); err != nil {
+	if err := o.manager.Add(webhookUpdater); err != nil {
 		return err
 	}
 

@@ -13,7 +13,6 @@ resources:
 - install/04_service.yaml
 - install/05_configmap.yaml
 - install/06_deployment.yaml
-- install/07_webhooks.yaml
 
 secretGenerator:
 - name: cluster-autoscaler-operator-cert
