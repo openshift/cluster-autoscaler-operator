@@ -48,6 +48,7 @@ const (
 	MemoryTotalArg                  AutoscalerArg = "--memory-total"
 	GPUTotalArg                     AutoscalerArg = "--gpu-total"
 	VerbosityArg                    AutoscalerArg = "--v"
+	BalanceSimilarNodeGroupsArg     AutoscalerArg = "--balance-similar-node-groups"
 )
 
 // AutoscalerArgs returns a slice of strings representing command line arguments
@@ -79,6 +80,10 @@ func AutoscalerArgs(ca *v1.ClusterAutoscaler, cfg *Config) []string {
 
 	if ca.Spec.ScaleDown != nil {
 		args = append(args, ScaleDownArgs(s.ScaleDown)...)
+	}
+
+	if ca.Spec.BalanceSimilarNodeGroups != nil && *ca.Spec.BalanceSimilarNodeGroups {
+		args = append(args, BalanceSimilarNodeGroupsArg.String())
 	}
 
 	return args

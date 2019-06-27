@@ -18,6 +18,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/record"
+	"k8s.io/utils/pointer"
 	fakeclient "sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
@@ -143,11 +144,32 @@ func TestAutoscalerArgs(t *testing.T) {
 	expectedMissing := []string{
 		"--scale-down-delay-after-delete",
 		"--scale-down-delay-after-failure",
+		"--balance-similar-node-groups",
 	}
 
 	for _, e := range expectedMissing {
 		if includesStringWithPrefix(args, e) {
 			t.Fatalf("found arg expected to be missing: %s", e)
+		}
+	}
+}
+
+// TestAutoscalerBalanceSimilarNodeGroupArgEnabled validates that the
+// --balance-similar-node-groups appears in the autoscaler args when
+// enabled in the ClusterAutoscalerSpec.
+func TestAutoscalerBalanceSimilarNodeGroupArgEnabled(t *testing.T) {
+	ca := NewClusterAutoscaler()
+	ca.Spec.BalanceSimilarNodeGroups = pointer.BoolPtr(true)
+
+	args := AutoscalerArgs(ca, &Config{CloudProvider: TestCloudProvider, Namespace: TestNamespace})
+
+	expected := []string{
+		fmt.Sprintf("--balance-similar-node-groups"),
+	}
+
+	for _, e := range expected {
+		if !includeString(args, e) {
+			t.Fatalf("missing arg: %s", e)
 		}
 	}
 }

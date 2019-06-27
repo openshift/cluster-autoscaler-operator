@@ -4,6 +4,7 @@ kind: "ClusterAutoscaler"
 metadata:
   name: "default"
 spec:
+  balanceSimilarNodeGroups: true
   podPriorityThreshold: -10
   resourceLimits:
     maxNodesTotal: 24
