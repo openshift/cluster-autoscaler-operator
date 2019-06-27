@@ -3,6 +3,7 @@ package operator
 import (
 	"context"
 	"encoding/base64"
+	"fmt"
 	"io/ioutil"
 
 	admissionregistrationv1beta1 "k8s.io/api/admissionregistration/v1beta1"
@@ -50,7 +51,7 @@ func (w *WebhookConfigUpdater) Start(stopCh <-chan struct{}) error {
 		ObjectMeta: metav1.ObjectMeta{
 			Name: WebhookConfigurationName,
 			Labels: map[string]string{
-				"k8s-app": OperatorName,
+				"k8s-app": fmt.Sprintf("%s-operator", OperatorName),
 			},
 		},
 	}
@@ -88,7 +89,7 @@ func (w *WebhookConfigUpdater) ValidatingWebhooks() ([]admissionregistrationv1be
 			Name: "clusterautoscalers.autoscaling.openshift.io",
 			ClientConfig: admissionregistrationv1beta1.WebhookClientConfig{
 				Service: &admissionregistrationv1beta1.ServiceReference{
-					Name:      OperatorName,
+					Name:      fmt.Sprintf("%s-operator", OperatorName),
 					Namespace: w.namespace,
 					Path:      pointer.StringPtr("/validate-clusterautoscalers"),
 				},
