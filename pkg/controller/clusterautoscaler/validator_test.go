@@ -87,6 +87,10 @@ func TestValidate(t *testing.T) {
 		t.Run(tc.label, func(t *testing.T) {
 			ok, err := validator.Validate(tc.caFunc())
 
+			if !ok && err == nil {
+				t.Error("validation failed, but err is nil")
+			}
+
 			if ok != tc.expectedOk {
 				t.Errorf("got %v, want %v, err: %v", ok, tc.expectedOk, err)
 			}

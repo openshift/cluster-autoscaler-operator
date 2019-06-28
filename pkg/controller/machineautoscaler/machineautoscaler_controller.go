@@ -74,16 +74,13 @@ type Config struct {
 }
 
 // NewReconciler returns a new Reconciler.
-func NewReconciler(mgr manager.Manager, cfg *Config) *Reconciler {
-	if cfg == nil {
-		cfg = &Config{}
-	}
-
+func NewReconciler(mgr manager.Manager, config Config) *Reconciler {
 	return &Reconciler{
-		client:   mgr.GetClient(),
-		scheme:   mgr.GetScheme(),
-		recorder: mgr.GetEventRecorderFor(controllerName),
-		config:   cfg,
+		client:    mgr.GetClient(),
+		scheme:    mgr.GetScheme(),
+		recorder:  mgr.GetEventRecorderFor(controllerName),
+		validator: NewValidator(),
+		config:    config,
 	}
 }
 
@@ -146,10 +143,11 @@ var _ reconcile.Reconciler = &Reconciler{}
 type Reconciler struct {
 	// This client, initialized using mgr.Client() above, is a split client
 	// that reads objects from the cache and writes to the apiserver
-	client   client.Client
-	recorder record.EventRecorder
-	scheme   *runtime.Scheme
-	config   *Config
+	client    client.Client
+	recorder  record.EventRecorder
+	scheme    *runtime.Scheme
+	validator *Validator
+	config    Config
 }
 
 // Reconcile reads that state of the cluster for a MachineAutoscaler object and
@@ -179,6 +177,15 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 	// MachineAutoscaler has been fetched, before any further reconciliation.
 	if ma.GetDeletionTimestamp() != nil {
 		return r.HandleDelete(ma)
+	}
+
+	// Validate the MachineAutoscaler early and return if any errors are found.
+	if ok, err := r.validator.Validate(ma); !ok {
+		errMsg := fmt.Sprintf("MachineAutoscaler validation error: %v", err)
+		r.recorder.Event(ma, corev1.EventTypeWarning, "FailedValidation", errMsg)
+		klog.Errorf("%s: %s", request.NamespacedName, errMsg)
+
+		return reconcile.Result{}, err
 	}
 
 	targetRef := objectReference(ma.Spec.ScaleTargetRef)
@@ -315,6 +322,11 @@ func (r *Reconciler) HandleDelete(ma *v1beta1.MachineAutoscaler) (reconcile.Resu
 	}
 
 	return reconcile.Result{}, nil
+}
+
+// Validator returns the validator currently configured for the reconciler.
+func (r *Reconciler) Validator() *Validator {
+	return r.validator
 }
 
 // GetTarget fetches the object targeted by the given reference.

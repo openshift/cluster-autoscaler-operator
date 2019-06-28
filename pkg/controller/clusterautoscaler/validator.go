@@ -35,7 +35,7 @@ func NewValidator(name string) *Validator {
 // indicating whether validation passed, and possibly an aggregate error
 // representing any validation errors found.
 func (v *Validator) Validate(ca *autoscalingv1.ClusterAutoscaler) (bool, utilerrors.Aggregate) {
-	errs := []error{}
+	var errs []error
 
 	if ca == nil {
 		err := errors.New("ClusterAutoscaler is nil")
