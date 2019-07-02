@@ -2,7 +2,7 @@ package operator
 
 import (
 	"context"
-	"encoding/base64"
+	"fmt"
 	"io/ioutil"
 
 	admissionregistrationv1beta1 "k8s.io/api/admissionregistration/v1beta1"
@@ -50,7 +50,7 @@ func (w *WebhookConfigUpdater) Start(stopCh <-chan struct{}) error {
 		ObjectMeta: metav1.ObjectMeta{
 			Name: WebhookConfigurationName,
 			Labels: map[string]string{
-				"k8s-app": OperatorName,
+				"k8s-app": fmt.Sprintf("%s-operator", OperatorName),
 			},
 		},
 	}
@@ -75,7 +75,7 @@ func (w *WebhookConfigUpdater) Start(stopCh <-chan struct{}) error {
 
 // ValidatingWebhooks returns the validating webhook configurations.
 func (w *WebhookConfigUpdater) ValidatingWebhooks() ([]admissionregistrationv1beta1.Webhook, error) {
-	caBundle, err := w.GetEncodedCA()
+	caBundle, err := ioutil.ReadFile(w.caPath)
 	if err != nil {
 		return nil, err
 	}
@@ -88,11 +88,11 @@ func (w *WebhookConfigUpdater) ValidatingWebhooks() ([]admissionregistrationv1be
 			Name: "clusterautoscalers.autoscaling.openshift.io",
 			ClientConfig: admissionregistrationv1beta1.WebhookClientConfig{
 				Service: &admissionregistrationv1beta1.ServiceReference{
-					Name:      OperatorName,
+					Name:      fmt.Sprintf("%s-operator", OperatorName),
 					Namespace: w.namespace,
 					Path:      pointer.StringPtr("/validate-clusterautoscalers"),
 				},
-				CABundle: []byte(caBundle),
+				CABundle: caBundle,
 			},
 			FailurePolicy: &failurePolicy,
 			SideEffects:   &sideEffects,
@@ -113,15 +113,4 @@ func (w *WebhookConfigUpdater) ValidatingWebhooks() ([]admissionregistrationv1be
 	}
 
 	return webhooks, nil
-}
-
-// GetEncodedCA returns the base64 encoded CA certificate used for securing
-// admission webhook server connections.
-func (w *WebhookConfigUpdater) GetEncodedCA() (string, error) {
-	ca, err := ioutil.ReadFile(w.caPath)
-	if err != nil {
-		return "", err
-	}
-
-	return base64.StdEncoding.EncodeToString(ca), nil
 }

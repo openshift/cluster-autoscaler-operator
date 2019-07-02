@@ -44,7 +44,7 @@ var (
 	NvidiaGPUMax           int32 = 8
 )
 
-var TestReconcilerConfig = &Config{
+var TestReconcilerConfig = Config{
 	Name:           "test",
 	Namespace:      TestNamespace,
 	CloudProvider:  TestCloudProvider,
@@ -184,10 +184,11 @@ func TestCanGetca(t *testing.T) {
 func newFakeReconciler(initObjects ...runtime.Object) *Reconciler {
 	fakeClient := fakeclient.NewFakeClient(initObjects...)
 	return &Reconciler{
-		client:   fakeClient,
-		scheme:   scheme.Scheme,
-		recorder: record.NewFakeRecorder(128),
-		config:   TestReconcilerConfig,
+		client:    fakeClient,
+		scheme:    scheme.Scheme,
+		recorder:  record.NewFakeRecorder(128),
+		config:    TestReconcilerConfig,
+		validator: NewValidator(TestReconcilerConfig.Name),
 	}
 }
 
@@ -230,28 +231,28 @@ func TestReconcile(t *testing.T) {
 	tCases := []struct {
 		expectedError error
 		expectedRes   reconcile.Result
-		c             *Config
+		c             Config
 		d             *appsv1.Deployment
 	}{
 		// Case 0: should pass, returns {}, nil.
 		{
 			expectedError: nil,
 			expectedRes:   reconcile.Result{},
-			c:             &cfg1,
+			c:             cfg1,
 			d:             &dep1,
 		},
 		// Case 1: no ca found, should pass, returns {}, nil.
 		{
 			expectedError: nil,
 			expectedRes:   reconcile.Result{},
-			c:             &cfg2,
+			c:             cfg2,
 			d:             &dep1,
 		},
 		// Case 2: no dep found, should pass, returns {}, nil.
 		{
 			expectedError: nil,
 			expectedRes:   reconcile.Result{},
-			c:             &cfg1,
+			c:             cfg1,
 			d:             &appsv1.Deployment{},
 		},
 	}

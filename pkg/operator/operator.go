@@ -29,6 +29,9 @@ var (
 type Operator struct {
 	config  *Config
 	manager manager.Manager
+
+	caReconciler *clusterautoscaler.Reconciler
+	maReconciler *machineautoscaler.Reconciler
 }
 
 // New returns a new Operator instance with the given config and a
@@ -120,7 +123,7 @@ func (o *Operator) RelatedObjects() []configv1.ObjectReference {
 // the operator's manager instance.
 func (o *Operator) AddControllers() error {
 	// Setup ClusterAutoscaler controller.
-	ca := clusterautoscaler.NewReconciler(o.manager, &clusterautoscaler.Config{
+	ca := clusterautoscaler.NewReconciler(o.manager, clusterautoscaler.Config{
 		ReleaseVersion: o.config.ReleaseVersion,
 		Name:           o.config.ClusterAutoscalerName,
 		Image:          o.config.ClusterAutoscalerImage,
@@ -145,11 +148,15 @@ func (o *Operator) AddControllers() error {
 		return err
 	}
 
+	o.caReconciler = ca
+	o.maReconciler = ma
+
 	return nil
 }
 
 // AddWebhooks sets up the webhook server, registers handlers, and adds the
-// server to operator's manager instance.
+// server to operator's manager instance.  This expects the reconcilers to have
+// been configured previously via the AddControllers() method.
 func (o *Operator) AddWebhooks() error {
 	caPath := filepath.Join(o.config.WebhooksCertDir, "service-ca", "ca-cert.pem")
 	namespace := o.config.WatchNamespace
@@ -172,7 +179,7 @@ func (o *Operator) AddWebhooks() error {
 	}
 
 	server.Register("/validate-clusterautoscalers",
-		&webhook.Admission{Handler: &clusterautoscaler.Validator{}})
+		&webhook.Admission{Handler: o.caReconciler.Validator()})
 
 	return o.manager.Add(server)
 }

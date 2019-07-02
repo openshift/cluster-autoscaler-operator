@@ -34,12 +34,13 @@ const (
 )
 
 // NewReconciler returns a new Reconciler.
-func NewReconciler(mgr manager.Manager, cfg *Config) *Reconciler {
+func NewReconciler(mgr manager.Manager, config Config) *Reconciler {
 	return &Reconciler{
-		client:   mgr.GetClient(),
-		scheme:   mgr.GetScheme(),
-		recorder: mgr.GetEventRecorderFor(controllerName),
-		config:   cfg,
+		client:    mgr.GetClient(),
+		scheme:    mgr.GetScheme(),
+		recorder:  mgr.GetEventRecorderFor(controllerName),
+		validator: NewValidator(config.Name),
+		config:    config,
 	}
 }
 
@@ -69,10 +70,11 @@ var _ reconcile.Reconciler = &Reconciler{}
 type Reconciler struct {
 	// This client, initialized using mgr.Client() above, is a split client
 	// that reads objects from the cache and writes to the apiserver
-	client   client.Client
-	recorder record.EventRecorder
-	scheme   *runtime.Scheme
-	config   *Config
+	client    client.Client
+	recorder  record.EventRecorder
+	config    Config
+	scheme    *runtime.Scheme
+	validator *Validator
 }
 
 // AddToManager adds a new Controller to mgr with r as the reconcile.Reconciler
@@ -149,6 +151,15 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 	// generated for these cluster scoped objects out of the default namespace.
 	caRef := r.objectReference(ca)
 
+	// Validate the ClusterAutoscaler early and requeue if any errors are found.
+	if ok, err := r.validator.Validate(ca); !ok {
+		errMsg := fmt.Sprintf("ClusterAutoscaler validation error: %v", err)
+		r.recorder.Event(caRef, corev1.EventTypeWarning, "FailedValidation", errMsg)
+		klog.Error(errMsg)
+
+		return reconcile.Result{}, err
+	}
+
 	_, err = r.GetAutoscaler(ca)
 	if err != nil && !errors.IsNotFound(err) {
 		errMsg := fmt.Sprintf("Error getting cluster-autoscaler deployment: %v", err)
@@ -189,8 +200,13 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 	return reconcile.Result{}, nil
 }
 
+// Validator returns the validator currently configured for the reconciler.
+func (r *Reconciler) Validator() *Validator {
+	return r.validator
+}
+
 // SetConfig sets the given config on the reconciler.
-func (r *Reconciler) SetConfig(cfg *Config) {
+func (r *Reconciler) SetConfig(cfg Config) {
 	r.config = cfg
 }
 
@@ -332,7 +348,7 @@ func (r *Reconciler) AutoscalerDeployment(ca *autoscalingv1.ClusterAutoscaler) *
 // AutoscalerPodSpec returns the expected podSpec for the deployment belonging
 // to the given ClusterAutoscaler.
 func (r *Reconciler) AutoscalerPodSpec(ca *autoscalingv1.ClusterAutoscaler) *corev1.PodSpec {
-	args := AutoscalerArgs(ca, r.config)
+	args := AutoscalerArgs(ca, &r.config)
 
 	if r.config.ExtraArgs != "" {
 		args = append(args, r.config.ExtraArgs)
