@@ -20,7 +20,7 @@ func init() {
 }
 
 // newFakeReconciler returns a new reconcile.Reconciler with a fake client.
-func newFakeReconciler(cfg *Config, initObjects ...runtime.Object) *Reconciler {
+func newFakeReconciler(cfg Config, initObjects ...runtime.Object) *Reconciler {
 	fakeClient := fakeclient.NewFakeClient(initObjects...)
 	return &Reconciler{
 		client:   fakeClient,
@@ -71,7 +71,7 @@ func TestRemoveSupportedGVK(t *testing.T) {
 
 	for _, tt := range testCases {
 		t.Run(tt.label, func(t *testing.T) {
-			r := newFakeReconciler(&Config{
+			r := newFakeReconciler(Config{
 				Namespace:           TestNamespace,
 				SupportedTargetGVKs: tt.before,
 			})
@@ -123,7 +123,7 @@ func TestValidateReference(t *testing.T) {
 		},
 	}
 
-	r := newFakeReconciler(&Config{
+	r := newFakeReconciler(Config{
 		Namespace:           TestNamespace,
 		SupportedTargetGVKs: DefaultSupportedTargetGVKs(),
 	})

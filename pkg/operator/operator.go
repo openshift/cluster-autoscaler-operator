@@ -139,7 +139,7 @@ func (o *Operator) AddControllers() error {
 	}
 
 	// Setup MachineAutoscaler controller.
-	ma := machineautoscaler.NewReconciler(o.manager, &machineautoscaler.Config{
+	ma := machineautoscaler.NewReconciler(o.manager, machineautoscaler.Config{
 		Namespace:           o.config.ClusterAutoscalerNamespace,
 		SupportedTargetGVKs: machineautoscaler.DefaultSupportedTargetGVKs(),
 	})
@@ -180,6 +180,9 @@ func (o *Operator) AddWebhooks() error {
 
 	server.Register("/validate-clusterautoscalers",
 		&webhook.Admission{Handler: o.caReconciler.Validator()})
+
+	server.Register("/validate-machineautoscalers",
+		&webhook.Admission{Handler: o.maReconciler.Validator()})
 
 	return o.manager.Add(server)
 }

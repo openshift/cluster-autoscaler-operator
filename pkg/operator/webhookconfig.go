@@ -110,6 +110,32 @@ func (w *WebhookConfigUpdater) ValidatingWebhooks() ([]admissionregistrationv1be
 				},
 			},
 		},
+		{
+			Name: "machineautoscalers.autoscaling.openshift.io",
+			ClientConfig: admissionregistrationv1beta1.WebhookClientConfig{
+				Service: &admissionregistrationv1beta1.ServiceReference{
+					Name:      fmt.Sprintf("%s-operator", OperatorName),
+					Namespace: w.namespace,
+					Path:      pointer.StringPtr("/validate-machineautoscalers"),
+				},
+				CABundle: caBundle,
+			},
+			FailurePolicy: &failurePolicy,
+			SideEffects:   &sideEffects,
+			Rules: []admissionregistrationv1beta1.RuleWithOperations{
+				{
+					Rule: admissionregistrationv1beta1.Rule{
+						APIGroups:   []string{"autoscaling.openshift.io"},
+						APIVersions: []string{"v1beta1"},
+						Resources:   []string{"machineautoscalers"},
+					},
+					Operations: []admissionregistrationv1beta1.OperationType{
+						admissionregistrationv1beta1.Create,
+						admissionregistrationv1beta1.Update,
+					},
+				},
+			},
+		},
 	}
 
 	return webhooks, nil
