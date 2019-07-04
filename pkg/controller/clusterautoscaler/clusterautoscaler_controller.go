@@ -307,7 +307,7 @@ func (r *Reconciler) AutoscalerDeployment(ca *autoscalingv1.ClusterAutoscaler) *
 
 	labels := map[string]string{
 		"cluster-autoscaler": ca.Name,
-		"app":                "cluster-autoscaler",
+		"k8s-app":            "cluster-autoscaler",
 	}
 
 	annotations := map[string]string{
@@ -367,8 +367,15 @@ func (r *Reconciler) AutoscalerPodSpec(ca *autoscalingv1.ClusterAutoscaler) *cor
 				Image:   r.config.Image,
 				Command: []string{"cluster-autoscaler"},
 				Args:    args,
+				Ports: []corev1.ContainerPort{
+					{
+						Name:          "metrics",
+						ContainerPort: 8085,
+					},
+				},
 			},
 		},
+
 		Tolerations: []corev1.Toleration{
 			{
 				Key:      "CriticalAddonsOnly",
