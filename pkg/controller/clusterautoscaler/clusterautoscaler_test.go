@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	monitoringv1 "github.com/coreos/prometheus-operator/pkg/apis/monitoring/v1"
 	"github.com/openshift/cluster-autoscaler-operator/pkg/apis"
 	autoscalingv1 "github.com/openshift/cluster-autoscaler-operator/pkg/apis/autoscaling/v1"
 	"github.com/openshift/cluster-autoscaler-operator/pkg/util"
@@ -56,6 +57,7 @@ var TestReconcilerConfig = Config{
 
 func init() {
 	apis.AddToScheme(scheme.Scheme)
+	monitoringv1.AddToScheme(scheme.Scheme)
 }
 
 func NewClusterAutoscaler() *autoscalingv1.ClusterAutoscaler {

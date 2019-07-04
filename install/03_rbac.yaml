@@ -71,6 +71,17 @@ rules:
   - list
   - get
   - update
+- apiGroups:
+    - monitoring.coreos.com
+  resources:
+    - servicemonitors
+    - prometheusrules
+  verbs:
+    - watch
+    - list
+    - get
+    - create
+    - update
 
 ---
 kind: RoleBinding

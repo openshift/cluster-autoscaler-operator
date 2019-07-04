@@ -7,6 +7,7 @@ import (
 
 	configv1 "github.com/openshift/api/config/v1"
 
+	monitoringv1 "github.com/coreos/prometheus-operator/pkg/apis/monitoring/v1"
 	"github.com/openshift/cluster-autoscaler-operator/pkg/apis"
 	"github.com/openshift/cluster-autoscaler-operator/pkg/controller/clusterautoscaler"
 	"github.com/openshift/cluster-autoscaler-operator/pkg/controller/machineautoscaler"
@@ -65,6 +66,10 @@ func New(cfg *Config) (*Operator, error) {
 	// Setup Scheme for all resources.
 	if err := apis.AddToScheme(operator.manager.GetScheme()); err != nil {
 		return nil, fmt.Errorf("failed to register types: %v", err)
+	}
+
+	if err := monitoringv1.AddToScheme(operator.manager.GetScheme()); err != nil {
+		return nil, fmt.Errorf("failed to register monitoring types: %v", err)
 	}
 
 	// Setup our controllers and add them to the manager.

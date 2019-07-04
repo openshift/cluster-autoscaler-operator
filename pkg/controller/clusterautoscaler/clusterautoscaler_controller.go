@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	monitoringv1 "github.com/coreos/prometheus-operator/pkg/apis/monitoring/v1"
 	autoscalingv1 "github.com/openshift/cluster-autoscaler-operator/pkg/apis/autoscaling/v1"
 	"github.com/openshift/cluster-autoscaler-operator/pkg/util"
 	appsv1 "k8s.io/api/apps/v1"
@@ -104,22 +105,37 @@ func (r *Reconciler) AddToManager(mgr manager.Manager) error {
 	}
 
 	// Watch for changes to primary resource ClusterAutoscaler
-	err = c.Watch(&source.Kind{Type: &autoscalingv1.ClusterAutoscaler{}}, &handler.EnqueueRequestForObject{}, p)
-	if err != nil {
+	if err := c.Watch(&source.Kind{Type: &autoscalingv1.ClusterAutoscaler{}}, &handler.EnqueueRequestForObject{}, p); err != nil {
 		return err
 	}
 
 	// Watch for changes to secondary resources owned by a ClusterAutoscaler
-	err = c.Watch(&source.Kind{Type: &appsv1.Deployment{}}, &handler.EnqueueRequestForOwner{
+	if err := c.Watch(&source.Kind{Type: &appsv1.Deployment{}}, &handler.EnqueueRequestForOwner{
 		IsController: true,
 		OwnerType:    &autoscalingv1.ClusterAutoscaler{},
-	})
-
-	if err != nil {
+	}); err != nil {
 		return err
 	}
 
-	return nil
+	// Watch for changes to monitoring resources owned by a ClusterAutoscaler
+	if err := c.Watch(&source.Kind{Type: &corev1.Service{}}, &handler.EnqueueRequestForOwner{
+		IsController: true,
+		OwnerType:    &autoscalingv1.ClusterAutoscaler{},
+	}); err != nil {
+		return err
+	}
+
+	if err := c.Watch(&source.Kind{Type: &monitoringv1.ServiceMonitor{}}, &handler.EnqueueRequestForOwner{
+		IsController: true,
+		OwnerType:    &autoscalingv1.ClusterAutoscaler{},
+	}); err != nil {
+		return err
+	}
+
+	return c.Watch(&source.Kind{Type: &monitoringv1.PrometheusRule{}}, &handler.EnqueueRequestForOwner{
+		IsController: true,
+		OwnerType:    &autoscalingv1.ClusterAutoscaler{},
+	})
 }
 
 // Reconcile reads that state of the cluster for a ClusterAutoscaler
@@ -168,6 +184,15 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 
 		return reconcile.Result{}, err
 	}
+
+	if err := r.ensureAutoscalerMonitoring(ca); err != nil {
+		errMsg := fmt.Sprintf("Error ensuring ClusterAutoscaler monitoring: %v", err)
+		r.recorder.Event(caRef, corev1.EventTypeWarning, "FailedCreate", errMsg)
+		klog.Error(errMsg)
+
+		return reconcile.Result{}, err
+	}
+	klog.Info("Ensured ClusterAutoscaler monitoring")
 
 	if errors.IsNotFound(err) {
 		if err := r.CreateAutoscaler(ca); err != nil {
