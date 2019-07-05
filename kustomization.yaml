@@ -12,7 +12,7 @@ resources:
 - install/03_rbac.yaml
 - install/04_service.yaml
 - install/05_configmap.yaml
-- install/06_deployment.yaml
+- install/07_deployment.yaml
 
 secretGenerator:
 - name: cluster-autoscaler-operator-cert
