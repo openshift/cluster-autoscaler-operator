@@ -79,6 +79,51 @@ deployment for the operator.
 ### End-to-End Tests
 
 You can run the e2e test suite with `make test-e2e`.  These tests
-assume the presence of a cluster not already running the operator, and
+assume the presence of a cluster already running the operator, and
 that the `KUBECONFIG` environment variable points to a configuration
 granting admin rights on said cluster.
+
+
+## Validating Webhooks
+
+By default the operator starts an HTTP server for webhooks and
+registers a `ValidatingWebhookConfiguration` with the API server for
+both the `ClusterAutoscaler` and `MachineAutoscaler` types.  This can
+be disabled via the `WEBHOOKS_ENABLED` environment variable.  At the
+moment, reconciliation of the webhook configuration is only performed
+once at startup after leader-election has succeeded.
+
+If the webhook server is enabled, you must provide a TLS certificate
+and key as well as a CA certificate to the operator.  The location of
+these is controlled by the `WEBHOOKS_CERT_DIR` environment variable,
+which defaults to: `/etc/cluster-autoscaler-operator/tls`
+
+The files must be in the following locations:
+
+  - `${WEBHOOKS_CERT_DIR}/tls.crt`
+  - `${WEBHOOKS_CERT_DIR}/tls.key`
+  - `${WEBHOOKS_CERT_DIR}/service-ca/ca-cert.pem`
+
+The default cluster-autoscaler-operator deployment on OpenShift will
+generate the TLS assets automatically with the help of the OpenShift
+[service-ca-operator][service-ca-operator].  This works by annotating
+the `Service` object associated with the operator, which causes the
+service-ca-operator to generate a TLS certificate and inject it into a
+`Secret`, which is then mounted into the operator pod.  Additionally,
+the service-ca-operator injects its CA certificate into a `ConfigMap`,
+which is also mounted.  The operator then uses the TLS certificate and
+key to secure the webhook HTTP server, and injects the CA certificate
+into the webhook configuration registered with the API server.
+
+Updates to the TLS certificate and key are handled transparently.  The
+[controller-runtime][controller-runtime] library the operator is based
+on watches the files mounted in the pod for changes and updates HTTP
+server's TLS configuration.  Updates to the CA certificate are not
+handled automatically, however a restart of the operator will load the
+new CA certificate and update the webhook configuration.  This is not
+usually a problem in practice because CA certificates are generally
+long-lived and the webhook configuration is set to ignore
+communication failures as the validations are merely a convenience.
+
+[service-ca-operator]: https://github.com/openshift/service-ca-operator
+[controller-runtime]: https://github.com/kubernetes-sigs/controller-runtime
