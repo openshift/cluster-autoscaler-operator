@@ -32,10 +32,20 @@ spec:
           description: Desired state of ClusterAutoscaler resource
           properties:
             balanceSimilarNodeGroups:
-              description: BalanceSimilarNodeGroups enables/disables the `--balance-similar-node-groups`
+              description: 'BalanceSimilarNodeGroups enables/disables the `--balance-similar-node-groups`
                 cluster-autocaler feature. This feature will automatically identify
                 node groups with the same instance type and the same set of labels
-                and try to keep the respective sizes of those node groups balanced.
+                and try to keep the respective sizes of those node groups balanced.'
+              type: boolean
+            ignoreDaemonsetsUtilization:
+              description: 'Should CA ignore DaemonSet pods when calculating resource
+                utilization for scaling scaleDown'
+              type: boolean
+            writeStatusConfigMap:
+              description: 'Should CA write status information to a configmap'
+              type: boolean
+            skipNodesWithLocalStorage:
+              description: 'If true cluster autoscaler will never delete nodes with pods with local storage, e.g. EmptyDir or HostPath'
               type: boolean
             maxPodGracePeriod:
               description: Gives pods graceful termination time before scaling down
