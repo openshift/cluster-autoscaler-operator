@@ -147,7 +147,6 @@ func TestAutoscalerArgs(t *testing.T) {
 		"--scale-down-delay-after-delete",
 		"--scale-down-delay-after-failure",
 		"--balance-similar-node-groups",
-		"--write-status-configmap",
 		"--ignore-daemonsets-utilization",
 		"--skip-nodes-with-local-storage",
 	}
@@ -164,7 +163,6 @@ func TestAutoscalerArgs(t *testing.T) {
 func TestAutoscalerArgEnabled(t *testing.T) {
 	ca := NewClusterAutoscaler()
 	ca.Spec.BalanceSimilarNodeGroups = pointer.BoolPtr(true)
-	ca.Spec.WriteStatusConfigMap = pointer.BoolPtr(true)
 	ca.Spec.IgnoreDaemonsetsUtilization = pointer.BoolPtr(true)
 	ca.Spec.SkipNodesWithLocalStorage = pointer.BoolPtr(true)
 
@@ -172,7 +170,6 @@ func TestAutoscalerArgEnabled(t *testing.T) {
 
 	expected := []string{
 		fmt.Sprintf("--balance-similar-node-groups"),
-		fmt.Sprintf("--write-status-configmap"),
 		fmt.Sprintf("--ignore-daemonsets-utilization"),
 		fmt.Sprintf("--skip-nodes-with-local-storage"),
 	}

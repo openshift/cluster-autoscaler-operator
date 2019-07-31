@@ -41,9 +41,6 @@ spec:
               description: 'Should CA ignore DaemonSet pods when calculating resource
                 utilization for scaling scaleDown'
               type: boolean
-            writeStatusConfigMap:
-              description: 'Should CA write status information to a configmap'
-              type: boolean
             skipNodesWithLocalStorage:
               description: 'If true cluster autoscaler will never delete nodes with pods with local storage, e.g. EmptyDir or HostPath'
               type: boolean

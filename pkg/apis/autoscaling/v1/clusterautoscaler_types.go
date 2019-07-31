@@ -31,9 +31,6 @@ type ClusterAutoscalerSpec struct {
 	// to keep the respective sizes of those node groups balanced.
 	BalanceSimilarNodeGroups *bool `json:"balanceSimilarNodeGroups,omitempty"`
 
-	// Enables/Disables `--write-status-configmap` CA feature flag. Should CA write status information to a configmap. true by default
-	WriteStatusConfigMap *bool `json:"writeStatusConfigMap,omitempty"`
-
 	// Enables/Disables `--ignore-daemonsets-utilization` CA feature flag. Should CA ignore DaemonSet pods when calculating resource utilization for scaling down. false by default
 	IgnoreDaemonsetsUtilization *bool `json:"ignoreDaemonsetsUtilization,omitempty"`
 

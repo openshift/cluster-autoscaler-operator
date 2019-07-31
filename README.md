@@ -40,7 +40,6 @@ The operator manages the following custom resources:
       --scale-down-delay-after-delete=10s
       --scale-down-delay-after-failure=10s
       --ignore-daemonsets-utilization=false
-      --write-status-configmap=true
       --skip-nodes-with-local-storage=true
   ```
 

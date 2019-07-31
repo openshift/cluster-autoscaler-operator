@@ -6,7 +6,6 @@ metadata:
 spec:
   balanceSimilarNodeGroups: true
   ignoreDaemonsetsUtilization: false
-  writeStatusConfigMap: true
   skipNodesWithLocalStorage: true
   podPriorityThreshold: -10
   resourceLimits:
