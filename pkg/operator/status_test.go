@@ -55,6 +55,11 @@ var (
 			Status:             configv1.ConditionFalse,
 			LastTransitionTime: ConditionTransitionTime,
 		},
+		{
+			Type:               configv1.OperatorUpgradeable,
+			Status:             configv1.ConditionTrue,
+			LastTransitionTime: ConditionTransitionTime,
+		},
 	}
 
 	// DegradedConditions is the list of expected conditions for the operator
@@ -72,6 +77,11 @@ var (
 		},
 		{
 			Type:               configv1.OperatorDegraded,
+			Status:             configv1.ConditionTrue,
+			LastTransitionTime: ConditionTransitionTime,
+		},
+		{
+			Type:               configv1.OperatorUpgradeable,
 			Status:             configv1.ConditionTrue,
 			LastTransitionTime: ConditionTransitionTime,
 		},
@@ -93,6 +103,11 @@ var (
 		{
 			Type:               configv1.OperatorDegraded,
 			Status:             configv1.ConditionFalse,
+			LastTransitionTime: ConditionTransitionTime,
+		},
+		{
+			Type:               configv1.OperatorUpgradeable,
+			Status:             configv1.ConditionTrue,
 			LastTransitionTime: ConditionTransitionTime,
 		},
 	}

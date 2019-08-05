@@ -114,6 +114,15 @@ func (r *StatusReporter) ApplyStatus(status configv1.ClusterOperatorStatus) erro
 		return err
 	}
 
+	// There currently is no circumstance that prevents the operator from
+	// upgrading, so we always set OperatorUpgradeable to true here.
+	upgradeable := configv1.ClusterOperatorStatusCondition{
+		Type:   configv1.OperatorUpgradeable,
+		Status: configv1.ConditionTrue,
+	}
+
+	cvorm.SetOperatorStatusCondition(&status.Conditions, upgradeable)
+
 	// Set the currently configured related objects.
 	status.RelatedObjects = r.config.RelatedObjects
 
