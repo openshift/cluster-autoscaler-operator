@@ -14,6 +14,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -179,6 +180,19 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 		return r.HandleDelete(ma)
 	}
 
+	// If there is a previously observed target referenced in the status, and it
+	// has changed relative to the current target, the previous target must be
+	// finalized, i.e. annotations removed.  Similar to handling deletion, this
+	// should happen early so that previous targets won't continue to be scaled
+	// if there's a problem with the new target.
+	if ma.Status.LastTargetRef != nil && r.TargetChanged(ma) {
+		klog.V(2).Infof("%s: Target changed", request.NamespacedName)
+
+		if err := r.HandleTargetChange(ma); err != nil {
+			return reconcile.Result{}, err
+		}
+	}
+
 	// Validate the MachineAutoscaler early and return if any errors are found.
 	if ok, err := r.validator.Validate(ma); !ok {
 		errMsg := fmt.Sprintf("MachineAutoscaler validation error: %v", err)
@@ -213,51 +227,6 @@ func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, err
 	// This will force an update to bring things into sync.
 	if ownerModifed {
 		target.RemoveLimits()
-	}
-
-	// If there is a previously observed target referenced in the
-	// status, and it has changed relative to the current target, the
-	// previous target must be finalized, e.g. annotations removed.
-	if ma.Status.LastTargetRef != nil && r.TargetChanged(ma) {
-		klog.V(2).Infof("%s: Target changed", request.NamespacedName)
-
-		lastTargetRef := objectReference(*ma.Status.LastTargetRef)
-
-		lastTarget, err := r.GetTarget(lastTargetRef)
-		if err != nil && !apierrors.IsNotFound(err) {
-			// If there was a problem (other than a 404) fetching the
-			// previous target, we should retry.  Otherwise, it may
-			// retain autoscaling configuration.
-			errMsg := fmt.Sprintf("Error fetching previous target: %v", err)
-			r.recorder.Event(ma, corev1.EventTypeWarning, "FailedGetLastTarget", errMsg)
-			klog.Errorf("%s: %s", request.NamespacedName, errMsg)
-
-			return reconcile.Result{}, err
-		}
-
-		// If the target changed, and we were able to fetch the
-		// previous target successfully, finalize it.
-		if lastTarget != nil {
-			err := r.FinalizeTarget(lastTarget)
-
-			// Ignore 404s, the resource has most likely been deleted.
-			if err != nil && !apierrors.IsNotFound(err) {
-				errMsg := fmt.Sprintf("Error finalizing previous target: %v", err)
-				r.recorder.Event(ma, corev1.EventTypeWarning, "FailedFinalizeTarget", errMsg)
-				klog.Errorf("%s: %s", request.NamespacedName, errMsg)
-
-				return reconcile.Result{}, err
-			}
-		}
-
-		// Set the previous target equal to the current target.
-		if err := r.SetLastTarget(ma, targetRef); err != nil {
-			errMsg := fmt.Sprintf("Error setting previous target: %v", err)
-			r.recorder.Event(ma, corev1.EventTypeWarning, "FailedSetLastTarget", errMsg)
-			klog.Errorf("%s: %s", request.NamespacedName, errMsg)
-
-			return reconcile.Result{}, err
-		}
 	}
 
 	// Set the previous target if we don't have one.
@@ -322,6 +291,59 @@ func (r *Reconciler) HandleDelete(ma *v1beta1.MachineAutoscaler) (reconcile.Resu
 	}
 
 	return reconcile.Result{}, nil
+}
+
+// HandleTargetChange is called by Reconcile to handle updates to a the target
+// referenced by a MachineAutoscaler.  When a target changes, the previous
+// target must have its autoscaling configuration removed.
+func (r *Reconciler) HandleTargetChange(ma *v1beta1.MachineAutoscaler) error {
+	// If the previous target is nil, there's nothing to do.
+	if ma.Status.LastTargetRef == nil {
+		return nil
+	}
+
+	maName := types.NamespacedName{Namespace: ma.Namespace, Name: ma.Name}
+
+	newTargetRef := objectReference(ma.Spec.ScaleTargetRef)
+	lastTargetRef := objectReference(*ma.Status.LastTargetRef)
+
+	lastTarget, err := r.GetTarget(lastTargetRef)
+	if err != nil && !apierrors.IsNotFound(err) {
+		// If there was a problem (other than a 404) fetching the
+		// previous target, we should retry.  Otherwise, it may
+		// retain autoscaling configuration.
+		errMsg := fmt.Sprintf("Error fetching previous target: %v", err)
+		r.recorder.Event(ma, corev1.EventTypeWarning, "FailedGetLastTarget", errMsg)
+		klog.Errorf("%s: %s", maName, errMsg)
+
+		return err
+	}
+
+	// If the target changed, and we were able to fetch the
+	// previous target successfully, finalize it.
+	if lastTarget != nil {
+		err := r.FinalizeTarget(lastTarget)
+
+		// Ignore 404s, the resource has most likely been deleted.
+		if err != nil && !apierrors.IsNotFound(err) {
+			errMsg := fmt.Sprintf("Error finalizing previous target: %v", err)
+			r.recorder.Event(ma, corev1.EventTypeWarning, "FailedFinalizeTarget", errMsg)
+			klog.Errorf("%s: %s", maName, errMsg)
+
+			return err
+		}
+	}
+
+	// Set the previous target equal to the current target.
+	if err := r.SetLastTarget(ma, newTargetRef); err != nil {
+		errMsg := fmt.Sprintf("Error setting previous target: %v", err)
+		r.recorder.Event(ma, corev1.EventTypeWarning, "FailedSetLastTarget", errMsg)
+		klog.Errorf("%s: %s", maName, errMsg)
+
+		return err
+	}
+
+	return nil
 }
 
 // Validator returns the validator currently configured for the reconciler.

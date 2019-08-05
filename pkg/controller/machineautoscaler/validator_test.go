@@ -7,6 +7,11 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+const (
+	TestMinReplicas = 2
+	TestMaxReplicas = 8
+)
+
 func NewMachineAutoscaler() *autoscalingv1beta1.MachineAutoscaler {
 	return &autoscalingv1beta1.MachineAutoscaler{
 		TypeMeta: metav1.TypeMeta{
@@ -15,11 +20,11 @@ func NewMachineAutoscaler() *autoscalingv1beta1.MachineAutoscaler {
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test",
-			Namespace: "test",
+			Namespace: TestNamespace,
 		},
 		Spec: autoscalingv1beta1.MachineAutoscalerSpec{
-			MinReplicas: 2,
-			MaxReplicas: 8,
+			MinReplicas: TestMinReplicas,
+			MaxReplicas: TestMaxReplicas,
 			ScaleTargetRef: autoscalingv1beta1.CrossVersionObjectReference{
 				APIVersion: "machine.openshift.io/v1beta1",
 				Kind:       "MachineSet",
