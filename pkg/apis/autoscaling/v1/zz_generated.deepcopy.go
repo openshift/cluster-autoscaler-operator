@@ -113,6 +113,16 @@ func (in *ClusterAutoscalerSpec) DeepCopyInto(out *ClusterAutoscalerSpec) {
 		*out = new(bool)
 		**out = **in
 	}
+	if in.IgnoreDaemonsetsUtilization != nil {
+		in, out := &in.IgnoreDaemonsetsUtilization, &out.IgnoreDaemonsetsUtilization
+		*out = new(bool)
+		**out = **in
+	}
+	if in.SkipNodesWithLocalStorage != nil {
+		in, out := &in.SkipNodesWithLocalStorage, &out.SkipNodesWithLocalStorage
+		*out = new(bool)
+		**out = **in
+	}
 	return
 }
 

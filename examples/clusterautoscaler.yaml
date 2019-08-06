@@ -5,6 +5,8 @@ metadata:
   name: "default"
 spec:
   balanceSimilarNodeGroups: true
+  ignoreDaemonsetsUtilization: false
+  skipNodesWithLocalStorage: true
   podPriorityThreshold: -10
   resourceLimits:
     maxNodesTotal: 24

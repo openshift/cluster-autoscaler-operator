@@ -49,6 +49,8 @@ const (
 	GPUTotalArg                     AutoscalerArg = "--gpu-total"
 	VerbosityArg                    AutoscalerArg = "--v"
 	BalanceSimilarNodeGroupsArg     AutoscalerArg = "--balance-similar-node-groups"
+	IgnoreDaemonsetsUtilization     AutoscalerArg = "--ignore-daemonsets-utilization"
+	SkipNodesWithLocalStorage       AutoscalerArg = "--skip-nodes-with-local-storage"
 )
 
 // AutoscalerArgs returns a slice of strings representing command line arguments
@@ -84,6 +86,14 @@ func AutoscalerArgs(ca *v1.ClusterAutoscaler, cfg *Config) []string {
 
 	if ca.Spec.BalanceSimilarNodeGroups != nil && *ca.Spec.BalanceSimilarNodeGroups {
 		args = append(args, BalanceSimilarNodeGroupsArg.String())
+	}
+
+	if ca.Spec.IgnoreDaemonsetsUtilization != nil && *ca.Spec.IgnoreDaemonsetsUtilization {
+		args = append(args, IgnoreDaemonsetsUtilization.String())
+	}
+
+	if ca.Spec.SkipNodesWithLocalStorage != nil && *ca.Spec.SkipNodesWithLocalStorage {
+		args = append(args, SkipNodesWithLocalStorage.String())
 	}
 
 	return args
