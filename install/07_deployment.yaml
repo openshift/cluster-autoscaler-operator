@@ -63,6 +63,7 @@ spec:
         - name: cert
           mountPath: /etc/cluster-autoscaler-operator/tls
           readOnly: true
+        terminationMessagePolicy: FallbackToLogsOnError
       volumes:
       - name: ca-cert
         configMap:
