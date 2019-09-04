@@ -112,7 +112,21 @@ func (o *Operator) RelatedObjects() []configv1.ObjectReference {
 	relatedNamespaces[o.config.LeaderElectionNamespace] = ""
 	relatedNamespaces[o.config.ClusterAutoscalerNamespace] = ""
 
-	relatedObjects := []configv1.ObjectReference{}
+	// Related objects lets openshift/must-gather collect diagnostic content
+	relatedObjects := []configv1.ObjectReference{
+		{
+			Group:     "machine.openshift.io",
+			Resource:  "machineautoscalers",
+			Name:      "",
+			Namespace: o.config.WatchNamespace,
+		},
+		{
+			Group:     "machine.openshift.io",
+			Resource:  "clusterautoscalers",
+			Name:      "",
+			Namespace: o.config.WatchNamespace,
+		},
+	}
 
 	for namespace := range relatedNamespaces {
 		relatedObjects = append(relatedObjects, configv1.ObjectReference{
@@ -120,7 +134,6 @@ func (o *Operator) RelatedObjects() []configv1.ObjectReference {
 			Name:     namespace,
 		})
 	}
-
 	return relatedObjects
 }
 
