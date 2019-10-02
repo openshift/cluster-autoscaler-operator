@@ -8,6 +8,13 @@ BUILD_DEST  ?= bin/cluster-autoscaler-operator
 MUTABLE_TAG ?= latest
 IMAGE        = origin-cluster-autoscaler-operator
 
+GO111MODULE = on
+export GO111MODULE
+GOFLAGS += -mod=vendor
+export GOFLAGS
+GOPROXY ?=
+export GOPROXY
+
 ifeq ($(DBG),1)
 GOGCFLAGS ?= -gcflags=all="-N -l"
 endif
@@ -20,18 +27,16 @@ ifeq ($(NO_DOCKER), 1)
   DOCKER_CMD =
   IMAGE_BUILD_CMD = imagebuilder
 else
-  DOCKER_CMD := docker run --rm -v "$(PWD):/go/src/$(REPO_PATH):Z" -w "/go/src/$(REPO_PATH)" openshift/origin-release:golang-1.12
+  DOCKER_CMD := docker run --rm --env GO111MODULE="$(GO111MODULE)" --env GOFLAGS="$(GOFLAGS)" --env GOPROXY="$(GOPROXY)" -v "$(PWD):/go/src/$(REPO_PATH):Z" -w "/go/src/$(REPO_PATH)" openshift/origin-release:golang-1.12
   IMAGE_BUILD_CMD = docker build
 endif
 
-.PHONY: depend
-depend:
-	dep version || go get -u github.com/golang/dep/cmd/dep
-	dep ensure
+.PHONY: vendor
+vendor:
+	go mod tidy
+	go mod vendor
+	go mod verify
 
-.PHONY: depend-update
-depend-update:
-	dep ensure -update
 
 # This is a hack. The operator-sdk doesn't currently let you configure
 # output paths for the generated CRDs.  It also requires that they
