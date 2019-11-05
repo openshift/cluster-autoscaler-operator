@@ -1,0 +1,21 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  labels:
+    prometheus: k8s
+    role: alert-rules
+  name: cluster-autoscaler-rules
+  namespace: openshift-machine-api
+spec:
+  groups:
+    - name: general.rules
+      rules:
+        - alert: ClusterAutoscalerOperatorDown
+          annotations:
+            message: ClusterAutoscalerOperator
+              discovery.
+          expr: |
+            absent(up{job="cluster-autoscaler-operator"} == 1)
+          for: 5m
+          labels:
+            severity: critical
