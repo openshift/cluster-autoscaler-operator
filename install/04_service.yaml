@@ -16,7 +16,7 @@ spec:
     protocol: TCP
     targetPort: 8443
   - name: metrics
-    port: 8080
+    port: 9192
     targetPort: metrics
     protocol: TCP
   selector:

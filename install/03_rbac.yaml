@@ -25,6 +25,14 @@ rules:
   - create
   - get
   - update
+- apiGroups: ["authentication.k8s.io"]
+  resources:
+  - tokenreviews
+  verbs: ["create"]
+- apiGroups: ["authorization.k8s.io"]
+  resources:
+  - subjectaccessreviews
+  verbs: ["create"]
 
 ---
 kind: Role
@@ -255,6 +263,12 @@ metadata:
   name: prometheus-k8s-cluster-autoscaler-operator
   namespace: openshift-machine-api
 rules:
+  - apiGroups:
+      - ""
+    resources:
+      - namespace/metrics
+    verbs:
+      - get
   - apiGroups:
       - ""
     resources:

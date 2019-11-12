@@ -55,7 +55,7 @@ func New(cfg *Config) (*Operator, error) {
 		LeaseDuration:           &leaderElectionLeaseDuration,
 		RenewDeadline:           &leaderElectionRenewDeadline,
 		RetryPeriod:             &leaderElectionRetryPeriod,
-		MetricsBindAddress:      fmt.Sprintf(":%d", cfg.MetricsPort),
+		MetricsBindAddress:      fmt.Sprintf("127.0.0.1:%d", cfg.MetricsPort),
 	}
 
 	operator.manager, err = manager.New(clientConfig, managerOptions)
