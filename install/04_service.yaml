@@ -8,6 +8,7 @@ metadata:
     k8s-app: cluster-autoscaler-operator
   annotations:
     service.beta.openshift.io/serving-cert-secret-name: cluster-autoscaler-operator-cert
+    exclude.release.openshift.io/internal-openshift-hosted: "true"
 spec:
   type: ClusterIP
   ports:
