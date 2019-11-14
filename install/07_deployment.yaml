@@ -32,8 +32,7 @@ spec:
         imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 9192
-          hostPort: 9192
-          name: https
+          name: metrics
           protocol: TCP
         resources: {}
         terminationMessagePath: /dev/termination-log
@@ -105,7 +104,7 @@ spec:
             path: tls.key
       - name: auth-proxy-config
         configMap:
-          name: kube-rbac-proxy
+          name: kube-rbac-proxy-cluster-autoscaler-operator
       nodeSelector:
         node-role.kubernetes.io/master: ""
       restartPolicy: Always

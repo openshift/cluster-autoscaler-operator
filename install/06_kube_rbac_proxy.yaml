@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: kube-rbac-proxy
+  name: kube-rbac-proxy-cluster-autoscaler-operator
   namespace: openshift-machine-api
 data:
   config-file.yaml: |+
