@@ -6,6 +6,8 @@ metadata:
   namespace: openshift-machine-api
   labels:
     k8s-app: cluster-autoscaler-operator
+  annotations:
+    exclude.release.openshift.io/internal-openshift-hosted: "true"
 spec:
   replicas: 1
   selector:
