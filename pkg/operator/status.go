@@ -262,11 +262,16 @@ func (r *StatusReporter) progressing(reason, message string) error {
 func (r *StatusReporter) Start(stopCh <-chan struct{}) error {
 	interval := 15 * time.Second
 
-	// Poll the status of our prerequisites and set our status
-	// accordingly.  Rather than return errors and stop polling, most
-	// errors here should just be reported in the status message.
+	// Poll the status of our prerequisites and set our status accordingly.
+	// Rather than return errors and stop polling, errors here should just be
+	// reported in the status message or logged.
 	pollFunc := func() (bool, error) {
-		return r.ReportStatus()
+		available, err := r.ReportStatus()
+		if err != nil {
+			klog.Errorf("Error reporting operator status: %v", err)
+		}
+
+		return available, nil
 	}
 
 	err := wait.PollImmediateUntil(interval, pollFunc, stopCh)
@@ -284,31 +289,29 @@ func (r *StatusReporter) ReportStatus() (bool, error) {
 	ok, err := r.CheckMachineAPI()
 	if err != nil {
 		msg := fmt.Sprintf("error checking machine-api status: %v", err)
-		r.degraded(ReasonMissingDependency, msg)
-		return false, nil
+		return false, r.degraded(ReasonMissingDependency, msg)
 	}
 
 	if !ok {
-		r.degraded(ReasonMissingDependency, "machine-api not ready")
-		return false, nil
+		return false, r.degraded(ReasonMissingDependency, "machine-api not ready")
 	}
 
 	// Check that any CluterAutoscaler deployments are updated and available.
 	ok, err = r.CheckClusterAutoscaler()
 	if err != nil {
 		msg := fmt.Sprintf("error checking autoscaler status: %v", err)
-		r.degraded(ReasonCheckAutoscaler, msg)
-		return false, nil
+		return false, r.degraded(ReasonCheckAutoscaler, msg)
 	}
 
 	if !ok {
 		msg := fmt.Sprintf("updating to %s", r.config.ReleaseVersion)
-		r.progressing(ReasonSyncing, msg)
-		return false, nil
+		return false, r.progressing(ReasonSyncing, msg)
 	}
 
 	msg := fmt.Sprintf("at version %s", r.config.ReleaseVersion)
-	r.available(ReasonEmpty, msg)
+	if err := r.available(ReasonEmpty, msg); err != nil {
+		return false, err
+	}
 
 	return true, nil
 }
