@@ -3,6 +3,8 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   name: cluster-autoscaler-operator
+  annotations:
+    exclude.release.openshift.io/internal-openshift-hosted: "true"
 rules:
 - apiGroups:
   - admissionregistration.k8s.io
@@ -40,6 +42,8 @@ apiVersion: rbac.authorization.k8s.io/v1beta1
 metadata:
   name: cluster-autoscaler-operator
   namespace: openshift-machine-api
+  annotations:
+    exclude.release.openshift.io/internal-openshift-hosted: "true"
 rules:
 - apiGroups:
   - autoscaling.openshift.io
@@ -97,6 +101,8 @@ apiVersion: rbac.authorization.k8s.io/v1beta1
 metadata:
   name: cluster-autoscaler-operator
   namespace: openshift-machine-api
+  annotations:
+    exclude.release.openshift.io/internal-openshift-hosted: "true"
 subjects:
 - kind: ServiceAccount
   name: cluster-autoscaler-operator
@@ -111,6 +117,8 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
   name: cluster-autoscaler-operator
+  annotations:
+    exclude.release.openshift.io/internal-openshift-hosted: "true"
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
@@ -126,6 +134,8 @@ kind: ServiceAccount
 metadata:
   name: cluster-autoscaler-operator
   namespace: openshift-machine-api
+  annotations:
+    exclude.release.openshift.io/internal-openshift-hosted: "true"
 
 ---
 apiVersion: v1
@@ -136,6 +146,8 @@ metadata:
     k8s-app: cluster-autoscaler
   name: cluster-autoscaler
   namespace: openshift-machine-api
+  annotations:
+    exclude.release.openshift.io/internal-openshift-hosted: "true"
 
 ---
 apiVersion: rbac.authorization.k8s.io/v1
@@ -145,6 +157,8 @@ metadata:
   labels:
     k8s-addon: cluster-autoscaler.addons.k8s.io
     k8s-app: cluster-autoscaler
+  annotations:
+    exclude.release.openshift.io/internal-openshift-hosted: "true"
 rules:
 - apiGroups: [""]
   resources: ["events","endpoints"]
@@ -196,6 +210,8 @@ metadata:
   labels:
     k8s-addon: cluster-autoscaler.addons.k8s.io
     k8s-app: cluster-autoscaler
+  annotations:
+    exclude.release.openshift.io/internal-openshift-hosted: "true"
 rules:
 - apiGroups: [""]
   resources: ["configmaps"]
@@ -213,6 +229,8 @@ metadata:
   labels:
     k8s-addon: cluster-autoscaler.addons.k8s.io
     k8s-app: cluster-autoscaler
+  annotations:
+    exclude.release.openshift.io/internal-openshift-hosted: "true"
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
@@ -228,6 +246,8 @@ kind: RoleBinding
 metadata:
   name: cluster-autoscaler
   namespace: openshift-machine-api
+  annotations:
+    exclude.release.openshift.io/internal-openshift-hosted: "true"
   labels:
     k8s-addon: cluster-autoscaler.addons.k8s.io
     k8s-app: cluster-autoscaler
@@ -246,6 +266,8 @@ kind: RoleBinding
 metadata:
   name: prometheus-k8s-cluster-autoscaler-operator
   namespace: openshift-machine-api
+  annotations:
+    exclude.release.openshift.io/internal-openshift-hosted: "true"
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
@@ -262,6 +284,8 @@ kind: Role
 metadata:
   name: prometheus-k8s-cluster-autoscaler-operator
   namespace: openshift-machine-api
+  annotations:
+    exclude.release.openshift.io/internal-openshift-hosted: "true"
 rules:
   - apiGroups:
       - ""

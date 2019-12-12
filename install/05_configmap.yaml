@@ -8,4 +8,5 @@ metadata:
     k8s-app: cluster-autoscaler-operator
   annotations:
     service.beta.openshift.io/inject-cabundle: "true"
+    exclude.release.openshift.io/internal-openshift-hosted: "true"
 data:

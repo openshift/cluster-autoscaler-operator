@@ -3,6 +3,8 @@ apiVersion: "autoscaling.openshift.io/v1"
 kind: "ClusterAutoscaler"
 metadata:
   name: "default"
+  annotations:
+    exclude.release.openshift.io/internal-openshift-hosted: "true"
 spec:
   balanceSimilarNodeGroups: true
   ignoreDaemonsetsUtilization: false

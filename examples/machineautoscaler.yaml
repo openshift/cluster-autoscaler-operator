@@ -4,6 +4,8 @@ kind: "MachineAutoscaler"
 metadata:
   name: "worker-us-east-1a"
   namespace: "openshift-machine-api"
+  annotations:
+    exclude.release.openshift.io/internal-openshift-hosted: "true"
 spec:
   minReplicas: 1
   maxReplicas: 12
