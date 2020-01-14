@@ -186,6 +186,13 @@ rules:
 - apiGroups: ["cluster.k8s.io","machine.openshift.io"]
   resources: ["machinedeployments","machines","machinesets"]
   verbs: ["watch","list","get","update"]
+- apiGroups: ["coordination.k8s.io"]
+  resources: ["leases"]
+  verbs: ["create"]
+- apiGroups: ["coordination.k8s.io"]
+  resourceNames: ["cluster-autoscaler"]
+  resources: ["leases"]
+  verbs: ["get", "update"]
 
 ---
 apiVersion: rbac.authorization.k8s.io/v1
