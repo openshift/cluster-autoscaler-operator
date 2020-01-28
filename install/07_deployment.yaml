@@ -86,20 +86,11 @@ spec:
             cpu: 20m
             memory: 50Mi
         volumeMounts:
-        - name: ca-cert
-          mountPath: /etc/cluster-autoscaler-operator/tls/service-ca
-          readOnly: true
         - name: cert
           mountPath: /etc/cluster-autoscaler-operator/tls
           readOnly: true
         terminationMessagePolicy: FallbackToLogsOnError
       volumes:
-      - name: ca-cert
-        configMap:
-          name: cluster-autoscaler-operator-ca
-          items:
-          - key: service-ca.crt
-            path: ca-cert.pem
       - name: cert
         secret:
           secretName: cluster-autoscaler-operator-cert

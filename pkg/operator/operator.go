@@ -2,7 +2,6 @@ package operator
 
 import (
 	"fmt"
-	"path/filepath"
 	"time"
 
 	configv1 "github.com/openshift/api/config/v1"
@@ -176,13 +175,12 @@ func (o *Operator) AddControllers() error {
 // server to operator's manager instance.  This expects the reconcilers to have
 // been configured previously via the AddControllers() method.
 func (o *Operator) AddWebhooks() error {
-	caPath := filepath.Join(o.config.WebhooksCertDir, "service-ca", "ca-cert.pem")
 	namespace := o.config.WatchNamespace
 
 	// Set up the webhook config updater and add it to the manager.  This will
 	// update the webhook configurations when and if this instance becomes the
 	// leader.
-	webhookUpdater, err := NewWebhookConfigUpdater(o.manager, namespace, caPath)
+	webhookUpdater, err := NewWebhookConfigUpdater(o.manager, namespace)
 	if err != nil {
 		return err
 	}

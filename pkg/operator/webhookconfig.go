@@ -3,7 +3,6 @@ package operator
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 
 	admissionregistrationv1beta1 "k8s.io/api/admissionregistration/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -14,24 +13,26 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 )
 
-// WebhookConfigurationName is the name of the webhook configurations to be
-// updated with the current CA certificate.
+// WebhookConfigurationName is the name of the webhook configuration.
 const WebhookConfigurationName = "autoscaling.openshift.io"
+
+// InjectCABundleAnnotationName is the annotation used by the
+// service-ca-operator to indicate which resources it should inject the CA into.
+const InjectCABundleAnnotationName = "service.beta.openshift.io/inject-cabundle"
 
 // WebhookConfigUpdater updates webhook configurations to point the Kubernetes
 // API server at the operator's validating or mutating webhook server.  It would
 // be nice if the CVO could apply the configuration as it is mostly static.
-// Unfortunately, the CA bundle is not known until runtime.
+// Unfortunately, the service-ca-operator needs to be able to inject the CA
+// certificate bundle, which the CVO would overwrite.
 type WebhookConfigUpdater struct {
-	caPath    string
 	namespace string
 	client    client.Client
 }
 
 // NewWebhookConfigUpdater returns a new WebhookConfigUpdater instance.
-func NewWebhookConfigUpdater(mgr manager.Manager, namespace, caPath string) (*WebhookConfigUpdater, error) {
+func NewWebhookConfigUpdater(mgr manager.Manager, namespace string) (*WebhookConfigUpdater, error) {
 	w := &WebhookConfigUpdater{
-		caPath:    caPath,
 		namespace: namespace,
 		client:    mgr.GetClient(),
 	}
@@ -51,6 +52,9 @@ func (w *WebhookConfigUpdater) Start(stopCh <-chan struct{}) error {
 			Name: WebhookConfigurationName,
 			Labels: map[string]string{
 				"k8s-app": fmt.Sprintf("%s-operator", OperatorName),
+			},
+			Annotations: map[string]string{
+				InjectCABundleAnnotationName: "true",
 			},
 		},
 	}
@@ -75,11 +79,6 @@ func (w *WebhookConfigUpdater) Start(stopCh <-chan struct{}) error {
 
 // ValidatingWebhooks returns the validating webhook configurations.
 func (w *WebhookConfigUpdater) ValidatingWebhooks() ([]admissionregistrationv1beta1.Webhook, error) {
-	caBundle, err := ioutil.ReadFile(w.caPath)
-	if err != nil {
-		return nil, err
-	}
-
 	failurePolicy := admissionregistrationv1beta1.Ignore
 	sideEffects := admissionregistrationv1beta1.SideEffectClassNone
 
@@ -92,7 +91,6 @@ func (w *WebhookConfigUpdater) ValidatingWebhooks() ([]admissionregistrationv1be
 					Namespace: w.namespace,
 					Path:      pointer.StringPtr("/validate-clusterautoscalers"),
 				},
-				CABundle: caBundle,
 			},
 			FailurePolicy: &failurePolicy,
 			SideEffects:   &sideEffects,
@@ -118,7 +116,6 @@ func (w *WebhookConfigUpdater) ValidatingWebhooks() ([]admissionregistrationv1be
 					Namespace: w.namespace,
 					Path:      pointer.StringPtr("/validate-machineautoscalers"),
 				},
-				CABundle: caBundle,
 			},
 			FailurePolicy: &failurePolicy,
 			SideEffects:   &sideEffects,
