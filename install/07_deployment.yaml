@@ -36,7 +36,6 @@ spec:
         - containerPort: 9192
           name: metrics
           protocol: TCP
-        resources: {}
         terminationMessagePath: /dev/termination-log
         terminationMessagePolicy: File
         resources:
@@ -105,9 +104,6 @@ spec:
       nodeSelector:
         node-role.kubernetes.io/master: ""
       restartPolicy: Always
-      securityContext:
-        runAsNonRoot: true
-        runAsUser: 65534
       tolerations:
       - key: "node-role.kubernetes.io/master"
         operator: "Exists"
