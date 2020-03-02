@@ -2,8 +2,18 @@
 
 set -eu
 
-go run ./vendor/sigs.k8s.io/controller-tools/cmd/controller-gen crd --domain openshift.io
+function annotate_crd() {
+  script='/^metadata:/a\
+\ \ annotations:\
+\ \ \ \ exclude.release.openshift.io/internal-opernshift-hosted: "true"'
+  input="${1}"
+  output="${2}"
+  sed -e "${script}" "${input}" > "${output}"
+}
+
+go run ./vendor/sigs.k8s.io/controller-tools/cmd/controller-gen crd paths=./pkg/apis/...
 
 echo "Copying generated CRDs"
-cp config/crds/autoscaling_v1_clusterautoscaler.yaml install/01_clusterautoscaler.crd.yaml
-cp config/crds/autoscaling_v1beta1_machineautoscaler.yaml install/02_machineautoscaler.crd.yaml
+annotate_crd config/crd/autoscaling.openshift.io_clusterautoscalers.yaml install/01_clusterautoscaler.crd.yaml
+annotate_crd config/crd/autoscaling.openshift.io_machineautoscalers.yaml install/02_machineautoscaler.crd.yaml
+rm -rf ./config/crd
