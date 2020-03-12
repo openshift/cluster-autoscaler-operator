@@ -5,6 +5,8 @@ metadata:
   labels:
     controller-tools.k8s.io: "1.0"
   name: machineautoscalers.autoscaling.openshift.io
+  annotations:
+    exclude.release.openshift.io/internal-openshift-hosted: "true"
 spec:
   additionalPrinterColumns:
   - JSONPath: .spec.scaleTargetRef.kind
