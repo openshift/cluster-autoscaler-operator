@@ -32,6 +32,8 @@ const (
 	controllerName      = "cluster_autoscaler_controller"
 	caServiceAccount    = "cluster-autoscaler"
 	caPriorityClassName = "system-cluster-critical"
+	CAPIGroupEnvVar     = "CAPI_GROUP"
+	CAPIGroup           = "machine.openshift.io"
 )
 
 // NewReconciler returns a new Reconciler.
@@ -396,6 +398,12 @@ func (r *Reconciler) AutoscalerPodSpec(ca *autoscalingv1.ClusterAutoscaler) *cor
 					{
 						Name:          "metrics",
 						ContainerPort: 8085,
+					},
+				},
+				Env: []corev1.EnvVar{
+					{
+						Name:  CAPIGroupEnvVar,
+						Value: CAPIGroup,
 					},
 				},
 			},
