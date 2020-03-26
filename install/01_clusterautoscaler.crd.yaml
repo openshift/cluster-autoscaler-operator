@@ -5,6 +5,8 @@ metadata:
   labels:
     controller-tools.k8s.io: "1.0"
   name: clusterautoscalers.autoscaling.openshift.io
+  annotations:
+    exclude.release.openshift.io/internal-openshift-hosted: "true"
 spec:
   group: autoscaling.openshift.io
   names:
