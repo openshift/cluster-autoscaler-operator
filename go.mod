@@ -1,6 +1,6 @@
 module github.com/openshift/cluster-autoscaler-operator
 
-go 1.12
+go 1.13
 
 require (
 	github.com/PuerkitoBio/purell v1.1.1 // indirect
