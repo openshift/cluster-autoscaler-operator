@@ -19,10 +19,11 @@ limitations under the License.
 //
 // The markers take the form:
 //
-//  +kubebuilder:webhook:failurePolicy=<string>,groups=<[]string>,resources=<[]string>,verbs=<[]string>,versions=<[]string>,name=<string>,path=<string>,mutating=<bool>
+//  +kubebuilder:webhook:failurePolicy=<string>,matchPolicy=<string>,groups=<[]string>,resources=<[]string>,verbs=<[]string>,versions=<[]string>,name=<string>,path=<string>,mutating=<bool>
 package webhook
 
 import (
+	"fmt"
 	"strings"
 
 	admissionreg "k8s.io/api/admissionregistration/v1beta1"
@@ -48,7 +49,7 @@ type Config struct {
 	// Mutating marks this as a mutating webhook (it's validating only if false)
 	//
 	// Mutating webhooks are allowed to change the object in their response,
-	// and are called *after* all validating webhooks.  Mutating webhooks may
+	// and are called *before* all validating webhooks.  Mutating webhooks may
 	// choose to reject an object, similarly to a validating webhook.
 	Mutating bool
 	// FailurePolicy specifies what should happen if the API server cannot reach the webhook.
@@ -56,6 +57,10 @@ type Config struct {
 	// It may be either "ignore" (to skip the webhook and continue on) or "fail" (to reject
 	// the object in question).
 	FailurePolicy string
+	// MatchPolicy defines how the "rules" list is used to match incoming requests.
+	// Allowed values are "Exact" (match only if it exactly matches the specified rule)
+	// or "Equivalent" (match a request if it modifies a resource listed in rules, even via another API group or version).
+	MatchPolicy string `marker:",optional"`
 
 	// Groups specifies the API groups that this webhook receives requests for.
 	Groups []string
@@ -69,9 +74,15 @@ type Config struct {
 	// Versions specifies the API versions that this webhook receives requests for.
 	Versions []string
 
-	// Name indicates the name of this webhook configuration.
+	// Name indicates the name of this webhook configuration. Should be a domain with at least three segments separated by dots
 	Name string
-	// Path specifies that path that the API server should connect to this webhook on.
+
+	// Path specifies that path that the API server should connect to this webhook on. Must be
+	// prefixed with a '/validate-' or '/mutate-' depending on the type, and followed by
+	// $GROUP-$VERSION-$KIND where all values are lower-cased and the periods in the group
+	// are substituted for hyphens. For example, a validating webhook path for type
+	// batch.tutorial.kubebuilder.io/v1,Kind=CronJob would be
+	// /validate-batch-tutorial-kubebuilder-io-v1-cronjob
 	Path string
 }
 
@@ -94,8 +105,49 @@ func verbToAPIVariant(verbRaw string) admissionreg.OperationType {
 	}
 }
 
-// ToRule converts this rule to its Kubernetes API form.
-func (c Config) ToWebhook() admissionreg.Webhook {
+// ToMutatingWebhook converts this rule to its Kubernetes API form.
+func (c Config) ToMutatingWebhook() (admissionreg.MutatingWebhook, error) {
+	if !c.Mutating {
+		return admissionreg.MutatingWebhook{}, fmt.Errorf("%s is a validating webhook", c.Name)
+	}
+
+	matchPolicy, err := c.matchPolicy()
+	if err != nil {
+		return admissionreg.MutatingWebhook{}, err
+	}
+
+	return admissionreg.MutatingWebhook{
+		Name:          c.Name,
+		Rules:         c.rules(),
+		FailurePolicy: c.failurePolicy(),
+		MatchPolicy:   matchPolicy,
+		ClientConfig:  c.clientConfig(),
+	}, nil
+}
+
+// ToValidatingWebhook converts this rule to its Kubernetes API form.
+func (c Config) ToValidatingWebhook() (admissionreg.ValidatingWebhook, error) {
+	if c.Mutating {
+		return admissionreg.ValidatingWebhook{}, fmt.Errorf("%s is a mutating webhook", c.Name)
+	}
+
+	matchPolicy, err := c.matchPolicy()
+	if err != nil {
+		return admissionreg.ValidatingWebhook{}, err
+	}
+
+	return admissionreg.ValidatingWebhook{
+		Name:          c.Name,
+		Rules:         c.rules(),
+		FailurePolicy: c.failurePolicy(),
+		MatchPolicy:   matchPolicy,
+		ClientConfig:  c.clientConfig(),
+	}, nil
+}
+
+// rules returns the configuration of what operations on what
+// resources/subresources a webhook should care about.
+func (c Config) rules() []admissionreg.RuleWithOperations {
 	whConfig := admissionreg.RuleWithOperations{
 		Rule: admissionreg.Rule{
 			APIGroups:   c.Groups,
@@ -116,6 +168,12 @@ func (c Config) ToWebhook() admissionreg.Webhook {
 		}
 	}
 
+	return []admissionreg.RuleWithOperations{whConfig}
+}
+
+// failurePolicy converts the string value to the proper value for the API.
+// Unrecognized values are passed through.
+func (c Config) failurePolicy() *admissionreg.FailurePolicyType {
 	var failurePolicy admissionreg.FailurePolicyType
 	switch strings.ToLower(c.FailurePolicy) {
 	case strings.ToLower(string(admissionreg.Ignore)):
@@ -125,22 +183,38 @@ func (c Config) ToWebhook() admissionreg.Webhook {
 	default:
 		failurePolicy = admissionreg.FailurePolicyType(c.FailurePolicy)
 	}
+	return &failurePolicy
+}
+
+// matchPolicy converts the string value to the proper value for the API.
+func (c Config) matchPolicy() (*admissionreg.MatchPolicyType, error) {
+	var matchPolicy admissionreg.MatchPolicyType
+	switch strings.ToLower(c.MatchPolicy) {
+	case strings.ToLower(string(admissionreg.Exact)):
+		matchPolicy = admissionreg.Exact
+	case strings.ToLower(string(admissionreg.Equivalent)):
+		matchPolicy = admissionreg.Equivalent
+	case "":
+		return nil, nil
+	default:
+		return nil, fmt.Errorf("unknown value %q for matchPolicy", c.MatchPolicy)
+	}
+	return &matchPolicy, nil
+}
+
+// clientConfig returns the client config for a webhook.
+func (c Config) clientConfig() admissionreg.WebhookClientConfig {
 	path := c.Path
-	return admissionreg.Webhook{
-		Name:          c.Name,
-		Rules:         []admissionreg.RuleWithOperations{whConfig},
-		FailurePolicy: &failurePolicy,
-		ClientConfig: admissionreg.WebhookClientConfig{
-			Service: &admissionreg.ServiceReference{
-				Name:      "webhook-service",
-				Namespace: "system",
-				Path:      &path,
-			},
-			// OpenAPI marks the field as required before 1.13 because of a bug that got fixed in
-			// https://github.com/kubernetes/api/commit/e7d9121e9ffd63cea0288b36a82bcc87b073bd1b
-			// Put "\n" as an placeholder as a workaround til 1.13+ is almost everywhere.
-			CABundle: []byte("\n"),
+	return admissionreg.WebhookClientConfig{
+		Service: &admissionreg.ServiceReference{
+			Name:      "webhook-service",
+			Namespace: "system",
+			Path:      &path,
 		},
+		// OpenAPI marks the field as required before 1.13 because of a bug that got fixed in
+		// https://github.com/kubernetes/api/commit/e7d9121e9ffd63cea0288b36a82bcc87b073bd1b
+		// Put "\n" as an placeholder as a workaround til 1.13+ is almost everywhere.
+		CABundle: []byte("\n"),
 	}
 }
 
@@ -158,8 +232,8 @@ func (Generator) RegisterMarkers(into *markers.Registry) error {
 }
 
 func (Generator) Generate(ctx *genall.GenerationContext) error {
-	var mutatingCfgs []admissionreg.Webhook
-	var validatingCfgs []admissionreg.Webhook
+	var mutatingCfgs []admissionreg.MutatingWebhook
+	var validatingCfgs []admissionreg.ValidatingWebhook
 	for _, root := range ctx.Roots {
 		markerSet, err := markers.PackageMarkers(ctx.Collector, root)
 		if err != nil {
@@ -169,9 +243,11 @@ func (Generator) Generate(ctx *genall.GenerationContext) error {
 		for _, cfg := range markerSet[ConfigDefinition.Name] {
 			cfg := cfg.(Config)
 			if cfg.Mutating {
-				mutatingCfgs = append(mutatingCfgs, cfg.ToWebhook())
+				w, _ := cfg.ToMutatingWebhook()
+				mutatingCfgs = append(mutatingCfgs, w)
 			} else {
-				validatingCfgs = append(validatingCfgs, cfg.ToWebhook())
+				w, _ := cfg.ToValidatingWebhook()
+				validatingCfgs = append(validatingCfgs, w)
 			}
 		}
 	}
@@ -204,8 +280,8 @@ func (Generator) Generate(ctx *genall.GenerationContext) error {
 
 	}
 
-	if err := ctx.WriteYAML("manifests.yaml", objs...); err != nil {
-		return err
+	if len(objs) > 0 {
+		return ctx.WriteYAML("manifests.yaml", objs...)
 	}
 
 	return nil
