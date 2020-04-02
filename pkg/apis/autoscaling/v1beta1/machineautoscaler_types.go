@@ -32,6 +32,7 @@ type MachineAutoscalerStatus struct {
 
 // MachineAutoscaler is the Schema for the machineautoscalers API
 // +k8s:openapi-gen=true
+// +kubebuilder:resource:path=machineautoscalers,shortName=ma,scope=Namespaced
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="Ref Kind",type="string",JSONPath=".spec.scaleTargetRef.kind",description="Kind of object scaled"
 // +kubebuilder:printcolumn:name="Ref Name",type="string",JSONPath=".spec.scaleTargetRef.name",description="Name of object scaled"
@@ -39,10 +40,7 @@ type MachineAutoscalerStatus struct {
 // +kubebuilder:printcolumn:name="Max",type="integer",JSONPath=".spec.maxReplicas",description="Max number of replicas"
 // +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp",description="MachineAutoscaler resoruce age"
 type MachineAutoscaler struct {
-	metav1.TypeMeta `json:",inline"`
-
-	// Standard object's metadata. More info:
-	// https://git.k8s.io/community/contributors/devel/api-conventions.md#metadata
+	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
 	// Specification of constraints of a scalable resource

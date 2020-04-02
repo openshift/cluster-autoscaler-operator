@@ -47,6 +47,7 @@ type ClusterAutoscalerStatus struct {
 
 // ClusterAutoscaler is the Schema for the clusterautoscalers API
 // +k8s:openapi-gen=true
+// +kubebuilder:resource:path=clusterautoscalers,shortName=ca,scope=Cluster
 // +kubebuilder:subresource:status
 // +genclient:nonNamespaced
 type ClusterAutoscaler struct {

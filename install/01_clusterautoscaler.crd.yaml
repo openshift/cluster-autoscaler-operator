@@ -1,32 +1,37 @@
+
+---
 apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
 metadata:
-  creationTimestamp: null
-  labels:
-    controller-tools.k8s.io: "1.0"
-  name: clusterautoscalers.autoscaling.openshift.io
   annotations:
     exclude.release.openshift.io/internal-openshift-hosted: "true"
+  creationTimestamp: null
+  name: clusterautoscalers.autoscaling.openshift.io
 spec:
   group: autoscaling.openshift.io
   names:
     kind: ClusterAutoscaler
+    listKind: ClusterAutoscalerList
     plural: clusterautoscalers
+    shortNames:
+    - ca
+    singular: clusterautoscaler
   scope: Cluster
   subresources:
     status: {}
   validation:
     openAPIV3Schema:
+      description: ClusterAutoscaler is the Schema for the clusterautoscalers API
       properties:
         apiVersion:
           description: 'APIVersion defines the versioned schema of this representation
             of an object. Servers should convert recognized schemas to the latest
-            internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#resources'
+            internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
           type: string
         kind:
           description: 'Kind is a string value representing the REST resource this
             object represents. Servers may infer this from the endpoint the client
-            submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#types-kinds'
+            submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
           type: string
         metadata:
           type: object
@@ -34,17 +39,15 @@ spec:
           description: Desired state of ClusterAutoscaler resource
           properties:
             balanceSimilarNodeGroups:
-              description: 'BalanceSimilarNodeGroups enables/disables the `--balance-similar-node-groups`
+              description: BalanceSimilarNodeGroups enables/disables the `--balance-similar-node-groups`
                 cluster-autocaler feature. This feature will automatically identify
                 node groups with the same instance type and the same set of labels
-                and try to keep the respective sizes of those node groups balanced.'
+                and try to keep the respective sizes of those node groups balanced.
               type: boolean
             ignoreDaemonsetsUtilization:
-              description: 'Should CA ignore DaemonSet pods when calculating resource
-                utilization for scaling scaleDown'
-              type: boolean
-            skipNodesWithLocalStorage:
-              description: 'If true cluster autoscaler will never delete nodes with pods with local storage, e.g. EmptyDir or HostPath'
+              description: Enables/Disables `--ignore-daemonsets-utilization` CA feature
+                flag. Should CA ignore DaemonSet pods when calculating resource utilization
+                for scaling down. false by default
               type: boolean
             maxPodGracePeriod:
               description: Gives pods graceful termination time before scaling down
@@ -72,8 +75,8 @@ spec:
                       minimum: 0
                       type: integer
                   required:
-                  - min
                   - max
+                  - min
                   type: object
                 gpus:
                   description: Minimum and maximum number of different GPUs in cluster,
@@ -94,9 +97,9 @@ spec:
                         minLength: 1
                         type: string
                     required:
-                    - type
-                    - min
                     - max
+                    - min
+                    - type
                     type: object
                   type: array
                 maxNodesTotal:
@@ -118,8 +121,8 @@ spec:
                       minimum: 0
                       type: integer
                   required:
-                  - min
                   - max
+                  - min
                   type: object
               type: object
             scaleDown:
@@ -151,11 +154,22 @@ spec:
               required:
               - enabled
               type: object
+            skipNodesWithLocalStorage:
+              description: Enables/Disables `--skip-nodes-with-local-storage` CA feature
+                flag. If true cluster autoscaler will never delete nodes with pods
+                with local storage, e.g. EmptyDir or HostPath. true by default at
+                autoscaler
+              type: boolean
           type: object
         status:
           description: Most recently observed status of ClusterAutoscaler resource
           type: object
+      type: object
   version: v1
+  versions:
+  - name: v1
+    served: true
+    storage: true
 status:
   acceptedNames:
     kind: ""
