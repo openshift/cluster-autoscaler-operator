@@ -38,6 +38,7 @@ spec:
     - ma
     singular: machineautoscaler
   scope: Namespaced
+  preserveUnknownFields: false
   subresources:
     status: {}
   validation:

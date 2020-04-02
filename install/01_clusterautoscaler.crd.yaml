@@ -17,6 +17,7 @@ spec:
     - ca
     singular: clusterautoscaler
   scope: Cluster
+  preserveUnknownFields: false
   subresources:
     status: {}
   validation:
