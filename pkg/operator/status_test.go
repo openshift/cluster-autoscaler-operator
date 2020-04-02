@@ -11,7 +11,7 @@ import (
 	autoscalingv1 "github.com/openshift/cluster-autoscaler-operator/pkg/apis/autoscaling/v1"
 	"github.com/openshift/cluster-autoscaler-operator/pkg/util"
 	"github.com/openshift/cluster-autoscaler-operator/test/helpers"
-	cvorm "github.com/openshift/cluster-version-operator/lib/resourcemerge"
+	"github.com/openshift/library-go/pkg/config/clusteroperator/v1helpers"
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -350,7 +350,7 @@ func TestStatusChanges(t *testing.T) {
 			}
 
 			for _, cond := range tc.expected {
-				ok := cvorm.IsOperatorStatusConditionPresentAndEqual(
+				ok := v1helpers.IsStatusConditionPresentAndEqual(
 					co.Status.Conditions, cond.Type, cond.Status,
 				)
 
@@ -502,7 +502,7 @@ func TestReportStatus(t *testing.T) {
 
 			// Check that all conditions have the expected status.
 			for _, cond := range tc.expectedConds {
-				ok := cvorm.IsOperatorStatusConditionPresentAndEqual(
+				ok := v1helpers.IsStatusConditionPresentAndEqual(
 					co.Status.Conditions, cond.Type, cond.Status,
 				)
 
@@ -517,7 +517,7 @@ func TestReportStatus(t *testing.T) {
 					continue
 				}
 
-				p := cvorm.FindOperatorStatusCondition(
+				p := v1helpers.FindStatusCondition(
 					co.Status.Conditions, configv1.OperatorProgressing,
 				)
 

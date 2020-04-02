@@ -9,7 +9,7 @@ import (
 	osconfig "github.com/openshift/client-go/config/clientset/versioned"
 	autoscalingv1 "github.com/openshift/cluster-autoscaler-operator/pkg/apis/autoscaling/v1"
 	"github.com/openshift/cluster-autoscaler-operator/pkg/util"
-	cvorm "github.com/openshift/cluster-version-operator/lib/resourcemerge"
+	"github.com/openshift/library-go/pkg/config/clusteroperator/v1helpers"
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -81,7 +81,7 @@ func (r *StatusReporter) AddRelatedObjects(objs []configv1.ObjectReference) {
 
 // GetClusterOperator fetches the the operator's ClusterOperator object.
 func (r *StatusReporter) GetClusterOperator() (*configv1.ClusterOperator, error) {
-	return r.configClient.ConfigV1().ClusterOperators().Get(OperatorName, metav1.GetOptions{})
+	return r.configClient.ConfigV1().ClusterOperators().Get(context.Background(), OperatorName, metav1.GetOptions{})
 }
 
 // GetOrCreateClusterOperator gets, or if necessary, creates the
@@ -96,7 +96,7 @@ func (r *StatusReporter) GetOrCreateClusterOperator() (*configv1.ClusterOperator
 	existing, err := r.GetClusterOperator()
 
 	if errors.IsNotFound(err) {
-		return r.configClient.ConfigV1().ClusterOperators().Create(clusterOperator)
+		return r.configClient.ConfigV1().ClusterOperators().Create(context.Background(), clusterOperator, metav1.CreateOptions{})
 	}
 
 	return existing, err
@@ -121,7 +121,7 @@ func (r *StatusReporter) ApplyStatus(status configv1.ClusterOperatorStatus) erro
 		Status: configv1.ConditionTrue,
 	}
 
-	cvorm.SetOperatorStatusCondition(&status.Conditions, upgradeable)
+	v1helpers.SetStatusCondition(&status.Conditions, upgradeable)
 
 	// Set the currently configured related objects.
 	status.RelatedObjects = r.config.RelatedObjects
@@ -136,7 +136,7 @@ func (r *StatusReporter) ApplyStatus(status configv1.ClusterOperatorStatus) erro
 		condType := status.Conditions[i].Type
 		timestamp := metav1.NewTime(time.Now())
 
-		c := cvorm.FindOperatorStatusCondition(co.Status.Conditions, condType)
+		c := v1helpers.FindStatusCondition(co.Status.Conditions, condType)
 
 		// If found, and status doesn't match, update.
 		if c != nil && c.Status != status.Conditions[i].Status {
@@ -165,14 +165,40 @@ func (r *StatusReporter) ApplyStatus(status configv1.ClusterOperatorStatus) erro
 	co.DeepCopyInto(requiredCO)
 	requiredCO.Status = status
 
-	cvorm.EnsureClusterOperatorStatus(&modified, co, *requiredCO)
+	ensureClusterOperatorStatus(&modified, &co.Status, requiredCO.Status)
 
 	if modified {
-		_, err := r.configClient.ConfigV1().ClusterOperators().UpdateStatus(co)
+		_, err := r.configClient.ConfigV1().ClusterOperators().UpdateStatus(context.Background(), co, metav1.UpdateOptions{})
 		return err
 	}
 
 	return nil
+}
+
+// Copy from CVO while moving to library-go to keep changes scoped and keep current behaviour.
+// https://github.com/openshift/cluster-version-operator/blob/1fd0041275414266157bf257043fa402f3bc9ebf/lib/resourcemerge/os.go#L17
+func ensureClusterOperatorStatus(modified *bool, existing *configv1.ClusterOperatorStatus, required configv1.ClusterOperatorStatus) {
+	if !equality.Semantic.DeepEqual(existing.Conditions, required.Conditions) {
+		*modified = true
+		existing.Conditions = required.Conditions
+	}
+
+	if !equality.Semantic.DeepEqual(existing.Versions, required.Versions) {
+		*modified = true
+		existing.Versions = required.Versions
+	}
+	if !equality.Semantic.DeepEqual(existing.Extension.Raw, required.Extension.Raw) {
+		*modified = true
+		existing.Extension.Raw = required.Extension.Raw
+	}
+	if !equality.Semantic.DeepEqual(existing.Extension.Object, required.Extension.Object) {
+		*modified = true
+		existing.Extension.Object = required.Extension.Object
+	}
+	if !equality.Semantic.DeepEqual(existing.RelatedObjects, required.RelatedObjects) {
+		*modified = true
+		existing.RelatedObjects = required.RelatedObjects
+	}
 }
 
 // available reports the operator as available, not progressing, and
@@ -330,7 +356,7 @@ func (r *StatusReporter) ReportStatus() (bool, error) {
 // and not degraded.
 func (r *StatusReporter) CheckMachineAPI() (bool, error) {
 	mao, err := r.configClient.ConfigV1().ClusterOperators().
-		Get("machine-api", metav1.GetOptions{})
+		Get(context.Background(), "machine-api", metav1.GetOptions{})
 
 	if err != nil {
 		klog.Errorf("failed to get dependency machine-api status: %v", err)
@@ -339,8 +365,8 @@ func (r *StatusReporter) CheckMachineAPI() (bool, error) {
 
 	conds := mao.Status.Conditions
 
-	if cvorm.IsOperatorStatusConditionTrue(conds, configv1.OperatorAvailable) &&
-		cvorm.IsOperatorStatusConditionFalse(conds, configv1.OperatorDegraded) {
+	if v1helpers.IsStatusConditionTrue(conds, configv1.OperatorAvailable) &&
+		v1helpers.IsStatusConditionFalse(conds, configv1.OperatorDegraded) {
 		return true, nil
 	}
 

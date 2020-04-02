@@ -60,6 +60,7 @@ func TestCreateOrUpdateAutoscalerService(t *testing.T) {
 			t.Fatalf("Unexpected error: %v", err)
 		}
 
+		expected.ResourceVersion = fresh.ResourceVersion
 		if !equality.Semantic.DeepEqual(fresh, expected) {
 			t.Errorf("expected: %v, got: %v", expected, fresh)
 		}
@@ -116,6 +117,7 @@ func TestCreateOrUpdateAutoscalerServiceMonitopr(t *testing.T) {
 			t.Fatalf("Unexpected error: %v", err)
 		}
 
+		fresh.ResourceVersion = expected.ResourceVersion
 		if !equality.Semantic.DeepEqual(fresh, expected) {
 			t.Errorf("expected: %v, got: %v", expected, fresh)
 		}
@@ -172,6 +174,7 @@ func TestCreateOrUpdateAutoscalerPrometheusRule(t *testing.T) {
 			t.Fatalf("Unexpected error: %v", err)
 		}
 
+		fresh.ResourceVersion = expected.ResourceVersion
 		if !equality.Semantic.DeepEqual(fresh, expected) {
 			t.Errorf("expected: %v, got: %v", expected, fresh)
 		}

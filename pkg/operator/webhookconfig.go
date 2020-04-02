@@ -78,11 +78,11 @@ func (w *WebhookConfigUpdater) Start(stopCh <-chan struct{}) error {
 }
 
 // ValidatingWebhooks returns the validating webhook configurations.
-func (w *WebhookConfigUpdater) ValidatingWebhooks() ([]admissionregistrationv1beta1.Webhook, error) {
+func (w *WebhookConfigUpdater) ValidatingWebhooks() ([]admissionregistrationv1beta1.ValidatingWebhook, error) {
 	failurePolicy := admissionregistrationv1beta1.Ignore
 	sideEffects := admissionregistrationv1beta1.SideEffectClassNone
 
-	webhooks := []admissionregistrationv1beta1.Webhook{
+	webhooks := []admissionregistrationv1beta1.ValidatingWebhook{
 		{
 			Name: "clusterautoscalers.autoscaling.openshift.io",
 			ClientConfig: admissionregistrationv1beta1.WebhookClientConfig{
