@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"time"
 
-	configv1 "github.com/openshift/api/config/v1"
-
 	monitoringv1 "github.com/coreos/prometheus-operator/pkg/apis/monitoring/v1"
+	configv1 "github.com/openshift/api/config/v1"
 	"github.com/openshift/cluster-autoscaler-operator/pkg/apis"
+	"github.com/openshift/cluster-autoscaler-operator/pkg/apis/autoscaling/v1beta1"
 	"github.com/openshift/cluster-autoscaler-operator/pkg/controller/clusterautoscaler"
 	"github.com/openshift/cluster-autoscaler-operator/pkg/controller/machineautoscaler"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
@@ -114,13 +114,13 @@ func (o *Operator) RelatedObjects() []configv1.ObjectReference {
 	// Related objects lets openshift/must-gather collect diagnostic content
 	relatedObjects := []configv1.ObjectReference{
 		{
-			Group:     "machine.openshift.io",
+			Group:     v1beta1.SchemeGroupVersion.Group,
 			Resource:  "machineautoscalers",
 			Name:      "",
 			Namespace: o.config.WatchNamespace,
 		},
 		{
-			Group:     "machine.openshift.io",
+			Group:     v1beta1.SchemeGroupVersion.Group,
 			Resource:  "clusterautoscalers",
 			Name:      "",
 			Namespace: o.config.WatchNamespace,
