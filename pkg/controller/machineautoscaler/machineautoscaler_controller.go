@@ -86,6 +86,7 @@ func NewReconciler(mgr manager.Manager, config Config) *Reconciler {
 }
 
 // AddToManager adds a new Controller to mgr with r as the reconcile.Reconciler
+// TODO(alberto): add ginkgo like integration test.
 func (r *Reconciler) AddToManager(mgr manager.Manager) error {
 	// Create a new controller
 	c, err := controller.New(controllerName, mgr, controller.Options{Reconciler: r})
@@ -99,30 +100,9 @@ func (r *Reconciler) AddToManager(mgr manager.Manager) error {
 		return err
 	}
 
-	missingGVKs := []schema.GroupVersionKind{}
-
-	// Watch for changes to each supported target resource type and enqueue
-	// reconcile requests for their owning MachineAutoscaler resources.
-	for _, gvk := range r.config.SupportedTargetGVKs {
-		target := &unstructured.Unstructured{}
-		target.SetGroupVersionKind(gvk)
-
-		err := c.Watch(
-			&source.Kind{Type: target},
-			&handler.EnqueueRequestsFromMapFunc{
-				ToRequests: handler.ToRequestsFunc(targetOwnerRequest),
-			})
-
-		// If we get an error indicating that no matching type is registered
-		// with the API, then remove it from the list of supported target GVKs.
-		// If the type is later registered, a restart of the operator will pick
-		// it up and properly reconcile any MachineAutoscalers referencing it.
-		if err != nil && meta.IsNoMatchError(err) {
-			klog.Warningf("Removing support for unregistered target type: %s", gvk)
-			missingGVKs = append(missingGVKs, gvk)
-		} else if err != nil {
-			return err
-		}
+	missingGVKs, err := getMissingGVKs(mgr.GetRESTMapper(), r.SupportedGVKs())
+	if err != nil {
+		return err
 	}
 
 	// Remove missing GVKs from list of supported GVKs.
@@ -131,11 +111,53 @@ func (r *Reconciler) AddToManager(mgr manager.Manager) error {
 	}
 
 	// Fail if we didn't find any of the supported target types registered.
-	if len(r.config.SupportedTargetGVKs) < 1 {
+	if len(r.SupportedGVKs()) < 1 {
 		return ErrNoSupportedTargets
 	}
 
+	for _, gvk := range r.SupportedGVKs() {
+		target := &unstructured.Unstructured{}
+		target.SetGroupVersionKind(gvk)
+
+		// Watch for changes to each supported target resource type and enqueue
+		// reconcile requests for their owning MachineAutoscaler resources.
+		if err = c.Watch(
+			&source.Kind{Type: target},
+			&handler.EnqueueRequestsFromMapFunc{
+				ToRequests: handler.ToRequestsFunc(targetOwnerRequest),
+			}); err != nil {
+			return err
+		}
+	}
+
 	return nil
+}
+
+func getMissingGVKs(restMapper meta.RESTMapper, supportedGVKs []schema.GroupVersionKind) ([]schema.GroupVersionKind, error) {
+	var missingGVKs []schema.GroupVersionKind
+
+	for _, gvk := range supportedGVKs {
+		if _, err := restMapper.KindFor(
+			schema.GroupVersionResource{
+				Group:    gvk.Group,
+				Version:  gvk.Version,
+				Resource: gvk.Kind,
+			}); err != nil {
+
+			// If we get an error indicating that no matching type is registered
+			// with the API, then remove it from the list of supported target GVKs.
+			// If the type is later registered, a restart of the operator will pick
+			// it up and properly reconcile any MachineAutoscalers referencing it.
+			if meta.IsNoMatchError(err) {
+				klog.Warningf("Removing support for unregistered target type: %s", gvk)
+				missingGVKs = append(missingGVKs, gvk)
+				continue
+			}
+
+			return missingGVKs, err
+		}
+	}
+	return missingGVKs, nil
 }
 
 var _ reconcile.Reconciler = &Reconciler{}

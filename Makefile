@@ -10,7 +10,7 @@ IMAGE        = origin-cluster-autoscaler-operator
 
 GO111MODULE = on
 export GO111MODULE
-GOFLAGS += -mod=vendor
+GOFLAGS ?= -mod=vendor
 export GOFLAGS
 GOPROXY ?=
 export GOPROXY
@@ -27,7 +27,7 @@ ifeq ($(NO_DOCKER), 1)
   DOCKER_CMD =
   IMAGE_BUILD_CMD = imagebuilder
 else
-  DOCKER_CMD := docker run --rm --env GO111MODULE="$(GO111MODULE)" --env GOFLAGS="$(GOFLAGS)" --env GOPROXY="$(GOPROXY)" -v "$(PWD):/go/src/$(REPO_PATH):Z" -w "/go/src/$(REPO_PATH)" openshift/origin-release:golang-1.12
+  DOCKER_CMD := docker run --rm --env GO111MODULE="$(GO111MODULE)" --env GOFLAGS="$(GOFLAGS)" --env GOPROXY="$(GOPROXY)" -v "$(PWD):/go/src/$(REPO_PATH):Z" -w "/go/src/$(REPO_PATH)" openshift/origin-release:golang-1.13
   IMAGE_BUILD_CMD = docker build
 endif
 
@@ -37,27 +37,13 @@ vendor:
 	go mod vendor
 	go mod verify
 
-
-# This is a hack. The operator-sdk doesn't currently let you configure
-# output paths for the generated CRDs.  It also requires that they
-# already exist in order to regenerate the OpenAPI bits, so we do some
-# copying around here.
 .PHONY: generate
-generate: ## Code generation (requires operator-sdk >= v0.5.0)
-	mkdir -p deploy/crds
+generate: gen-deepcopy gen-crd
 
-	cp install/01_clusterautoscaler.crd.yaml \
-	  deploy/crds/autoscaling_v1_clusterautoscaler_crd.yaml
-	cp install/02_machineautoscaler.crd.yaml \
-	  deploy/crds/autoscaling_v1beta1_machineautoscaler_crd.yaml
-
-	operator-sdk generate k8s
-	operator-sdk generate openapi
-
-	cp deploy/crds/autoscaling_v1_clusterautoscaler_crd.yaml \
-	  install/01_clusterautoscaler.crd.yaml
-	cp deploy/crds/autoscaling_v1beta1_machineautoscaler_crd.yaml \
-	  install/02_machineautoscaler.crd.yaml
+.PHONY: gen-deepcopy
+gen-deepcopy:
+	$(DOCKER_CMD) go run ./vendor/sigs.k8s.io/controller-tools/cmd/controller-gen \
+		paths=./pkg/apis/... object:headerFile=./hack/boilerplate.go.txt,year=2020
 
 .PHONY: gen-crd
 gen-crd:
