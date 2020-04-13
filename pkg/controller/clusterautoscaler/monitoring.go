@@ -181,17 +181,6 @@ func (r *Reconciler) AutoscalerPrometheusRule(ca *autoscalingv1.ClusterAutoscale
 							},
 						},
 						{
-							Alert: "ClusterAutoscalerNodesNotReady",
-							Expr:  intstr.FromString("cluster_autoscaler_nodes_count{state!=\"ready\"} > 0"),
-							For:   "20m",
-							Labels: map[string]string{
-								"severity": "warning",
-							},
-							Annotations: map[string]string{
-								"message": "Cluster Autoscaler has {{ $value }} unready nodes",
-							},
-						},
-						{
 							Alert: "ClusterAutoscalerNotSafeToScale",
 							Expr:  intstr.FromString(fmt.Sprintf("cluster_autoscaler_cluster_safe_to_autoscale{service=\"%s\"} != 1", namespacedName.Name)),
 							For:   "15m",
