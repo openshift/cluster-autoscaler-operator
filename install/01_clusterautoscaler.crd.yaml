@@ -5,8 +5,6 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     exclude.release.openshift.io/internal-openshift-hosted: "true"
-  annotations:
-    controller-gen.kubebuilder.io/version: v0.2.9-0.20200331153640-3c5446d407dd
   creationTimestamp: null
   name: clusterautoscalers.autoscaling.openshift.io
 spec:
