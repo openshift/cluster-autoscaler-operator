@@ -11,7 +11,7 @@ function annotate_crd() {
   sed -e "${script}" "${input}" > "${output}"
 }
 
-go run ./vendor/sigs.k8s.io/controller-tools/cmd/controller-gen crd paths=./pkg/apis/...
+go run ./vendor/sigs.k8s.io/controller-tools/cmd/controller-gen crd:crdVersions=v1 paths=./pkg/apis/...
 
 echo "Copying generated CRDs"
 annotate_crd config/crd/autoscaling.openshift.io_clusterautoscalers.yaml install/01_clusterautoscaler.crd.yaml
