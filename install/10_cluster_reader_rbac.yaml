@@ -1,0 +1,15 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: cluster-autoscaler-operator:cluster-reader
+  labels:
+    rbac.authorization.k8s.io/aggregate-to-cluster-reader: "true"
+rules:
+- apiGroups:
+  - autoscaling.openshift.io
+  resources:
+  - '*'
+  verbs:
+  - get
+  - list
+  - watch
