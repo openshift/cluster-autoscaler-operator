@@ -22,7 +22,7 @@ import (
 
 // Reason messages used in status conditions.
 const (
-	ReasonEmpty             = ""
+	ReasonAsExpected        = "AsExpected"
 	ReasonMissingDependency = "MissingDependency"
 	ReasonSyncing           = "SyncingResources"
 	ReasonCheckAutoscaler   = "UnableToCheckAutoscalers"
@@ -344,7 +344,7 @@ func (r *StatusReporter) ReportStatus() (bool, error) {
 	}
 
 	msg := fmt.Sprintf("at version %s", r.config.ReleaseVersion)
-	if err := r.available(ReasonEmpty, msg); err != nil {
+	if err := r.available(ReasonAsExpected, msg); err != nil {
 		return false, err
 	}
 
