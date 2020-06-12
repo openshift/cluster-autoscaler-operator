@@ -65,10 +65,6 @@ push:
 .PHONY: check
 check: fmt vet lint test ## Check your code
 
-.PHONY: check-pkg
-check-pkg:
-	./hack/verify-actuator-pkg.sh
-
 .PHONY: test
 test: ## Run unit tests
 	$(DOCKER_CMD) go test -race -cover ./...
