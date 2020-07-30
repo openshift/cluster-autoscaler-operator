@@ -49,6 +49,14 @@ spec:
                   feature flag. Should CA ignore DaemonSet pods when calculating resource
                   utilization for scaling down. false by default
                 type: boolean
+              maxNodeProvisionTime:
+                description: Maximum time CA waits for node to be provisioned.
+                             Expects an unsigned duration string of decimal
+                             numbers each with optional fraction and a unit
+                             suffix, eg "300ms", "1.5h" or "2h45m". Valid time
+                             units are "ns", "us" (or "µs"), "ms", "s", "m", "h".
+                pattern: ^([0-9]+(\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$
+                type: string
               maxPodGracePeriod:
                 description: Gives pods graceful termination time before scaling down
                 format: int32

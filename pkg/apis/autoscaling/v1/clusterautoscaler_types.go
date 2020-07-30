@@ -19,6 +19,10 @@ type ClusterAutoscalerSpec struct {
 	// Gives pods graceful termination time before scaling down
 	MaxPodGracePeriod *int32 `json:"maxPodGracePeriod,omitempty"`
 
+	// Maximum time CA waits for node to be provisioned
+	// +kubebuilder:validation:Pattern=([0-9]*(\.[0-9]*)?[a-z]+)+
+	MaxNodeProvisionTime string `json:"maxNodeProvisionTime,omitempty"`
+
 	// To allow users to schedule "best-effort" pods, which shouldn't trigger
 	// Cluster Autoscaler actions, but only run when there are spare resources available,
 	// More info: https://github.com/kubernetes/autoscaler/blob/master/cluster-autoscaler/FAQ.md#how-does-cluster-autoscaler-work-with-pod-priority-and-preemption
