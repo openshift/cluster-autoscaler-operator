@@ -169,9 +169,32 @@ func TestAutoscalerArgEnabled(t *testing.T) {
 	args := AutoscalerArgs(ca, &Config{CloudProvider: TestCloudProvider, Namespace: TestNamespace})
 
 	expected := []string{
-		fmt.Sprintf("--balance-similar-node-groups"),
-		fmt.Sprintf("--ignore-daemonsets-utilization"),
-		fmt.Sprintf("--skip-nodes-with-local-storage"),
+		fmt.Sprintf("--balance-similar-node-groups=true"),
+		fmt.Sprintf("--ignore-daemonsets-utilization=true"),
+		fmt.Sprintf("--skip-nodes-with-local-storage=true"),
+	}
+
+	for _, e := range expected {
+		if !includeString(args, e) {
+			t.Fatalf("missing arg: %s", e)
+		}
+	}
+}
+
+// TestAutoscalerArgEnabledWithFalse validates that args appear in the autoscaler args when
+// set to false in the ClusterAutoscalerSpec.
+func TestAutoscalerArgEnabledWithFalse(t *testing.T) {
+	ca := NewClusterAutoscaler()
+	ca.Spec.BalanceSimilarNodeGroups = pointer.BoolPtr(false)
+	ca.Spec.IgnoreDaemonsetsUtilization = pointer.BoolPtr(false)
+	ca.Spec.SkipNodesWithLocalStorage = pointer.BoolPtr(false)
+
+	args := AutoscalerArgs(ca, &Config{CloudProvider: TestCloudProvider, Namespace: TestNamespace})
+
+	expected := []string{
+		fmt.Sprintf("--balance-similar-node-groups=false"),
+		fmt.Sprintf("--ignore-daemonsets-utilization=false"),
+		fmt.Sprintf("--skip-nodes-with-local-storage=false"),
 	}
 
 	for _, e := range expected {

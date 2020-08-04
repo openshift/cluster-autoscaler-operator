@@ -84,16 +84,16 @@ func AutoscalerArgs(ca *v1.ClusterAutoscaler, cfg *Config) []string {
 		args = append(args, ScaleDownArgs(s.ScaleDown)...)
 	}
 
-	if ca.Spec.BalanceSimilarNodeGroups != nil && *ca.Spec.BalanceSimilarNodeGroups {
-		args = append(args, BalanceSimilarNodeGroupsArg.String())
+	if ca.Spec.BalanceSimilarNodeGroups != nil {
+		args = append(args, BalanceSimilarNodeGroupsArg.Value(*ca.Spec.BalanceSimilarNodeGroups))
 	}
 
-	if ca.Spec.IgnoreDaemonsetsUtilization != nil && *ca.Spec.IgnoreDaemonsetsUtilization {
-		args = append(args, IgnoreDaemonsetsUtilization.String())
+	if ca.Spec.IgnoreDaemonsetsUtilization != nil {
+		args = append(args, IgnoreDaemonsetsUtilization.Value(*ca.Spec.IgnoreDaemonsetsUtilization))
 	}
 
-	if ca.Spec.SkipNodesWithLocalStorage != nil && *ca.Spec.SkipNodesWithLocalStorage {
-		args = append(args, SkipNodesWithLocalStorage.String())
+	if ca.Spec.SkipNodesWithLocalStorage != nil {
+		args = append(args, SkipNodesWithLocalStorage.Value(*ca.Spec.SkipNodesWithLocalStorage))
 	}
 
 	return args
