@@ -20,7 +20,7 @@ type ClusterAutoscalerSpec struct {
 	MaxPodGracePeriod *int32 `json:"maxPodGracePeriod,omitempty"`
 
 	// Maximum time CA waits for node to be provisioned
-	// +kubebuilder:validation:Pattern=([0-9]*(\.[0-9]*)?[a-z]+)+
+	// +kubebuilder:validation:Pattern=^([0-9]+(\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$
 	MaxNodeProvisionTime string `json:"maxNodeProvisionTime,omitempty"`
 
 	// To allow users to schedule "best-effort" pods, which shouldn't trigger
