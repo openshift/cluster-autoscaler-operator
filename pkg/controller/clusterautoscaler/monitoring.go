@@ -167,7 +167,7 @@ func (r *Reconciler) AutoscalerPrometheusRule(ca *autoscalingv1.ClusterAutoscale
 		Spec: monitoringv1.PrometheusRuleSpec{
 			Groups: []monitoringv1.RuleGroup{
 				{
-					Name: "general.rules",
+					Name: "cluster-autoscaler-operator.rules",
 					Rules: []monitoringv1.Rule{
 						{
 							Alert: "ClusterAutoscalerUnschedulablePods",
