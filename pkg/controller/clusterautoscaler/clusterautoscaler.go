@@ -44,6 +44,7 @@ const (
 	ScaleDownDelayAfterFailureArg   AutoscalerArg = "--scale-down-delay-after-failure"
 	ScaleDownUnneededTimeArg        AutoscalerArg = "--scale-down-unneeded-time"
 	MaxNodesTotalArg                AutoscalerArg = "--max-nodes-total"
+	MaxNodeProvisionTimeArg         AutoscalerArg = "--max-node-provision-time"
 	CoresTotalArg                   AutoscalerArg = "--cores-total"
 	MemoryTotalArg                  AutoscalerArg = "--memory-total"
 	GPUTotalArg                     AutoscalerArg = "--gpu-total"
@@ -68,6 +69,11 @@ func AutoscalerArgs(ca *v1.ClusterAutoscaler, cfg *Config) []string {
 
 	if ca.Spec.MaxPodGracePeriod != nil {
 		v := MaxGracefulTerminationSecArg.Value(*s.MaxPodGracePeriod)
+		args = append(args, v)
+	}
+
+	if ca.Spec.MaxNodeProvisionTime != "" {
+		v := MaxNodeProvisionTimeArg.Value(s.MaxNodeProvisionTime)
 		args = append(args, v)
 	}
 

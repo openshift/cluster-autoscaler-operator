@@ -34,6 +34,7 @@ const (
 var (
 	ScaleDownUnneededTime        = "10s"
 	ScaleDownDelayAfterAdd       = "60s"
+	MaxNodeProvisionTime         = "30m"
 	PodPriorityThreshold   int32 = -10
 	MaxPodGracePeriod      int32 = 60
 	MaxNodesTotal          int32 = 100
@@ -146,6 +147,7 @@ func TestAutoscalerArgs(t *testing.T) {
 	expectedMissing := []string{
 		"--scale-down-delay-after-delete",
 		"--scale-down-delay-after-failure",
+		"--max-node-provision-time",
 		"--balance-similar-node-groups",
 		"--ignore-daemonsets-utilization",
 		"--skip-nodes-with-local-storage",
@@ -165,6 +167,7 @@ func TestAutoscalerArgEnabled(t *testing.T) {
 	ca.Spec.BalanceSimilarNodeGroups = pointer.BoolPtr(true)
 	ca.Spec.IgnoreDaemonsetsUtilization = pointer.BoolPtr(true)
 	ca.Spec.SkipNodesWithLocalStorage = pointer.BoolPtr(true)
+	ca.Spec.MaxNodeProvisionTime = MaxNodeProvisionTime
 
 	args := AutoscalerArgs(ca, &Config{CloudProvider: TestCloudProvider, Namespace: TestNamespace})
 
@@ -172,6 +175,7 @@ func TestAutoscalerArgEnabled(t *testing.T) {
 		fmt.Sprintf("--balance-similar-node-groups=true"),
 		fmt.Sprintf("--ignore-daemonsets-utilization=true"),
 		fmt.Sprintf("--skip-nodes-with-local-storage=true"),
+		fmt.Sprintf("--max-node-provision-time=%s", MaxNodeProvisionTime),
 	}
 
 	for _, e := range expected {
