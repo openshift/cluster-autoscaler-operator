@@ -6,7 +6,7 @@ import (
 
 	"github.com/openshift/cluster-autoscaler-operator/pkg/operator"
 	"github.com/openshift/cluster-autoscaler-operator/pkg/version"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 )
 
 func printVersion() {
