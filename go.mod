@@ -9,8 +9,8 @@ require (
 	github.com/openshift/client-go v0.0.0-20200326155132-2a6cd50aedd0
 	github.com/openshift/library-go v0.0.0-20200402123743-4015ba624cae
 	github.com/stretchr/testify v1.4.0
-	k8s.io/api v0.18.0
-	k8s.io/apimachinery v0.18.0
+	k8s.io/api v0.18.9
+	k8s.io/apimachinery v0.18.9
 	k8s.io/client-go v12.0.0+incompatible
 	k8s.io/klog v1.0.0
 	k8s.io/utils v0.0.0-20200327001022-6496210b90e8
@@ -19,4 +19,4 @@ require (
 )
 
 // to replace github.com/coreos/prometheus-operator v0.38.0 dep
-replace k8s.io/client-go => k8s.io/client-go v0.18.0
+replace k8s.io/client-go => k8s.io/client-go v0.18.9
