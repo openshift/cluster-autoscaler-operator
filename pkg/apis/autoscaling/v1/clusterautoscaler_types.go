@@ -47,6 +47,7 @@ type ClusterAutoscalerStatus struct {
 	// TODO: Add status fields.
 }
 
+// +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // ClusterAutoscaler is the Schema for the clusterautoscalers API
