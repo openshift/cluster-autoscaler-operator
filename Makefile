@@ -38,7 +38,7 @@ vendor:
 	go mod verify
 
 .PHONY: generate
-generate: gen-deepcopy gen-crd
+generate: gen-deepcopy gen-crd update-codegen
 
 .PHONY: gen-deepcopy
 gen-deepcopy:
@@ -48,6 +48,14 @@ gen-deepcopy:
 .PHONY: gen-crd
 gen-crd:
 	$(DOCKER_CMD) ./hack/gen-crd.sh
+
+.PHONY: update-codegen
+update-codegen:
+	$(DOCKER_CMD) ./hack/update-codegen.sh
+
+.PHONY: verify-codegen
+verify-codegen:
+	$(DOCKER_CMD) ./hack/verify-codegen.sh
 
 .PHONY: build
 build: ## build binaries
