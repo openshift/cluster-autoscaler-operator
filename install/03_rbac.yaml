@@ -184,7 +184,7 @@ rules:
   resources: ["storageclasses", "csinodes"]
   verbs: ["watch","list","get"]
 - apiGroups: ["cluster.k8s.io","machine.openshift.io"]
-  resources: ["machinedeployments","machines","machinesets"]
+  resources: ["machinedeployments","machines","machinesets","machinesets/scale"]
   verbs: ["watch","list","get","update"]
 - apiGroups: ["coordination.k8s.io"]
   resources: ["leases"]
