@@ -3,12 +3,12 @@
 set -eu
 
 function annotate_crd() {
-  script='/^metadata:/a\
-\ \ annotations:\
+  script1='/^  annotations:/a\
 \ \ \ \ exclude.release.openshift.io/internal-openshift-hosted: "true"'
+  script2='/^    controller-gen.kubebuilder.io\/version: .*$/d'
   input="${1}"
   output="${2}"
-  sed -e "${script}" "${input}" > "${output}"
+  sed -e "${script1}" -e "${script2}" "${input}" > "${output}"
 }
 
 go run ./vendor/sigs.k8s.io/controller-tools/cmd/controller-gen crd:crdVersions=v1 paths=./pkg/apis/...
