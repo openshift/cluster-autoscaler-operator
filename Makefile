@@ -38,7 +38,8 @@ vendor:
 	go mod verify
 
 .PHONY: generate
-generate: gen-deepcopy gen-crd
+generate: gen-deepcopy gen-crd goimports
+	./hack/verify-diff.sh
 
 .PHONY: gen-deepcopy
 gen-deepcopy:
