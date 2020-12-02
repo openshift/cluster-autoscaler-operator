@@ -4,6 +4,7 @@ kind: ClusterRole
 metadata:
   annotations:
     include.release.openshift.io/self-managed-high-availability: "true"
+    include.release.openshift.io/single-node-production-edge: "true"
   name: cluster-autoscaler-operator
 rules:
 - apiGroups:
@@ -44,6 +45,7 @@ metadata:
   namespace: openshift-machine-api
   annotations:
     include.release.openshift.io/self-managed-high-availability: "true"
+    include.release.openshift.io/single-node-production-edge: "true"
 rules:
 - apiGroups:
   - autoscaling.openshift.io
@@ -103,6 +105,7 @@ metadata:
   namespace: openshift-machine-api
   annotations:
     include.release.openshift.io/self-managed-high-availability: "true"
+    include.release.openshift.io/single-node-production-edge: "true"
 subjects:
 - kind: ServiceAccount
   name: cluster-autoscaler-operator
@@ -119,6 +122,7 @@ metadata:
   name: cluster-autoscaler-operator
   annotations:
     include.release.openshift.io/self-managed-high-availability: "true"
+    include.release.openshift.io/single-node-production-edge: "true"
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
@@ -136,7 +140,7 @@ metadata:
   namespace: openshift-machine-api
   annotations:
     include.release.openshift.io/self-managed-high-availability: "true"
-
+    include.release.openshift.io/single-node-production-edge: "true"
 ---
 apiVersion: v1
 kind: ServiceAccount
@@ -148,7 +152,7 @@ metadata:
   namespace: openshift-machine-api
   annotations:
     include.release.openshift.io/self-managed-high-availability: "true"
-
+    include.release.openshift.io/single-node-production-edge: "true"
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
@@ -159,6 +163,7 @@ metadata:
     k8s-app: cluster-autoscaler
   annotations:
     include.release.openshift.io/self-managed-high-availability: "true"
+    include.release.openshift.io/single-node-production-edge: "true"
 rules:
 - apiGroups: [""]
   resources: ["events","endpoints"]
@@ -219,6 +224,7 @@ metadata:
     k8s-app: cluster-autoscaler
   annotations:
     include.release.openshift.io/self-managed-high-availability: "true"
+    include.release.openshift.io/single-node-production-edge: "true"
 rules:
 - apiGroups: [""]
   resources: ["configmaps"]
@@ -238,6 +244,7 @@ metadata:
     k8s-app: cluster-autoscaler
   annotations:
     include.release.openshift.io/self-managed-high-availability: "true"
+    include.release.openshift.io/single-node-production-edge: "true"
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
@@ -258,6 +265,7 @@ metadata:
     k8s-app: cluster-autoscaler
   annotations:
     include.release.openshift.io/self-managed-high-availability: "true"
+    include.release.openshift.io/single-node-production-edge: "true"
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
@@ -275,6 +283,7 @@ metadata:
   namespace: openshift-machine-api
   annotations:
     include.release.openshift.io/self-managed-high-availability: "true"
+    include.release.openshift.io/single-node-production-edge: "true"
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
@@ -293,6 +302,7 @@ metadata:
   namespace: openshift-machine-api
   annotations:
     include.release.openshift.io/self-managed-high-availability: "true"
+    include.release.openshift.io/single-node-production-edge: "true"
 rules:
   - apiGroups:
       - ""
