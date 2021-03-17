@@ -191,6 +191,16 @@ func (r *Reconciler) AutoscalerPrometheusRule(ca *autoscalingv1.ClusterAutoscale
 								"message": "Cluster Autoscaler is reporting that the cluster is not ready for scaling",
 							},
 						},
+						{
+							Alert: "ClusterAutoscalerExcessiveUnregisteredNodeCleanup",
+							Expr:  intstr.FromString(fmt.Sprintf("rate(cluster_autoscaler_old_unregistered_nodes_removed_count[6h]) > 1")),
+							Labels: map[string]string{
+								"severity": "warning",
+							},
+							Annotations: map[string]string{
+								"message": "Cluster Autoscaler has removed more than 1 unregistered node in the last 6 hours",
+							},
+						},
 					},
 				},
 			},
