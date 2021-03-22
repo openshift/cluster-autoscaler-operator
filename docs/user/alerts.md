@@ -59,19 +59,3 @@ should investigate the logs associated with your cloud provider controllers and
 the Machine API resources to discover the root cause. For more information on
 why nodes, or machines, might not become ready please see the
 [Machine API FAQ](https://github.com/openshift/machine-api-operator/blob/master/FAQ.md).
-
-## ClusterAutoscalerOperatorDown
-The cluster-autoscaler-operator is not running.
-
-### Query
-```
-# for: 5m
-absent(up{job="cluster-autoscaler-operator"} == 1)
-```
-
-### Possible Causes
-* The deployment has been scaled down
-* cluster-autoscaler-operator is in a failed state
-
-### Resolution
-Investigate logs, deployment, and pod events for the cluster-autoscaler-operator.
