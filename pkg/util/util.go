@@ -11,6 +11,11 @@ import (
 const (
 	ReleaseVersionAnnotation = "release.openshift.io/version"
 	CriticalPodAnnotation    = "scheduler.alpha.kubernetes.io/critical-pod"
+
+	// Workload designation annotations as per
+	// https://github.com/openshift/enhancements/blob/master/enhancements/management-workload-partitioning.md
+	WorkloadManagementAnnotation          = "target.workload.openshift.io/management"
+	WorkloadManagementSchedulingPreferred = `{"effect": "PreferredDuringScheduling"}`
 )
 
 // FilterString removes any instances of the needle from haystack.  It
