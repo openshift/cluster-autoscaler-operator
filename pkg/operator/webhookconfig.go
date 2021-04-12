@@ -45,7 +45,7 @@ func NewWebhookConfigUpdater(mgr manager.Manager, namespace string) (*WebhookCon
 func (w *WebhookConfigUpdater) Start(stopCh <-chan struct{}) error {
 	vc := &admissionregistrationv1beta1.ValidatingWebhookConfiguration{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: "admissionregistration.k8s.io/v1beta1",
+			APIVersion: "admissionregistration.k8s.io/v1",
 			Kind:       "ValidatingWebhookConfiguration",
 		},
 		ObjectMeta: metav1.ObjectMeta{
