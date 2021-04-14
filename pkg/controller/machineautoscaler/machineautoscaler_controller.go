@@ -123,9 +123,7 @@ func (r *Reconciler) AddToManager(mgr manager.Manager) error {
 		// reconcile requests for their owning MachineAutoscaler resources.
 		if err = c.Watch(
 			&source.Kind{Type: target},
-			&handler.EnqueueRequestsFromMapFunc{
-				ToRequests: handler.ToRequestsFunc(targetOwnerRequest),
-			}); err != nil {
+			handler.EnqueueRequestsFromMapFunc(targetOwnerRequest)); err != nil {
 			return err
 		}
 	}
@@ -176,7 +174,8 @@ type Reconciler struct {
 // Reconcile reads that state of the cluster for a MachineAutoscaler object and
 // makes changes based on the state read and what is in the
 // MachineAutoscaler.Spec
-func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, error) {
+func (r *Reconciler) Reconcile(_ context.Context, request reconcile.Request) (reconcile.Result, error) {
+	// TODO(elmiko) update this function to use the context that is provided
 	klog.Infof("Reconciling MachineAutoscaler %s/%s\n", request.Namespace, request.Name)
 
 	// Fetch the MachineAutoscaler instance
@@ -534,8 +533,8 @@ func (r *Reconciler) ValidateReference(obj *corev1.ObjectReference) (bool, error
 
 // targetOwnerRequest is used with handler.EnqueueRequestsFromMapFunc to enqueue
 // reconcile requests for the owning MachineAutoscaler of a watched target.
-func targetOwnerRequest(a handler.MapObject) []reconcile.Request {
-	target, err := MachineTargetFromObject(a.Object)
+func targetOwnerRequest(a client.Object) []reconcile.Request {
+	target, err := MachineTargetFromObject(a)
 	if err != nil {
 		klog.Errorf("Failed to convert object to MachineTarget: %v", err)
 		return nil

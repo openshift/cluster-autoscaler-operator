@@ -1,6 +1,7 @@
 package clusterautoscaler
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"testing"
@@ -293,7 +294,7 @@ func TestReconcile(t *testing.T) {
 	for i, tc := range tCases {
 		r := newFakeReconciler(ca, tc.d)
 		r.SetConfig(tc.c)
-		res, err := r.Reconcile(req)
+		res, err := r.Reconcile(context.TODO(), req)
 		assert.Equal(t, tc.expectedRes, res, "case %v: expected res incorrect", i)
 		assert.Equal(t, tc.expectedError, err, "case %v: expected err incorrect", i)
 	}

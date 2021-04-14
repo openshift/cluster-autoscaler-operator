@@ -93,16 +93,16 @@ func (r *Reconciler) AddToManager(mgr manager.Manager) error {
 	// name set at runtime.
 	p := predicate.Funcs{
 		CreateFunc: func(e event.CreateEvent) bool {
-			return r.NamePredicate(e.Meta)
+			return r.NamePredicate(e.Object)
 		},
 		UpdateFunc: func(e event.UpdateEvent) bool {
-			return r.NamePredicate(e.MetaNew)
+			return r.NamePredicate(e.ObjectNew)
 		},
 		DeleteFunc: func(e event.DeleteEvent) bool {
-			return r.NamePredicate(e.Meta)
+			return r.NamePredicate(e.Object)
 		},
 		GenericFunc: func(e event.GenericEvent) bool {
-			return r.NamePredicate(e.Meta)
+			return r.NamePredicate(e.Object)
 		},
 	}
 
@@ -143,7 +143,8 @@ func (r *Reconciler) AddToManager(mgr manager.Manager) error {
 // Reconcile reads that state of the cluster for a ClusterAutoscaler
 // object and makes changes based on the state read and what is in the
 // ClusterAutoscaler.Spec
-func (r *Reconciler) Reconcile(request reconcile.Request) (reconcile.Result, error) {
+func (r *Reconciler) Reconcile(_ context.Context, request reconcile.Request) (reconcile.Result, error) {
+	// TODO(elmiko) update this function to use the context that is provided
 	klog.Infof("Reconciling ClusterAutoscaler %s\n", request.Name)
 
 	// Fetch the ClusterAutoscaler instance

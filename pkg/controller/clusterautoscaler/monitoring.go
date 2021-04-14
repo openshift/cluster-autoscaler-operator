@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/klog/v2"
 
 	monitoringv1 "github.com/coreos/prometheus-operator/pkg/apis/monitoring/v1"
@@ -12,6 +11,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
@@ -21,7 +21,7 @@ func (r *Reconciler) createOrUpdateObjectForCA(ca *autoscalingv1.ClusterAutoscal
 		return "", err
 	}
 
-	ro, ok := desired.(runtime.Object)
+	ro, ok := desired.(client.Object)
 	if !ok {
 		return "", fmt.Errorf("can not covert %T to a runtime.Object", desired)
 	}

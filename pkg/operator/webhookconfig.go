@@ -42,7 +42,7 @@ func NewWebhookConfigUpdater(mgr manager.Manager, namespace string) (*WebhookCon
 
 // Start creates or updates the webhook configurations then waits for the stop
 // channel to be closed.
-func (w *WebhookConfigUpdater) Start(stopCh <-chan struct{}) error {
+func (w *WebhookConfigUpdater) Start(stop context.Context) error {
 	vc := &admissionregistrationv1beta1.ValidatingWebhookConfiguration{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "admissionregistration.k8s.io/v1",
@@ -72,7 +72,7 @@ func (w *WebhookConfigUpdater) Start(stopCh <-chan struct{}) error {
 	klog.Infof("Webhook configuration status: %s", op)
 
 	// Block until the stop channel is closed.
-	<-stopCh
+	stop.Done()
 
 	return nil
 }

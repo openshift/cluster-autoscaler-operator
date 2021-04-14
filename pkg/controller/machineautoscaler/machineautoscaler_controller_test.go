@@ -251,7 +251,7 @@ func TestHandleTargetChange(t *testing.T) {
 					t.Fatalf("Error updating MachineAutoscaler: %v", err)
 				}
 
-				r.Reconcile(reconcile.Request{NamespacedName: maName})
+				r.Reconcile(context.TODO(), reconcile.Request{NamespacedName: maName})
 
 				// Re-fetch the MachineAutoscaler.
 				if err := r.client.Get(context.TODO(), maName, ma); err != nil {
@@ -266,7 +266,7 @@ func TestHandleTargetChange(t *testing.T) {
 				t.Fatalf("Error updating MachineAutoscaler: %v", err)
 			}
 
-			r.Reconcile(reconcile.Request{NamespacedName: maName})
+			r.Reconcile(context.TODO(), reconcile.Request{NamespacedName: maName})
 
 			// Check that the previous target's annotations were removed.
 			if tt.oldTarget != nil && tt.oldTarget != missingTarget {
