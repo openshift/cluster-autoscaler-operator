@@ -409,8 +409,8 @@ func (r *Reconciler) AutoscalerPodSpec(ca *autoscalingv1.ClusterAutoscaler) *cor
 				},
 				Resources: corev1.ResourceRequirements{
 					Requests: corev1.ResourceList{
-						corev1.ResourceCPU:    resource.MustParse("20Mi"),
-						corev1.ResourceMemory: resource.MustParse("10m"),
+						corev1.ResourceCPU:    resource.MustParse("10m"),
+						corev1.ResourceMemory: resource.MustParse("20Mi"),
 					},
 				},
 			},
