@@ -312,7 +312,7 @@ func (r *StatusReporter) Start(stop context.Context) error {
 	err := wait.PollImmediateUntil(interval, pollFunc, stop.Done())
 
 	// Block until the stop channel is closed.
-	stop.Done()
+	<-stop.Done()
 
 	return err
 }

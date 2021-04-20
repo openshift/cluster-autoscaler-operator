@@ -72,7 +72,7 @@ func (w *WebhookConfigUpdater) Start(stop context.Context) error {
 	klog.Infof("Webhook configuration status: %s", op)
 
 	// Block until the stop channel is closed.
-	stop.Done()
+	<-stop.Done()
 
 	return nil
 }
