@@ -339,8 +339,9 @@ func (r *Reconciler) AutoscalerDeployment(ca *autoscalingv1.ClusterAutoscaler) *
 	}
 
 	annotations := map[string]string{
-		util.CriticalPodAnnotation:    "",
-		util.ReleaseVersionAnnotation: r.config.ReleaseVersion,
+		util.CriticalPodAnnotation:        "",
+		util.ReleaseVersionAnnotation:     r.config.ReleaseVersion,
+		util.WorkloadManagementAnnotation: util.WorkloadManagementSchedulingPreferred,
 	}
 
 	podSpec := r.AutoscalerPodSpec(ca)
