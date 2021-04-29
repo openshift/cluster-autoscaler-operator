@@ -47,10 +47,14 @@ spec:
         description: MachineAutoscaler is the Schema for the machineautoscalers API
         properties:
           apiVersion:
-            description: 'APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
             type: string
           kind:
-            description: 'Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
             type: string
           metadata:
             type: object
@@ -58,12 +62,14 @@ spec:
             description: Specification of constraints of a scalable resource
             properties:
               maxReplicas:
-                description: MaxReplicas constrains the maximal number of replicas of a scalable resource
+                description: MaxReplicas constrains the maximal number of replicas
+                  of a scalable resource
                 format: int32
                 minimum: 1
                 type: integer
               minReplicas:
-                description: MinReplicas constrains the minimal number of replicas of a scalable resource
+                description: MinReplicas constrains the minimal number of replicas
+                  of a scalable resource
                 format: int32
                 minimum: 0
                 type: integer
@@ -71,14 +77,21 @@ spec:
                 description: ScaleTargetRef holds reference to a scalable resource
                 properties:
                   apiVersion:
-                    description: 'APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+                    description: 'APIVersion defines the versioned schema of this
+                      representation of an object. Servers should convert recognized
+                      schemas to the latest internal value, and may reject unrecognized
+                      values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
                     type: string
                   kind:
-                    description: 'Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+                    description: 'Kind is a string value representing the REST resource
+                      this object represents. Servers may infer this from the endpoint
+                      the client submits requests to. Cannot be updated. In CamelCase.
+                      More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
                     minLength: 1
                     type: string
                   name:
-                    description: Name specifies a name of an object, e.g. worker-us-east-1a. Scalable resources are expected to exist under a single namespace.
+                    description: Name specifies a name of an object, e.g. worker-us-east-1a.
+                      Scalable resources are expected to exist under a single namespace.
                     minLength: 1
                     type: string
                 required:
@@ -94,17 +107,25 @@ spec:
             description: Most recently observed status of a scalable resource
             properties:
               lastTargetRef:
-                description: LastTargetRef holds reference to the recently observed scalable resource
+                description: LastTargetRef holds reference to the recently observed
+                  scalable resource
                 properties:
                   apiVersion:
-                    description: 'APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+                    description: 'APIVersion defines the versioned schema of this
+                      representation of an object. Servers should convert recognized
+                      schemas to the latest internal value, and may reject unrecognized
+                      values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
                     type: string
                   kind:
-                    description: 'Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+                    description: 'Kind is a string value representing the REST resource
+                      this object represents. Servers may infer this from the endpoint
+                      the client submits requests to. Cannot be updated. In CamelCase.
+                      More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
                     minLength: 1
                     type: string
                   name:
-                    description: Name specifies a name of an object, e.g. worker-us-east-1a. Scalable resources are expected to exist under a single namespace.
+                    description: Name specifies a name of an object, e.g. worker-us-east-1a.
+                      Scalable resources are expected to exist under a single namespace.
                     minLength: 1
                     type: string
                 required:
