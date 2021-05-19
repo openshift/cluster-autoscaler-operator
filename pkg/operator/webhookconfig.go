@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	admissionregistrationv1beta1 "k8s.io/api/admissionregistration/v1beta1"
+	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog/v2"
 	"k8s.io/utils/pointer"
@@ -43,7 +43,7 @@ func NewWebhookConfigUpdater(mgr manager.Manager, namespace string) (*WebhookCon
 // Start creates or updates the webhook configurations then waits for the stop
 // channel to be closed.
 func (w *WebhookConfigUpdater) Start(stop context.Context) error {
-	vc := &admissionregistrationv1beta1.ValidatingWebhookConfiguration{
+	vc := &admissionregistrationv1.ValidatingWebhookConfiguration{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "admissionregistration.k8s.io/v1",
 			Kind:       "ValidatingWebhookConfiguration",
@@ -78,15 +78,16 @@ func (w *WebhookConfigUpdater) Start(stop context.Context) error {
 }
 
 // ValidatingWebhooks returns the validating webhook configurations.
-func (w *WebhookConfigUpdater) ValidatingWebhooks() ([]admissionregistrationv1beta1.ValidatingWebhook, error) {
-	failurePolicy := admissionregistrationv1beta1.Ignore
-	sideEffects := admissionregistrationv1beta1.SideEffectClassNone
+func (w *WebhookConfigUpdater) ValidatingWebhooks() ([]admissionregistrationv1.ValidatingWebhook, error) {
+	failurePolicy := admissionregistrationv1.Ignore
+	sideEffects := admissionregistrationv1.SideEffectClassNone
 
-	webhooks := []admissionregistrationv1beta1.ValidatingWebhook{
+	webhooks := []admissionregistrationv1.ValidatingWebhook{
 		{
-			Name: "clusterautoscalers.autoscaling.openshift.io",
-			ClientConfig: admissionregistrationv1beta1.WebhookClientConfig{
-				Service: &admissionregistrationv1beta1.ServiceReference{
+			Name:                    "clusterautoscalers.autoscaling.openshift.io",
+			AdmissionReviewVersions: []string{"v1"},
+			ClientConfig: admissionregistrationv1.WebhookClientConfig{
+				Service: &admissionregistrationv1.ServiceReference{
 					Name:      fmt.Sprintf("%s-operator", OperatorName),
 					Namespace: w.namespace,
 					Path:      pointer.StringPtr("/validate-clusterautoscalers"),
@@ -94,24 +95,25 @@ func (w *WebhookConfigUpdater) ValidatingWebhooks() ([]admissionregistrationv1be
 			},
 			FailurePolicy: &failurePolicy,
 			SideEffects:   &sideEffects,
-			Rules: []admissionregistrationv1beta1.RuleWithOperations{
+			Rules: []admissionregistrationv1.RuleWithOperations{
 				{
-					Rule: admissionregistrationv1beta1.Rule{
+					Rule: admissionregistrationv1.Rule{
 						APIGroups:   []string{"autoscaling.openshift.io"},
 						APIVersions: []string{"v1"},
 						Resources:   []string{"clusterautoscalers"},
 					},
-					Operations: []admissionregistrationv1beta1.OperationType{
-						admissionregistrationv1beta1.Create,
-						admissionregistrationv1beta1.Update,
+					Operations: []admissionregistrationv1.OperationType{
+						admissionregistrationv1.Create,
+						admissionregistrationv1.Update,
 					},
 				},
 			},
 		},
 		{
-			Name: "machineautoscalers.autoscaling.openshift.io",
-			ClientConfig: admissionregistrationv1beta1.WebhookClientConfig{
-				Service: &admissionregistrationv1beta1.ServiceReference{
+			Name:                    "machineautoscalers.autoscaling.openshift.io",
+			AdmissionReviewVersions: []string{"v1"},
+			ClientConfig: admissionregistrationv1.WebhookClientConfig{
+				Service: &admissionregistrationv1.ServiceReference{
 					Name:      fmt.Sprintf("%s-operator", OperatorName),
 					Namespace: w.namespace,
 					Path:      pointer.StringPtr("/validate-machineautoscalers"),
@@ -119,16 +121,16 @@ func (w *WebhookConfigUpdater) ValidatingWebhooks() ([]admissionregistrationv1be
 			},
 			FailurePolicy: &failurePolicy,
 			SideEffects:   &sideEffects,
-			Rules: []admissionregistrationv1beta1.RuleWithOperations{
+			Rules: []admissionregistrationv1.RuleWithOperations{
 				{
-					Rule: admissionregistrationv1beta1.Rule{
+					Rule: admissionregistrationv1.Rule{
 						APIGroups:   []string{"autoscaling.openshift.io"},
 						APIVersions: []string{"v1beta1"},
 						Resources:   []string{"machineautoscalers"},
 					},
-					Operations: []admissionregistrationv1beta1.OperationType{
-						admissionregistrationv1beta1.Create,
-						admissionregistrationv1beta1.Update,
+					Operations: []admissionregistrationv1.OperationType{
+						admissionregistrationv1.Create,
+						admissionregistrationv1.Update,
 					},
 				},
 			},
