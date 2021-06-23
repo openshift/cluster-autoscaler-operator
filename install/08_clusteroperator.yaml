@@ -10,3 +10,13 @@ status:
   versions:
   - name: operator
     version: "0.0.1-snapshot"
+  relatedObjects:
+  - group: ""
+    name: openshift-machine-api
+    resource: namespaces
+  - group: autoscaling.openshift.io
+    name: ""
+    resource: clusterautoscalers
+  - group: autoscaling.openshift.io
+    name: ""
+    resource: machineautoscalers
