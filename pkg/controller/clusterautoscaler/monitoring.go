@@ -191,6 +191,29 @@ func (r *Reconciler) AutoscalerPrometheusRule(ca *autoscalingv1.ClusterAutoscale
 								"message": "Cluster Autoscaler is reporting that the cluster is not ready for scaling",
 							},
 						},
+						{
+							Alert: "ClusterAutoscalerUnableToScaleCPULimitReached",
+							Expr:  intstr.FromString("cluster_autoscaler_cluster_cpu_current_cores >= cluster_autoscaler_cpu_limits_cores{direction=\"maximum\"}"),
+
+							For: "15m",
+							Labels: map[string]string{
+								"severity": "info",
+							},
+							Annotations: map[string]string{
+								"message": "Cluster Autoscaler has reached its CPU core limit and is unable to scale out",
+							},
+						},
+						{
+							Alert: "ClusterAutoscalerUnableToScaleMemoryLimitReached",
+							Expr:  intstr.FromString("cluster_autoscaler_cluster_memory_current_bytes >= cluster_autoscaler_memory_limits_bytes{direction=\"maximum\"}"),
+							For:   "15m",
+							Labels: map[string]string{
+								"severity": "info",
+							},
+							Annotations: map[string]string{
+								"message": "Cluster Autoscaler has reached its Memory bytes limit and is unable to scale out",
+							},
+						},
 					},
 				},
 			},
