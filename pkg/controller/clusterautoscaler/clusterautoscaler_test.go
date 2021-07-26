@@ -15,12 +15,15 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/utils/pointer"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	fakeclient "sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
@@ -297,6 +300,77 @@ func TestReconcile(t *testing.T) {
 		res, err := r.Reconcile(context.TODO(), req)
 		assert.Equal(t, tc.expectedRes, res, "case %v: expected res incorrect", i)
 		assert.Equal(t, tc.expectedError, err, "case %v: expected err incorrect", i)
+	}
+}
+
+func TestCADeleting(t *testing.T) {
+	ca := NewClusterAutoscaler()
+	now := metav1.Now()
+	ca.DeletionTimestamp = &now
+
+	req := reconcile.Request{
+		NamespacedName: types.NamespacedName{
+			Namespace: TestNamespace,
+			Name:      "test",
+		},
+	}
+	cfg := Config{
+		ReleaseVersion: "test-1",
+		Name:           "test",
+		Namespace:      TestNamespace,
+	}
+
+	dep1 := &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "cluster-autoscaler-test",
+			Namespace: TestNamespace,
+			Annotations: map[string]string{
+				util.ReleaseVersionAnnotation: "test-1",
+			},
+			Generation: 1,
+		},
+		Status: appsv1.DeploymentStatus{
+			ObservedGeneration: 1,
+			UpdatedReplicas:    1,
+			Replicas:           1,
+			AvailableReplicas:  1,
+		},
+	}
+
+	depKey := client.ObjectKey{
+		Namespace: dep1.Namespace,
+		Name:      dep1.Name,
+	}
+
+	testCases := []struct {
+		name               string
+		existingDeployment *appsv1.Deployment
+	}{
+		{
+			name:               "With no existing deployment",
+			existingDeployment: &appsv1.Deployment{},
+		},
+		{
+			name:               "With an existing deployment",
+			existingDeployment: dep1,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			r := newFakeReconciler(ca, tc.existingDeployment)
+			r.SetConfig(cfg)
+			res, err := r.Reconcile(context.TODO(), req)
+			assert.NoError(t, err)
+			assert.Equal(t, res, reconcile.Result{})
+
+			// Ensure that after the reconcile, no deployment exists
+			err = r.client.Get(context.Background(), depKey, &appsv1.Deployment{})
+			assert.Equal(t, err, apierrors.NewNotFound(schema.GroupResource{
+				Group:    "apps",
+				Resource: "deployments",
+			}, dep1.Name))
+		})
 	}
 }
 
