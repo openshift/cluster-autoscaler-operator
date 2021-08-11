@@ -180,13 +180,25 @@ func (r *Reconciler) Reconcile(_ context.Context, request reconcile.Request) (re
 		return reconcile.Result{}, err
 	}
 
-	_, err = r.GetAutoscaler(ca)
+	existingDeployment, err := r.GetAutoscaler(ca)
 	if err != nil && !errors.IsNotFound(err) {
 		errMsg := fmt.Sprintf("Error getting cluster-autoscaler deployment: %v", err)
 		r.recorder.Event(caRef, corev1.EventTypeWarning, "FailedGetDeployment", errMsg)
 		klog.Error(errMsg)
 
 		return reconcile.Result{}, err
+	}
+
+	// Make sure not to create a new deployment when the CA is being removed.
+	if ca.GetDeletionTimestamp() != nil {
+		if !errors.IsNotFound(err) {
+			// We've already checked for other errors, so this means there was no error, ie the deployment exists.
+			// Remove the deployment if it still exists (GC may have beaten us to this).
+			if err := r.client.Delete(context.TODO(), existingDeployment); err != nil && !errors.IsNotFound(err) {
+				return reconcile.Result{}, err
+			}
+		}
+		return reconcile.Result{}, nil
 	}
 
 	if err := r.ensureAutoscalerMonitoring(ca); err != nil {
