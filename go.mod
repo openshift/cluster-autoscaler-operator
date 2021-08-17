@@ -1,21 +1,20 @@
 module github.com/openshift/cluster-autoscaler-operator
 
-go 1.15
+go 1.16
 
 require (
 	github.com/blang/semver v3.5.1+incompatible
 	github.com/coreos/prometheus-operator v0.29.0
 	github.com/google/gofuzz v1.2.0 // indirect
-	github.com/openshift/api v0.0.0-20210412212256-79bd8cfbbd59
-	github.com/openshift/client-go v0.0.0-20210409155308-a8e62c60e930
-	github.com/openshift/library-go v0.0.0-20210408164723-7a65fdb398e2
-	github.com/stretchr/testify v1.6.1
-	golang.org/x/oauth2 v0.0.0-20200902213428-5d25da1a8d43 // indirect
-	k8s.io/api v0.21.0
-	k8s.io/apimachinery v0.21.0
-	k8s.io/client-go v0.21.0
-	k8s.io/klog/v2 v2.8.0
-	k8s.io/utils v0.0.0-20210111153108-fddb29f9d009
-	sigs.k8s.io/controller-runtime v0.9.0-beta.1.0.20210512131817-ce2f0c92d77e
-	sigs.k8s.io/controller-tools v0.3.0
+	github.com/openshift/api v0.0.0-20210816181336-8ff39b776da3
+	github.com/openshift/client-go v0.0.0-20210730113412-1811c1b3fc0e
+	github.com/openshift/library-go v0.0.0-20210811133500-5e31383de2a7
+	github.com/stretchr/testify v1.7.0
+	k8s.io/api v0.22.0
+	k8s.io/apimachinery v0.22.0
+	k8s.io/client-go v0.22.0
+	k8s.io/klog/v2 v2.9.0
+	k8s.io/utils v0.0.0-20210802155522-efc7438f0176
+	sigs.k8s.io/controller-runtime v0.9.3
+	sigs.k8s.io/controller-tools v0.6.2
 )
