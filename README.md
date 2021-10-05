@@ -45,7 +45,7 @@ The operator manages the following custom resources:
 
 - __MachineAutoscaler__: This resource targets a node group and manages
   the annotations to enable and configure autoscaling for that group,
-  e.g. the min and max size.  Currently only `MachineSet` objects can be
+  e.g. the min and max size, and GPU label.  Currently only `MachineSet` objects can be
   targeted.  ([Example][MachineAutoscaler])
 
 [ClusterAutoscaler]: https://github.com/openshift/cluster-autoscaler-operator/blob/master/examples/clusterautoscaler.yaml
