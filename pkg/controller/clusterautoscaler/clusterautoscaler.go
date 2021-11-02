@@ -52,6 +52,7 @@ const (
 	BalanceSimilarNodeGroupsArg     AutoscalerArg = "--balance-similar-node-groups"
 	IgnoreDaemonsetsUtilization     AutoscalerArg = "--ignore-daemonsets-utilization"
 	SkipNodesWithLocalStorage       AutoscalerArg = "--skip-nodes-with-local-storage"
+	BalancingIgnoreLabel            AutoscalerArg = "--balancing-ignore-label"
 )
 
 // AutoscalerArgs returns a slice of strings representing command line arguments
@@ -92,6 +93,12 @@ func AutoscalerArgs(ca *v1.ClusterAutoscaler, cfg *Config) []string {
 
 	if ca.Spec.BalanceSimilarNodeGroups != nil {
 		args = append(args, BalanceSimilarNodeGroupsArg.Value(*ca.Spec.BalanceSimilarNodeGroups))
+		// if we are enabling the balance similar node groups option, we need to ignore
+		// openshift specific labels that prevent the default balancing behavior.
+		// TODO (elmiko) remove this label once it has been fully deprecated from the aws-ebs-csi-driver
+		if *ca.Spec.BalanceSimilarNodeGroups == true {
+			args = append(args, BalancingIgnoreLabel.Value("topology.ebs.csi.aws.com/zone"))
+		}
 	}
 
 	if ca.Spec.IgnoreDaemonsetsUtilization != nil {
