@@ -81,6 +81,24 @@ func TestValidate(t *testing.T) {
 				return ca
 			},
 		},
+		{
+			label:      "ClusterAutoscaler has invalid ScaleDown utilizationThreshold",
+			expectedOk: false,
+			caFunc: func() *autoscalingv1.ClusterAutoscaler {
+				ca := ca.DeepCopy()
+				ca.Spec.ScaleDown.UtilizationThreshold = pointer.StringPtr("not-a-float-value")
+				return ca
+			},
+		},
+		{
+			label:      "ClusterAutoscaler has out of range ScaleDown utilizationThreshold",
+			expectedOk: false,
+			caFunc: func() *autoscalingv1.ClusterAutoscaler {
+				ca := ca.DeepCopy()
+				ca.Spec.ScaleDown.UtilizationThreshold = pointer.StringPtr("1.5")
+				return ca
+			},
+		},
 	}
 
 	for _, tc := range testCases {

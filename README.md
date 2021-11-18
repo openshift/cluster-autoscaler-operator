@@ -39,6 +39,7 @@ The operator manages the following custom resources:
       --scale-down-delay-after-add=10s
       --scale-down-delay-after-delete=10s
       --scale-down-delay-after-failure=10s
+      --scale-down-ulitization-threshold=0.4
       --ignore-daemonsets-utilization=false
       --skip-nodes-with-local-storage=true
   ```

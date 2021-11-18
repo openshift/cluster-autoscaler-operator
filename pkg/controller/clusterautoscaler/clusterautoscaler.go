@@ -33,25 +33,26 @@ func (a AutoscalerArg) TypeRange(t string, min, max int) string {
 // These constants represent the cluster-autoscaler arguments used by the
 // operator when processing ClusterAutoscaler resources.
 const (
-	LogToStderrArg                  AutoscalerArg = "--logtostderr"
-	NamespaceArg                    AutoscalerArg = "--namespace"
-	CloudProviderArg                AutoscalerArg = "--cloud-provider"
-	MaxGracefulTerminationSecArg    AutoscalerArg = "--max-graceful-termination-sec"
-	ExpendablePodsPriorityCutoffArg AutoscalerArg = "--expendable-pods-priority-cutoff"
-	ScaleDownEnabledArg             AutoscalerArg = "--scale-down-enabled"
-	ScaleDownDelayAfterAddArg       AutoscalerArg = "--scale-down-delay-after-add"
-	ScaleDownDelayAfterDeleteArg    AutoscalerArg = "--scale-down-delay-after-delete"
-	ScaleDownDelayAfterFailureArg   AutoscalerArg = "--scale-down-delay-after-failure"
-	ScaleDownUnneededTimeArg        AutoscalerArg = "--scale-down-unneeded-time"
-	MaxNodesTotalArg                AutoscalerArg = "--max-nodes-total"
-	MaxNodeProvisionTimeArg         AutoscalerArg = "--max-node-provision-time"
-	CoresTotalArg                   AutoscalerArg = "--cores-total"
-	MemoryTotalArg                  AutoscalerArg = "--memory-total"
-	GPUTotalArg                     AutoscalerArg = "--gpu-total"
-	VerbosityArg                    AutoscalerArg = "--v"
-	BalanceSimilarNodeGroupsArg     AutoscalerArg = "--balance-similar-node-groups"
-	IgnoreDaemonsetsUtilization     AutoscalerArg = "--ignore-daemonsets-utilization"
-	SkipNodesWithLocalStorage       AutoscalerArg = "--skip-nodes-with-local-storage"
+	LogToStderrArg                   AutoscalerArg = "--logtostderr"
+	NamespaceArg                     AutoscalerArg = "--namespace"
+	CloudProviderArg                 AutoscalerArg = "--cloud-provider"
+	MaxGracefulTerminationSecArg     AutoscalerArg = "--max-graceful-termination-sec"
+	ExpendablePodsPriorityCutoffArg  AutoscalerArg = "--expendable-pods-priority-cutoff"
+	ScaleDownEnabledArg              AutoscalerArg = "--scale-down-enabled"
+	ScaleDownDelayAfterAddArg        AutoscalerArg = "--scale-down-delay-after-add"
+	ScaleDownDelayAfterDeleteArg     AutoscalerArg = "--scale-down-delay-after-delete"
+	ScaleDownDelayAfterFailureArg    AutoscalerArg = "--scale-down-delay-after-failure"
+	ScaleDownUnneededTimeArg         AutoscalerArg = "--scale-down-unneeded-time"
+	ScaleDownUtilizationThresholdArg AutoscalerArg = "--scale-down-utilization-threshold"
+	MaxNodesTotalArg                 AutoscalerArg = "--max-nodes-total"
+	MaxNodeProvisionTimeArg          AutoscalerArg = "--max-node-provision-time"
+	CoresTotalArg                    AutoscalerArg = "--cores-total"
+	MemoryTotalArg                   AutoscalerArg = "--memory-total"
+	GPUTotalArg                      AutoscalerArg = "--gpu-total"
+	VerbosityArg                     AutoscalerArg = "--v"
+	BalanceSimilarNodeGroupsArg      AutoscalerArg = "--balance-similar-node-groups"
+	IgnoreDaemonsetsUtilization      AutoscalerArg = "--ignore-daemonsets-utilization"
+	SkipNodesWithLocalStorage        AutoscalerArg = "--skip-nodes-with-local-storage"
 )
 
 // AutoscalerArgs returns a slice of strings representing command line arguments
@@ -131,6 +132,10 @@ func ScaleDownArgs(sd *v1.ScaleDownConfig) []string {
 
 	if sd.UnneededTime != nil {
 		args = append(args, ScaleDownUnneededTimeArg.Value(*sd.UnneededTime))
+	}
+
+	if sd.UtilizationThreshold != nil {
+		args = append(args, ScaleDownUtilizationThresholdArg.Value(*sd.UtilizationThreshold))
 	}
 
 	return args
