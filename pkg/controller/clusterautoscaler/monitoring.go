@@ -177,7 +177,8 @@ func (r *Reconciler) AutoscalerPrometheusRule(ca *autoscalingv1.ClusterAutoscale
 								"severity": "warning",
 							},
 							Annotations: map[string]string{
-								"message": "Cluster Autoscaler has {{ $value }} unschedulable pods",
+								"message":     "Cluster Autoscaler has {{ $value }} unschedulable pods",
+								"runbook_url": "https://github.com/openshift/runbooks/blob/master/alerts/cluster-autoscaler-operator/ClusterAutoscalerUnschedulablePods.md",
 							},
 						},
 						{
@@ -188,7 +189,8 @@ func (r *Reconciler) AutoscalerPrometheusRule(ca *autoscalingv1.ClusterAutoscale
 								"severity": "warning",
 							},
 							Annotations: map[string]string{
-								"message": "Cluster Autoscaler is reporting that the cluster is not ready for scaling",
+								"message":     "Cluster Autoscaler is reporting that the cluster is not ready for scaling",
+								"runbook_url": "https://github.com/openshift/runbooks/blob/master/alerts/cluster-autoscaler-operator/ClusterAutoscalerNotSafeToScale.md",
 							},
 						},
 						{
@@ -200,7 +202,8 @@ func (r *Reconciler) AutoscalerPrometheusRule(ca *autoscalingv1.ClusterAutoscale
 								"severity": "info",
 							},
 							Annotations: map[string]string{
-								"message": "Cluster Autoscaler has reached its CPU core limit and is unable to scale out",
+								"message":     "Cluster Autoscaler has reached its CPU core limit and is unable to scale out",
+								"runbook_url": "https://github.com/openshift/runbooks/blob/master/alerts/cluster-autoscaler-operator/ClusterAutoscalerUnableToScaleCPULimitReached.md",
 							},
 						},
 						{
@@ -211,7 +214,8 @@ func (r *Reconciler) AutoscalerPrometheusRule(ca *autoscalingv1.ClusterAutoscale
 								"severity": "info",
 							},
 							Annotations: map[string]string{
-								"message": "Cluster Autoscaler has reached its Memory bytes limit and is unable to scale out",
+								"message":     "Cluster Autoscaler has reached its Memory bytes limit and is unable to scale out",
+								"runbook_url": "https://github.com/openshift/runbooks/blob/master/alerts/cluster-autoscaler-operator/ClusterAutoscalerUnableToScaleMemoryLimitReached.md",
 							},
 						},
 					},
