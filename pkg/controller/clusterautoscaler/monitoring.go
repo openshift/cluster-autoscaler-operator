@@ -174,7 +174,7 @@ func (r *Reconciler) AutoscalerPrometheusRule(ca *autoscalingv1.ClusterAutoscale
 							Expr:  intstr.FromString(fmt.Sprintf("cluster_autoscaler_unschedulable_pods_count{service=\"%s\"} > 0", namespacedName.Name)),
 							For:   "20m",
 							Labels: map[string]string{
-								"severity": "warning",
+								"severity": "info",
 							},
 							Annotations: map[string]string{
 								"message": "Cluster Autoscaler has {{ $value }} unschedulable pods",
