@@ -177,7 +177,9 @@ func (r *Reconciler) AutoscalerPrometheusRule(ca *autoscalingv1.ClusterAutoscale
 								"severity": "info",
 							},
 							Annotations: map[string]string{
-								"message": "Cluster Autoscaler has {{ $value }} unschedulable pods",
+								"summary": "Cluster Autoscaler has {{ $value }} unschedulable pods",
+								"description": `The cluster autoscaler is unable to scale up and is alerting that there are unschedulable pods because of this condition.
+This may be caused by the cluster autoscaler reaching its resources limits, or by Kubernetes waiting for new nodes to become ready.`,
 							},
 						},
 						{
@@ -188,7 +190,11 @@ func (r *Reconciler) AutoscalerPrometheusRule(ca *autoscalingv1.ClusterAutoscale
 								"severity": "warning",
 							},
 							Annotations: map[string]string{
-								"message": "Cluster Autoscaler is reporting that the cluster is not ready for scaling",
+								"summary": "Cluster Autoscaler is reporting that the cluster is not ready for scaling",
+								"description": `The cluster autoscaler has detected that the number of unready nodes is too high
+and it is not safe to continute scaling operations. It makes this determination by checking that the number of ready nodes is greater than the minimum ready count
+(default of 3) and the ratio of unready to ready nodes is less than the maximum unready node percentage (default of 45%). If either of those conditions are not
+true then the cluster autoscaler will enter an unsafe to scale state until the conditions change.`,
 							},
 						},
 						{
@@ -200,7 +206,10 @@ func (r *Reconciler) AutoscalerPrometheusRule(ca *autoscalingv1.ClusterAutoscale
 								"severity": "info",
 							},
 							Annotations: map[string]string{
-								"message": "Cluster Autoscaler has reached its CPU core limit and is unable to scale out",
+								"summary": "Cluster Autoscaler has reached its CPU core limit and is unable to scale out",
+								"description": `The number of total cores in the cluster has exceeded the maximum number set on the
+cluster autoscaler. This is calculated by summing the cpu capacity for all nodes in the cluster and comparing that number against the maximum cores value set for the
+cluster autoscaler (default 320000 cores).`,
 							},
 						},
 						{
@@ -211,7 +220,10 @@ func (r *Reconciler) AutoscalerPrometheusRule(ca *autoscalingv1.ClusterAutoscale
 								"severity": "info",
 							},
 							Annotations: map[string]string{
-								"message": "Cluster Autoscaler has reached its Memory bytes limit and is unable to scale out",
+								"summary": "Cluster Autoscaler has reached its Memory bytes limit and is unable to scale out",
+								"description": `The number of total bytes of RAM in the cluster has exceeded the maximum number set on
+the cluster autoscaler. This is calculated by summing the memory capacity for all nodes in the cluster and comparing that number against the maximum memory bytes value set
+for the cluster autoscaler (default 6400000 gigabytes).`,
 							},
 						},
 					},
