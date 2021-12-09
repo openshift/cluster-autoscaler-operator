@@ -128,4 +128,8 @@ type ScaleDownConfig struct {
 	// How long a node should be unneeded before it is eligible for scale down
 	// +kubebuilder:validation:Pattern=([0-9]*(\.[0-9]*)?[a-z]+)+
 	UnneededTime *string `json:"unneededTime,omitempty"`
+
+	// Node utilization level, defined as sum of requested resources divided by capacity, below which a node can be considered for scale down
+	// +kubebuilder:validation:Pattern=(0.[0-9]+)
+	UtilizationThreshold *string `json:"utilizationThreshold,omitempty"`
 }

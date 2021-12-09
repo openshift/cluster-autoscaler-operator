@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strconv"
 	"time"
 
 	autoscalingv1 "github.com/openshift/cluster-autoscaler-operator/pkg/apis/autoscaling/v1"
@@ -134,6 +135,15 @@ func (v *Validator) validateScaleDownConfig(sd *autoscalingv1.ScaleDownConfig) u
 
 		if _, err := time.ParseDuration(*durationString); err != nil {
 			errs = append(errs, fmt.Errorf("ScaleDown.%s: %v", name, err))
+		}
+	}
+	if sd.UtilizationThreshold != nil {
+		utilizationThreshold, err := strconv.ParseFloat(*sd.UtilizationThreshold, 64)
+		if err != nil {
+			errs = append(errs, errors.New("ScaleDown.UtilizationThreshold must be a string representing float value."))
+		}
+		if utilizationThreshold <= float64(0) || utilizationThreshold >= float64(1) {
+			errs = append(errs, errors.New("ScaleDown.UtilizationThreshold must be a value between 0 and 1."))
 		}
 	}
 

@@ -157,6 +157,12 @@ spec:
                       for scale down
                     pattern: ([0-9]*(\.[0-9]*)?[a-z]+)+
                     type: string
+                  utilizationThreshold:
+                    description: Node utilization level, defined as sum of requested
+                      resources divided by capacity, below which a node can be considered
+                      for scale down
+                    pattern: (0.[0-9]+)
+                    type: string
                 required:
                 - enabled
                 type: object

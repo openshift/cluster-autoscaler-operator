@@ -28,7 +28,11 @@ spec:
     enabled: true
     # How long after scale up that scale down evaluation resumes - if omitted defaults to 10 minutes
     delayAfterAdd: 10s
-    # How long after node deletion that scale down evaluation resumes - if omitted defaults to 10 seconds
+    # How long after node deletion that scale down evaluation resumes - if omitted defaults to 0 seconds
     delayAfterDelete: 10s
     # How long after scale down failure that scale down evaluation resumes - if omitted defaults to 3 minutes
     delayAfterFailure: 10s
+    # How long a node should be unneeded before it is eligible for scale down - if omitted defaults to 10 minutes
+    uneededTime: 10s
+    # Node utilization level, defined as sum of requested resources divided by capacity, below which a node can be considered for scale down - if omitted defaults to 0.5
+    utilizationThreshold: 0.4

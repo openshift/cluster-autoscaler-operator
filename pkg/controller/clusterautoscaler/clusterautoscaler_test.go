@@ -36,18 +36,19 @@ const (
 )
 
 var (
-	ScaleDownUnneededTime        = "10s"
-	ScaleDownDelayAfterAdd       = "60s"
-	MaxNodeProvisionTime         = "30m"
-	PodPriorityThreshold   int32 = -10
-	MaxPodGracePeriod      int32 = 60
-	MaxNodesTotal          int32 = 100
-	CoresMin               int32 = 16
-	CoresMax               int32 = 32
-	MemoryMin              int32 = 32
-	MemoryMax              int32 = 64
-	NvidiaGPUMin           int32 = 4
-	NvidiaGPUMax           int32 = 8
+	ScaleDownUnneededTime               = "10s"
+	ScaleDownUtilizationThreshold       = "0.4"
+	ScaleDownDelayAfterAdd              = "60s"
+	MaxNodeProvisionTime                = "30m"
+	PodPriorityThreshold          int32 = -10
+	MaxPodGracePeriod             int32 = 60
+	MaxNodesTotal                 int32 = 100
+	CoresMin                      int32 = 16
+	CoresMax                      int32 = 32
+	MemoryMin                     int32 = 32
+	MemoryMax                     int32 = 64
+	NvidiaGPUMin                  int32 = 4
+	NvidiaGPUMax                  int32 = 8
 )
 
 var TestReconcilerConfig = Config{
@@ -98,9 +99,10 @@ func NewClusterAutoscaler() *autoscalingv1.ClusterAutoscaler {
 				},
 			},
 			ScaleDown: &autoscalingv1.ScaleDownConfig{
-				Enabled:       true,
-				DelayAfterAdd: &ScaleDownDelayAfterAdd,
-				UnneededTime:  &ScaleDownUnneededTime,
+				Enabled:              true,
+				DelayAfterAdd:        &ScaleDownDelayAfterAdd,
+				UnneededTime:         &ScaleDownUnneededTime,
+				UtilizationThreshold: &ScaleDownUtilizationThreshold,
 			},
 		},
 	}
@@ -134,6 +136,7 @@ func TestAutoscalerArgs(t *testing.T) {
 	expected := []string{
 		fmt.Sprintf("--scale-down-delay-after-add=%s", ScaleDownDelayAfterAdd),
 		fmt.Sprintf("--scale-down-unneeded-time=%s", ScaleDownUnneededTime),
+		fmt.Sprintf("--scale-down-utilization-threshold=%s", ScaleDownUtilizationThreshold),
 		fmt.Sprintf("--expendable-pods-priority-cutoff=%d", PodPriorityThreshold),
 		fmt.Sprintf("--max-graceful-termination-sec=%d", MaxPodGracePeriod),
 		fmt.Sprintf("--cores-total=%d:%d", CoresMin, CoresMax),
