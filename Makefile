@@ -7,9 +7,8 @@ LD_FLAGS    ?= -X $(REPO_PATH)/pkg/version.Raw=$(VERSION)
 BUILD_DEST  ?= bin/cluster-autoscaler-operator
 MUTABLE_TAG ?= latest
 IMAGE        = origin-cluster-autoscaler-operator
+BUILD_IMAGE ?= registry.ci.openshift.org/openshift/release:golang-1.17
 
-GO111MODULE = on
-export GO111MODULE
 GOFLAGS ?= -mod=vendor
 export GOFLAGS
 GOPROXY ?=
@@ -24,10 +23,10 @@ all: build images check
 
 NO_DOCKER ?= 0
 ifeq ($(NO_DOCKER), 1)
-  DOCKER_CMD =
+  DOCKER_CMD = GOFLAGS="$(GOFLAGS)" GOPROXY="$(GOPROXY)"
   IMAGE_BUILD_CMD = imagebuilder
 else
-  DOCKER_CMD := docker run --rm --env GO111MODULE="$(GO111MODULE)" --env GOFLAGS="$(GOFLAGS)" --env GOPROXY="$(GOPROXY)" -v "$(PWD):/go/src/$(REPO_PATH):Z" -w "/go/src/$(REPO_PATH)" openshift/origin-release:golang-1.16
+  DOCKER_CMD := docker run --rm --env GOFLAGS="$(GOFLAGS)" --env GOPROXY="$(GOPROXY)" -v "$(PWD):/go/src/$(REPO_PATH):Z" -w "/go/src/$(REPO_PATH)" $(BUILD_IMAGE)
   IMAGE_BUILD_CMD = docker build
 endif
 
