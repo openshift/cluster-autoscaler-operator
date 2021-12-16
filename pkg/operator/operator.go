@@ -2,13 +2,13 @@ package operator
 
 import (
 	"fmt"
-	"time"
 
 	configv1 "github.com/openshift/api/config/v1"
 	"github.com/openshift/cluster-autoscaler-operator/pkg/apis"
 	"github.com/openshift/cluster-autoscaler-operator/pkg/apis/autoscaling/v1beta1"
 	"github.com/openshift/cluster-autoscaler-operator/pkg/controller/clusterautoscaler"
 	"github.com/openshift/cluster-autoscaler-operator/pkg/controller/machineautoscaler"
+	"github.com/openshift/cluster-autoscaler-operator/pkg/util"
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -18,12 +18,6 @@ import (
 
 // OperatorName is the name of this operator.
 const OperatorName = "cluster-autoscaler"
-
-var (
-	leaderElectionLeaseDuration = 120 * time.Second
-	leaderElectionRenewDeadline = 100 * time.Second
-	leaderElectionRetryPeriod   = 20 * time.Second
-)
 
 // Operator represents an instance of the cluster-autoscaler-operator.
 type Operator struct {
@@ -45,15 +39,22 @@ func New(cfg *Config) (*Operator, error) {
 		return nil, err
 	}
 
+	// Get defaults for leader election
+	le := util.GetLeaderElectionDefaults(clientConfig, configv1.LeaderElection{
+		Disable:   !cfg.LeaderElection,
+		Namespace: cfg.LeaderElectionNamespace,
+		Name:      cfg.LeaderElectionID,
+	})
+
 	// Create the controller-manager.
 	managerOptions := manager.Options{
 		Namespace:               cfg.WatchNamespace,
 		LeaderElection:          cfg.LeaderElection,
 		LeaderElectionNamespace: cfg.LeaderElectionNamespace,
 		LeaderElectionID:        cfg.LeaderElectionID,
-		LeaseDuration:           &leaderElectionLeaseDuration,
-		RenewDeadline:           &leaderElectionRenewDeadline,
-		RetryPeriod:             &leaderElectionRetryPeriod,
+		LeaseDuration:           &le.LeaseDuration.Duration,
+		RenewDeadline:           &le.RenewDeadline.Duration,
+		RetryPeriod:             &le.RetryPeriod.Duration,
 		MetricsBindAddress:      fmt.Sprintf("127.0.0.1:%d", cfg.MetricsPort),
 	}
 
