@@ -110,6 +110,14 @@ rules:
     - update
     - patch
     - delete
+- apiGroups:
+    - config.openshift.io
+  resources:
+    - infrastructures
+  verbs:
+    - get
+    - list
+    - watch
 
 ---
 kind: RoleBinding

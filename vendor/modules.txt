@@ -93,7 +93,7 @@ github.com/openshift/client-go/config/clientset/versioned/fake
 github.com/openshift/client-go/config/clientset/versioned/scheme
 github.com/openshift/client-go/config/clientset/versioned/typed/config/v1
 github.com/openshift/client-go/config/clientset/versioned/typed/config/v1/fake
-# github.com/openshift/library-go v0.0.0-20211214183058-58531ccbde67
+# github.com/openshift/library-go v0.0.0-20211220195323-eca2c467c492
 ## explicit; go 1.17
 github.com/openshift/library-go/pkg/config/clusteroperator/v1helpers
 github.com/openshift/library-go/pkg/config/clusterstatus
