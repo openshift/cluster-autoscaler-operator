@@ -6,6 +6,14 @@ import (
 	v1 "github.com/openshift/cluster-autoscaler-operator/pkg/apis/autoscaling/v1"
 )
 
+const (
+	// The following values are taken from the OpenShift conventions
+	// https://github.com/openshift/enhancements/blob/master/CONVENTIONS.md
+	leaderElectLeaseDuration = "137s"
+	leaderElectRenewDeadline = "107s"
+	leaderElectRetryPeriod   = "26s"
+)
+
 // AutoscalerArg represents a command line argument to the cluster-autoscaler
 // that may be combined with a value or numerical range.
 type AutoscalerArg string
@@ -33,25 +41,29 @@ func (a AutoscalerArg) TypeRange(t string, min, max int) string {
 // These constants represent the cluster-autoscaler arguments used by the
 // operator when processing ClusterAutoscaler resources.
 const (
-	LogToStderrArg                  AutoscalerArg = "--logtostderr"
-	NamespaceArg                    AutoscalerArg = "--namespace"
-	CloudProviderArg                AutoscalerArg = "--cloud-provider"
-	MaxGracefulTerminationSecArg    AutoscalerArg = "--max-graceful-termination-sec"
-	ExpendablePodsPriorityCutoffArg AutoscalerArg = "--expendable-pods-priority-cutoff"
-	ScaleDownEnabledArg             AutoscalerArg = "--scale-down-enabled"
-	ScaleDownDelayAfterAddArg       AutoscalerArg = "--scale-down-delay-after-add"
-	ScaleDownDelayAfterDeleteArg    AutoscalerArg = "--scale-down-delay-after-delete"
-	ScaleDownDelayAfterFailureArg   AutoscalerArg = "--scale-down-delay-after-failure"
-	ScaleDownUnneededTimeArg        AutoscalerArg = "--scale-down-unneeded-time"
-	MaxNodesTotalArg                AutoscalerArg = "--max-nodes-total"
-	MaxNodeProvisionTimeArg         AutoscalerArg = "--max-node-provision-time"
-	CoresTotalArg                   AutoscalerArg = "--cores-total"
-	MemoryTotalArg                  AutoscalerArg = "--memory-total"
-	GPUTotalArg                     AutoscalerArg = "--gpu-total"
-	VerbosityArg                    AutoscalerArg = "--v"
-	BalanceSimilarNodeGroupsArg     AutoscalerArg = "--balance-similar-node-groups"
-	IgnoreDaemonsetsUtilization     AutoscalerArg = "--ignore-daemonsets-utilization"
-	SkipNodesWithLocalStorage       AutoscalerArg = "--skip-nodes-with-local-storage"
+	LogToStderrArg                   AutoscalerArg = "--logtostderr"
+	NamespaceArg                     AutoscalerArg = "--namespace"
+	CloudProviderArg                 AutoscalerArg = "--cloud-provider"
+	MaxGracefulTerminationSecArg     AutoscalerArg = "--max-graceful-termination-sec"
+	ExpendablePodsPriorityCutoffArg  AutoscalerArg = "--expendable-pods-priority-cutoff"
+	ScaleDownEnabledArg              AutoscalerArg = "--scale-down-enabled"
+	ScaleDownDelayAfterAddArg        AutoscalerArg = "--scale-down-delay-after-add"
+	ScaleDownDelayAfterDeleteArg     AutoscalerArg = "--scale-down-delay-after-delete"
+	ScaleDownDelayAfterFailureArg    AutoscalerArg = "--scale-down-delay-after-failure"
+	ScaleDownUnneededTimeArg         AutoscalerArg = "--scale-down-unneeded-time"
+	ScaleDownUtilizationThresholdArg AutoscalerArg = "--scale-down-utilization-threshold"
+	MaxNodesTotalArg                 AutoscalerArg = "--max-nodes-total"
+	MaxNodeProvisionTimeArg          AutoscalerArg = "--max-node-provision-time"
+	CoresTotalArg                    AutoscalerArg = "--cores-total"
+	MemoryTotalArg                   AutoscalerArg = "--memory-total"
+	GPUTotalArg                      AutoscalerArg = "--gpu-total"
+	VerbosityArg                     AutoscalerArg = "--v"
+	BalanceSimilarNodeGroupsArg      AutoscalerArg = "--balance-similar-node-groups"
+	IgnoreDaemonsetsUtilization      AutoscalerArg = "--ignore-daemonsets-utilization"
+	SkipNodesWithLocalStorage        AutoscalerArg = "--skip-nodes-with-local-storage"
+	LeaderElectLeaseDurationArg      AutoscalerArg = "--leader-elect-lease-duration"
+	LeaderElectRenewDeadlineArg      AutoscalerArg = "--leader-elect-renew-deadline"
+	LeaderElectRetryPeriodArg        AutoscalerArg = "--leader-elect-retry-period"
 )
 
 // AutoscalerArgs returns a slice of strings representing command line arguments
@@ -65,6 +77,9 @@ func AutoscalerArgs(ca *v1.ClusterAutoscaler, cfg *Config) []string {
 		VerbosityArg.Value(cfg.Verbosity),
 		CloudProviderArg.Value(cfg.CloudProvider),
 		NamespaceArg.Value(cfg.Namespace),
+		LeaderElectLeaseDurationArg.Value(leaderElectLeaseDuration),
+		LeaderElectRenewDeadlineArg.Value(leaderElectRenewDeadline),
+		LeaderElectRetryPeriodArg.Value(leaderElectRetryPeriod),
 	}
 
 	if ca.Spec.MaxPodGracePeriod != nil {
