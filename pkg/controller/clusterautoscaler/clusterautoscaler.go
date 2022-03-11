@@ -6,6 +6,14 @@ import (
 	v1 "github.com/openshift/cluster-autoscaler-operator/pkg/apis/autoscaling/v1"
 )
 
+const (
+	// The following values are taken from the OpenShift conventions
+	// https://github.com/openshift/enhancements/blob/master/CONVENTIONS.md
+	leaderElectLeaseDuration = "137s"
+	leaderElectRenewDeadline = "107s"
+	leaderElectRetryPeriod   = "26s"
+)
+
 // AutoscalerArg represents a command line argument to the cluster-autoscaler
 // that may be combined with a value or numerical range.
 type AutoscalerArg string
@@ -53,6 +61,9 @@ const (
 	BalanceSimilarNodeGroupsArg      AutoscalerArg = "--balance-similar-node-groups"
 	IgnoreDaemonsetsUtilization      AutoscalerArg = "--ignore-daemonsets-utilization"
 	SkipNodesWithLocalStorage        AutoscalerArg = "--skip-nodes-with-local-storage"
+	LeaderElectLeaseDurationArg      AutoscalerArg = "--leader-elect-lease-duration"
+	LeaderElectRenewDeadlineArg      AutoscalerArg = "--leader-elect-renew-deadline"
+	LeaderElectRetryPeriodArg        AutoscalerArg = "--leader-elect-retry-period"
 )
 
 // AutoscalerArgs returns a slice of strings representing command line arguments
@@ -66,6 +77,9 @@ func AutoscalerArgs(ca *v1.ClusterAutoscaler, cfg *Config) []string {
 		VerbosityArg.Value(cfg.Verbosity),
 		CloudProviderArg.Value(cfg.CloudProvider),
 		NamespaceArg.Value(cfg.Namespace),
+		LeaderElectLeaseDurationArg.Value(leaderElectLeaseDuration),
+		LeaderElectRenewDeadlineArg.Value(leaderElectRenewDeadline),
+		LeaderElectRetryPeriodArg.Value(leaderElectRetryPeriod),
 	}
 
 	if ca.Spec.MaxPodGracePeriod != nil {
