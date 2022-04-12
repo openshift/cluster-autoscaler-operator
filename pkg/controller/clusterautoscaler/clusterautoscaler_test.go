@@ -131,6 +131,22 @@ func TestAutoscalerArgs(t *testing.T) {
 
 	args := AutoscalerArgs(ca, &Config{CloudProvider: TestCloudProvider, Namespace: TestNamespace})
 
+	defaults := []string{
+		"--logtostderr",
+		"--v=0",
+		fmt.Sprintf("--cloud-provider=%s", TestCloudProvider),
+		fmt.Sprintf("--namespace=%s", TestNamespace),
+		fmt.Sprintf("--leader-elect-lease-duration=%s", leaderElectLeaseDuration),
+		fmt.Sprintf("--leader-elect-renew-deadline=%s", leaderElectRenewDeadline),
+		fmt.Sprintf("--leader-elect-retry-period=%s", leaderElectRetryPeriod),
+	}
+
+	for _, e := range defaults {
+		if !includeString(args, e) {
+			t.Fatalf("missing arg: %s", e)
+		}
+	}
+
 	expected := []string{
 		fmt.Sprintf("--scale-down-delay-after-add=%s", ScaleDownDelayAfterAdd),
 		fmt.Sprintf("--scale-down-unneeded-time=%s", ScaleDownUnneededTime),
