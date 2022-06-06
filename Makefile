@@ -7,7 +7,7 @@ LD_FLAGS    ?= -X $(REPO_PATH)/pkg/version.Raw=$(VERSION)
 BUILD_DEST  ?= bin/cluster-autoscaler-operator
 MUTABLE_TAG ?= latest
 IMAGE        = origin-cluster-autoscaler-operator
-BUILD_IMAGE ?= registry.ci.openshift.org/openshift/release:golang-1.17
+BUILD_IMAGE ?= registry.ci.openshift.org/openshift/release:golang-1.18
 
 GOFLAGS ?= -mod=vendor
 export GOFLAGS
