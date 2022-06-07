@@ -74,7 +74,6 @@ func AutoscalerArgs(ca *v1.ClusterAutoscaler, cfg *Config) []string {
 
 	args := []string{
 		LogToStderrArg.String(),
-		VerbosityArg.Value(cfg.Verbosity),
 		CloudProviderArg.Value(cfg.CloudProvider),
 		NamespaceArg.Value(cfg.Namespace),
 		LeaderElectLeaseDurationArg.Value(leaderElectLeaseDuration),
@@ -115,6 +114,14 @@ func AutoscalerArgs(ca *v1.ClusterAutoscaler, cfg *Config) []string {
 
 	if ca.Spec.SkipNodesWithLocalStorage != nil {
 		args = append(args, SkipNodesWithLocalStorage.Value(*ca.Spec.SkipNodesWithLocalStorage))
+	}
+
+	// Prefer log level set from ClousterAutoscaler resource
+	if ca.Spec.LogVerbosity != nil {
+		args = append(args, VerbosityArg.Value(*ca.Spec.LogVerbosity))
+	} else {
+		// From environment variable or default
+		args = append(args, VerbosityArg.Value(cfg.Verbosity))
 	}
 
 	return args

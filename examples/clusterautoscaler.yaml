@@ -4,6 +4,7 @@ kind: "ClusterAutoscaler"
 metadata:
   name: "default"
 spec:
+  logVerbosity: 1
   balanceSimilarNodeGroups: true
   ignoreDaemonsetsUtilization: false
   skipNodesWithLocalStorage: true
@@ -35,4 +36,4 @@ spec:
     # How long a node should be unneeded before it is eligible for scale down - if omitted defaults to 10 minutes
     uneededTime: 10s
     # Node utilization level, defined as sum of requested resources divided by capacity, below which a node can be considered for scale down - if omitted defaults to 0.5
-    utilizationThreshold: 0.4
+    utilizationThreshold: "0.4"

@@ -26,9 +26,13 @@ The operator manages the following custom resources:
       cluster-autoscaler
     Args:
       --logtostderr
-      --balance-similar-node-groups
-      --cloud-provider=cluster-api
+      --balance-similar-node-groups=true
+      --v=1
+      --cloud-provider=clusterapi
       --namespace=openshift-machine-api
+      --leader-elect-lease-duration=137s
+      --leader-elect-renew-deadline=107s
+      --leader-elect-retry-period=26s
       --expendable-pods-priority-cutoff=-10
       --max-nodes-total=24
       --cores-total=8:128
@@ -39,7 +43,7 @@ The operator manages the following custom resources:
       --scale-down-delay-after-add=10s
       --scale-down-delay-after-delete=10s
       --scale-down-delay-after-failure=10s
-      --scale-down-ulitization-threshold=0.4
+      --scale-down-utilization-threshold=0.4
       --ignore-daemonsets-utilization=false
       --skip-nodes-with-local-storage=true
   ```
