@@ -50,6 +50,14 @@ spec:
                   feature flag. Should CA ignore DaemonSet pods when calculating resource
                   utilization for scaling down. false by default
                 type: boolean
+              logVerbosity:
+                description: "Sets the autoscaler log level. Default value is 1, level
+                  4 is recommended for DEBUGGING and level 6 will enable almost everything.
+                  \n This option has priority over log level set by the `CLUSTER_AUTOSCALER_VERBOSITY`
+                  environment variable."
+                format: int32
+                minimum: 0
+                type: integer
               maxNodeProvisionTime:
                 description: Maximum time CA waits for node to be provisioned
                 pattern: ^([0-9]+(\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$

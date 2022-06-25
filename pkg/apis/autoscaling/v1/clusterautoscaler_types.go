@@ -40,6 +40,13 @@ type ClusterAutoscalerSpec struct {
 
 	// Enables/Disables `--skip-nodes-with-local-storage` CA feature flag. If true cluster autoscaler will never delete nodes with pods with local storage, e.g. EmptyDir or HostPath. true by default at autoscaler
 	SkipNodesWithLocalStorage *bool `json:"skipNodesWithLocalStorage,omitempty"`
+
+	// Sets the autoscaler log level.
+	// Default value is 1, level 4 is recommended for DEBUGGING and level 6 will enable almost everything.
+	//
+	// This option has priority over log level set by the `CLUSTER_AUTOSCALER_VERBOSITY` environment variable.
+	// +kubebuilder:validation:Minimum=0
+	LogVerbosity *int32 `json:"logVerbosity,omitempty"`
 }
 
 // ClusterAutoscalerStatus defines the observed state of ClusterAutoscaler
