@@ -69,7 +69,7 @@ cluster autoscaler (default 320000 cores).
 ### Query
 ```
 # for: 15m
-cluster_autoscaler_cluster_cpu_current_cores >= cluster_autoscaler_cpu_limits_cores{direction="maximum"}
+increase(cluster_autoscaler_skipped_scale_events_count{direction="up",reason="CpuLimitReached"}[15]) > 0
 ```
 
 ### Possible Causes
@@ -95,7 +95,7 @@ for the cluster autoscaler (default 6400000 gigabytes).
 ### Query
 ```
 # for: 15m
-cluster_autoscaler_cluster_memory_current_bytes >= cluster_autoscaler_memory_limits_bytes{direction="maximum"}
+increase(cluster_autoscaler_skipped_scale_events_count{direction="up",reason="MemoryResourceLimit"}[15]) > 0
 ```
 
 ### Possible Causes
