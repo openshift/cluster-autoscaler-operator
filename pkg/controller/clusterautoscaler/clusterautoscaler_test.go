@@ -135,6 +135,7 @@ func TestAutoscalerArgs(t *testing.T) {
 
 	defaults := []string{
 		"--logtostderr",
+		"--record-duplicated-events",
 		"--v=0",
 		fmt.Sprintf("--cloud-provider=%s", TestCloudProvider),
 		fmt.Sprintf("--namespace=%s", TestNamespace),
