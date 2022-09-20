@@ -174,6 +174,7 @@ func TestAutoscalerArgs(t *testing.T) {
 		"--balance-similar-node-groups",
 		"--ignore-daemonsets-utilization",
 		"--skip-nodes-with-local-storage",
+		"--balancing-ignore-label",
 	}
 
 	for _, e := range expectedMissing {
@@ -191,6 +192,7 @@ func TestAutoscalerArgEnabled(t *testing.T) {
 	ca.Spec.IgnoreDaemonsetsUtilization = pointer.BoolPtr(true)
 	ca.Spec.SkipNodesWithLocalStorage = pointer.BoolPtr(true)
 	ca.Spec.MaxNodeProvisionTime = MaxNodeProvisionTime
+	ca.Spec.BalancingIgnoredLabels = []string{"test/ignoredLabel", "test/anotherIgnoredLabel"}
 
 	args := AutoscalerArgs(ca, &Config{CloudProvider: TestCloudProvider, Namespace: TestNamespace})
 
@@ -199,6 +201,8 @@ func TestAutoscalerArgEnabled(t *testing.T) {
 		fmt.Sprintf("--ignore-daemonsets-utilization=true"),
 		fmt.Sprintf("--skip-nodes-with-local-storage=true"),
 		fmt.Sprintf("--max-node-provision-time=%s", MaxNodeProvisionTime),
+		fmt.Sprintf("--balancing-ignore-label=test/ignoredLabel"),
+		fmt.Sprintf("--balancing-ignore-label=test/anotherIgnoredLabel"),
 	}
 
 	for _, e := range expected {
