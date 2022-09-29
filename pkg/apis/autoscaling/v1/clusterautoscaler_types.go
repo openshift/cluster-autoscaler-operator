@@ -29,11 +29,17 @@ type ClusterAutoscalerSpec struct {
 	PodPriorityThreshold *int32 `json:"podPriorityThreshold,omitempty"`
 
 	// BalanceSimilarNodeGroups enables/disables the
-	// `--balance-similar-node-groups` cluster-autocaler feature.
+	// `--balance-similar-node-groups` cluster-autoscaler feature.
 	// This feature will automatically identify node groups with
 	// the same instance type and the same set of labels and try
 	// to keep the respective sizes of those node groups balanced.
 	BalanceSimilarNodeGroups *bool `json:"balanceSimilarNodeGroups,omitempty"`
+
+	// BalancingIgnoredLabels sets "--balancing-ignore-label <label name>" flag on cluster-autoscaler for each listed label.
+	// This option specifies labels that cluster autoscaler should ignore when considering node group similarity.
+	// For example, if you have nodes with "topology.ebs.csi.aws.com/zone" label, you can add name of this label here
+	// to prevent cluster autoscaler from spliting nodes into different node groups based on its value.
+	BalancingIgnoredLabels []string `json:"balancingIgnoredLabels,omitempty"`
 
 	// Enables/Disables `--ignore-daemonsets-utilization` CA feature flag. Should CA ignore DaemonSet pods when calculating resource utilization for scaling down. false by default
 	IgnoreDaemonsetsUtilization *bool `json:"ignoreDaemonsetsUtilization,omitempty"`

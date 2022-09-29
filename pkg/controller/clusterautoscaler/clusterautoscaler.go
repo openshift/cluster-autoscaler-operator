@@ -59,6 +59,7 @@ const (
 	GPUTotalArg                      AutoscalerArg = "--gpu-total"
 	VerbosityArg                     AutoscalerArg = "--v"
 	BalanceSimilarNodeGroupsArg      AutoscalerArg = "--balance-similar-node-groups"
+	BalancingIgnoreLabelArg          AutoscalerArg = "--balancing-ignore-label"
 	IgnoreDaemonsetsUtilization      AutoscalerArg = "--ignore-daemonsets-utilization"
 	SkipNodesWithLocalStorage        AutoscalerArg = "--skip-nodes-with-local-storage"
 	LeaderElectLeaseDurationArg      AutoscalerArg = "--leader-elect-lease-duration"
@@ -114,6 +115,10 @@ func AutoscalerArgs(ca *v1.ClusterAutoscaler, cfg *Config) []string {
 
 	if ca.Spec.SkipNodesWithLocalStorage != nil {
 		args = append(args, SkipNodesWithLocalStorage.Value(*ca.Spec.SkipNodesWithLocalStorage))
+	}
+
+	for _, ignoredLabel := range ca.Spec.BalancingIgnoredLabels {
+		args = append(args, BalancingIgnoreLabelArg.Value(ignoredLabel))
 	}
 
 	// Prefer log level set from ClousterAutoscaler resource
