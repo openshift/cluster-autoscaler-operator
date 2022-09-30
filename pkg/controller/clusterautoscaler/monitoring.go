@@ -199,31 +199,31 @@ true then the cluster autoscaler will enter an unsafe to scale state until the c
 						},
 						{
 							Alert: "ClusterAutoscalerUnableToScaleCPULimitReached",
-							Expr:  intstr.FromString("cluster_autoscaler_cluster_cpu_current_cores >= cluster_autoscaler_cpu_limits_cores{direction=\"maximum\"}"),
+							Expr:  intstr.FromString("increase(cluster_autoscaler_skipped_scale_events_count{direction=\"up\",reason=\"CpuResourceLimit\"}[15]) > 0"),
 
 							For: "15m",
 							Labels: map[string]string{
 								"severity": "info",
 							},
 							Annotations: map[string]string{
-								"summary": "Cluster Autoscaler has reached its CPU core limit and is unable to scale out",
+								"summary": "Cluster Autoscaler has reached its maximum CPU core limit and is unable to scale out",
 								"description": `The number of total cores in the cluster has exceeded the maximum number set on the
 cluster autoscaler. This is calculated by summing the cpu capacity for all nodes in the cluster and comparing that number against the maximum cores value set for the
-cluster autoscaler (default 320000 cores).`,
+cluster autoscaler (default 320000 cores). Limits can be adjusted by modifying the ClusterAutoscaler resource.`,
 							},
 						},
 						{
 							Alert: "ClusterAutoscalerUnableToScaleMemoryLimitReached",
-							Expr:  intstr.FromString("cluster_autoscaler_cluster_memory_current_bytes >= cluster_autoscaler_memory_limits_bytes{direction=\"maximum\"}"),
+							Expr:  intstr.FromString("increase(cluster_autoscaler_skipped_scale_events_count{direction=\"up\",reason=\"MemoryResourceLimit\"}[15]) > 0"),
 							For:   "15m",
 							Labels: map[string]string{
 								"severity": "info",
 							},
 							Annotations: map[string]string{
-								"summary": "Cluster Autoscaler has reached its Memory bytes limit and is unable to scale out",
+								"summary": "Cluster Autoscaler has reached its maximum Memory bytes limit and is unable to scale out",
 								"description": `The number of total bytes of RAM in the cluster has exceeded the maximum number set on
 the cluster autoscaler. This is calculated by summing the memory capacity for all nodes in the cluster and comparing that number against the maximum memory bytes value set
-for the cluster autoscaler (default 6400000 gigabytes).`,
+for the cluster autoscaler (default 6400000 gigabytes). Limits can be adjusted by modifying the ClusterAutoscaler resource.`,
 							},
 						},
 					},
