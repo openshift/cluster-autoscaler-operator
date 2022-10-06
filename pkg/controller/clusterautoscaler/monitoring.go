@@ -199,7 +199,7 @@ true then the cluster autoscaler will enter an unsafe to scale state until the c
 						},
 						{
 							Alert: "ClusterAutoscalerUnableToScaleCPULimitReached",
-							Expr:  intstr.FromString("increase(cluster_autoscaler_skipped_scale_events_count{direction=\"up\",reason=\"CpuResourceLimit\"}[15]) > 0"),
+							Expr:  intstr.FromString("increase(cluster_autoscaler_skipped_scale_events_count{direction=\"up\",reason=\"CpuResourceLimit\"}[15m]) > 0"),
 
 							For: "15m",
 							Labels: map[string]string{
@@ -214,7 +214,7 @@ cluster autoscaler (default 320000 cores). Limits can be adjusted by modifying t
 						},
 						{
 							Alert: "ClusterAutoscalerUnableToScaleMemoryLimitReached",
-							Expr:  intstr.FromString("increase(cluster_autoscaler_skipped_scale_events_count{direction=\"up\",reason=\"MemoryResourceLimit\"}[15]) > 0"),
+							Expr:  intstr.FromString("increase(cluster_autoscaler_skipped_scale_events_count{direction=\"up\",reason=\"MemoryResourceLimit\"}[15m]) > 0"),
 							For:   "15m",
 							Labels: map[string]string{
 								"severity": "info",
