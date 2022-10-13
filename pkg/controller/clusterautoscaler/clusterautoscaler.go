@@ -42,6 +42,7 @@ func (a AutoscalerArg) TypeRange(t string, min, max int) string {
 // operator when processing ClusterAutoscaler resources.
 const (
 	LogToStderrArg                   AutoscalerArg = "--logtostderr"
+	RecordDuplicatedEventsArg        AutoscalerArg = "--record-duplicated-events"
 	NamespaceArg                     AutoscalerArg = "--namespace"
 	CloudProviderArg                 AutoscalerArg = "--cloud-provider"
 	MaxGracefulTerminationSecArg     AutoscalerArg = "--max-graceful-termination-sec"
@@ -75,6 +76,7 @@ func AutoscalerArgs(ca *v1.ClusterAutoscaler, cfg *Config) []string {
 
 	args := []string{
 		LogToStderrArg.String(),
+		RecordDuplicatedEventsArg.String(),
 		CloudProviderArg.Value(cfg.CloudProvider),
 		NamespaceArg.Value(cfg.Namespace),
 		LeaderElectLeaseDurationArg.Value(leaderElectLeaseDuration),
