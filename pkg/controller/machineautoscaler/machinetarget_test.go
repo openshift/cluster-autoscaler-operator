@@ -82,9 +82,11 @@ func TestNeedsUpdate(t *testing.T) {
 	}
 
 	// add label
-	target.SetLabels(map[string]string{
+	gpulabel := map[string]string{
 		autoscalerGPUAcceleratorLabel: "",
-	})
+	}
+	target.SetLabels(gpulabel)
+	unstructured.SetNestedStringMap(target.Object, gpulabel, "spec", "template", "spec", "metadata", "labels")
 	if target.NeedsUpdate(4, 6) {
 		t.Errorf("target should not need an update, gpu capacity with label")
 	}
@@ -341,9 +343,12 @@ func TestHasGPUAcceleratorLabel(t *testing.T) {
 		t.Error("HasGPUAcceleratorLabel return true when false was expected, no label")
 	}
 
-	target.SetLabels(map[string]string{
+	gpulabel := map[string]string{
 		autoscalerGPUAcceleratorLabel: "",
-	})
+	}
+	target.SetLabels(gpulabel)
+	unstructured.SetNestedStringMap(target.Object, gpulabel, "spec", "template", "spec", "metadata", "labels")
+
 	if !target.HasGPUAcceleratorLabel() {
 		t.Error("HasGPUAcceleratorLabel return false when true was expected, label present")
 	}
