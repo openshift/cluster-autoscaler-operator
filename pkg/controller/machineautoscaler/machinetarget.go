@@ -263,8 +263,13 @@ func (mt *MachineTarget) HasGPUCapacity() bool {
 func (mt *MachineTarget) HasGPUAcceleratorLabel() bool {
 	labels := mt.GetLabels()
 	// the value of this label is not used, only its presence
-	_, found := labels[autoscalerGPUAcceleratorLabel]
-	return found
+	_, foundInMeta := labels[autoscalerGPUAcceleratorLabel]
+
+	labels, _, _ = unstructured.NestedStringMap(mt.Object, "spec", "template", "spec", "metadata", "labels")
+	// the value of this label is not used, only its presence
+	_, foundInSpecMeta := labels[autoscalerGPUAcceleratorLabel]
+
+	return foundInMeta && foundInSpecMeta
 }
 
 // SetGPUAcceleratorLabel adds the label to inform the autoscaler that it
@@ -279,4 +284,17 @@ func (mt *MachineTarget) SetGPUAcceleratorLabel() {
 	labels[autoscalerGPUAcceleratorLabel] = ""
 
 	mt.SetLabels(labels)
+
+	// because we need new nodes created from this machineset to also have the accerlator
+	// label, we add it specifically to the .spec.template.spec.metadata.labels as well.
+	// this will ensure that the autoscaler knows these nodes will eventually have a GPU.
+	nodelabels, _, _ := unstructured.NestedStringMap(mt.Object, "spec", "template", "spec", "metadata", "labels")
+
+	if nodelabels == nil {
+		nodelabels = make(map[string]string)
+	}
+
+	nodelabels[autoscalerGPUAcceleratorLabel] = ""
+
+	unstructured.SetNestedStringMap(mt.Object, nodelabels, "spec", "template", "spec", "metadata", "labels")
 }
