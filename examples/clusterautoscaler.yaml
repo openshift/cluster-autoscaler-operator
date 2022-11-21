@@ -4,7 +4,6 @@ kind: "ClusterAutoscaler"
 metadata:
   name: "default"
 spec:
-  logVerbosity: 1
   balanceSimilarNodeGroups: true
   ignoreDaemonsetsUtilization: false
   skipNodesWithLocalStorage: true
