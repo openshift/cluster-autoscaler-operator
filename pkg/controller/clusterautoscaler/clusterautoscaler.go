@@ -2,6 +2,7 @@ package clusterautoscaler
 
 import (
 	"fmt"
+	"strings"
 
 	v1 "github.com/openshift/cluster-autoscaler-operator/pkg/apis/autoscaling/v1"
 )
@@ -109,6 +110,17 @@ func AutoscalerArgs(ca *v1.ClusterAutoscaler, cfg *Config) []string {
 
 	if ca.Spec.BalanceSimilarNodeGroups != nil {
 		args = append(args, BalanceSimilarNodeGroupsArg.Value(*ca.Spec.BalanceSimilarNodeGroups))
+
+		switch strings.ToLower(cfg.CloudProvider) {
+		case "alibabacloud":
+			args = append(args, BalancingIgnoreLabelArg.Value("topology.diskplugin.csi.alibabacloud.com/zone"))
+		case "aws":
+			args = append(args, BalancingIgnoreLabelArg.Value("topology.ebs.csi.aws.com/zone"))
+		case "azure":
+			args = append(args, BalancingIgnoreLabelArg.Value("topology.disk.csi.azure.com/zone"))
+		case "gcp":
+			args = append(args, BalancingIgnoreLabelArg.Value("topology.gke.io/zone"))
+		}
 	}
 
 	if ca.Spec.IgnoreDaemonsetsUtilization != nil {
