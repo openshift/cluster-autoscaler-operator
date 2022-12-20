@@ -3,6 +3,7 @@ package clusterautoscaler
 import (
 	"fmt"
 
+	configv1 "github.com/openshift/api/config/v1"
 	v1 "github.com/openshift/cluster-autoscaler-operator/pkg/apis/autoscaling/v1"
 )
 
@@ -68,6 +69,95 @@ const (
 	LeaderElectRetryPeriodArg        AutoscalerArg = "--leader-elect-retry-period"
 )
 
+// The following values are for cloud providers which have not yet created specific nodegroupset processors.
+// These values should be removed and replaced in the event that one of the cloud providers creates a nodegroupset processor.
+
+// AWS cloud provider ignore labels for the autoscaler.
+const (
+	// AwsIgnoredLabelEksctlInstanceId  is a label used by eksctl to identify instances.
+	AwsIgnoredLabelEksctlInstanceId = "alpha.eksctl.io/instance-id"
+
+	// AwsIgnoredLabelEksctlNodegroupName is a label used by eksctl to identify "node group" names.
+	AwsIgnoredLabelEksctlNodegroupName = "alpha.eksctl.io/nodegroup-name"
+
+	// AwsIgnoredLabelEksNodegroup is a label used by eks to identify "node group".
+	AwsIgnoredLabelEksNodegroup = "eks.amazonaws.com/nodegroup"
+
+	// AwsIgnoredLabelK8sEniconfig is a label used by the AWS CNI for custom networking.
+	AwsIgnoredLabelK8sEniconfig = "k8s.amazonaws.com/eniConfig"
+
+	// AwsIgnoredLabelLifecycle is a label used by the AWS for spot.
+	AwsIgnoredLabelLifecycle = "lifecycle"
+
+	// AwsIgnoredLabelEbsCsiZone is a label used by the AWS EBS CSI driver as a target for Persistent Volume Node Affinity.
+	AwsIgnoredLabelEbsCsiZone = "topology.ebs.csi.aws.com/zone"
+)
+
+// IBM cloud provider ignore labels for the autoscaler.
+const (
+	// IbmcloudIgnoredLabelWorkerId is a label used by the IBM Cloud Cloud Controler Manager.
+	IbmcloudIgnoredLabelWorkerId = "ibm-cloud.kubernetes.io/worker-id"
+
+	// IbmcloudIgnoredLabelVpcBlockCsi is a label used by the IBM Cloud CSI driver as a target for Persisten Volume Node Affinity.
+	IbmcloudIgnoredLabelVpcBlockCsi = "vpc-block-csi-driver-labels"
+
+	// IbmcloudIgnoredLabelVpcInstanceId on IBM Cloud when a VPC is in use.
+	IbmcloudIgnoredLabelVpcInstanceId = "ibm-cloud.kubernetes.io/vpc-instance-id"
+)
+
+// GCP cloud provider ignore labels for the autoscaler.
+const (
+	// GceIgnoredLabelGkeZone label is used to specify the zone of the instance.
+	GceIgnoredLabelGkeZone = "topology.gke.io/zone"
+)
+
+// Azure cloud provider ignore labels for the autoscaler.
+const (
+	// AzureDiskTopologyKey is the topology key of Azure Disk CSI driver.
+	AzureDiskTopologyKey = "topology.disk.csi.azure.com/zone"
+
+	// AzureNodepoolLegacyLabel is a label specifying which Azure node pool a particular node belongs to.
+	AzureNodepoolLegacyLabel = "agentpool"
+
+	// AzureNodepoolLabel is an AKS label specifying which nodepool a particular node belongs to.
+	AzureNodepoolLabel = "kubernetes.azure.com/agentpool"
+)
+
+// Alibaba cloud provider ignore labels for the autoscaler.
+const (
+	// AlicloudIgnoredLabelCsiZone is a label used by the Alibaba Cloud CSI driver as a target for Persistent Volume Node Affinity.
+	AlicloudIgnoredLabelCsiZone = "topology.diskplugin.csi.alibabacloud.com/zone"
+)
+
+// AppendBasicIgnoreLabels appends ignore labels for specific cloud provider to the arguments
+// so the autoscaler can use these labels without the user having to input them manually.
+func appendBasicIgnoreLabels(args []string, cfg *Config) []string {
+	switch cfg.platformType {
+	case configv1.AlibabaCloudPlatformType:
+		args = append(args, BalancingIgnoreLabelArg.Value(AlicloudIgnoredLabelCsiZone))
+	case configv1.AWSPlatformType:
+		args = append(args, BalancingIgnoreLabelArg.Value(AwsIgnoredLabelEbsCsiZone),
+			BalancingIgnoreLabelArg.Value(AwsIgnoredLabelLifecycle),
+			BalancingIgnoreLabelArg.Value(AwsIgnoredLabelK8sEniconfig),
+			BalancingIgnoreLabelArg.Value(AwsIgnoredLabelEksNodegroup),
+			BalancingIgnoreLabelArg.Value(AwsIgnoredLabelEksctlNodegroupName),
+			BalancingIgnoreLabelArg.Value(AwsIgnoredLabelEksctlInstanceId))
+	case configv1.AzurePlatformType:
+		args = append(args, BalancingIgnoreLabelArg.Value(AzureDiskTopologyKey),
+			BalancingIgnoreLabelArg.Value(AzureNodepoolLegacyLabel),
+			BalancingIgnoreLabelArg.Value(AzureNodepoolLabel),
+		)
+	case configv1.GCPPlatformType:
+		args = append(args, BalancingIgnoreLabelArg.Value(GceIgnoredLabelGkeZone))
+	case configv1.IBMCloudPlatformType:
+		args = append(args, BalancingIgnoreLabelArg.Value(IbmcloudIgnoredLabelWorkerId),
+			BalancingIgnoreLabelArg.Value(IbmcloudIgnoredLabelVpcBlockCsi),
+			BalancingIgnoreLabelArg.Value(IbmcloudIgnoredLabelVpcInstanceId))
+	}
+
+	return args
+}
+
 // AutoscalerArgs returns a slice of strings representing command line arguments
 // to the cluster-autoscaler corresponding to the values in the given
 // ClusterAutoscaler resource.
@@ -109,6 +199,9 @@ func AutoscalerArgs(ca *v1.ClusterAutoscaler, cfg *Config) []string {
 
 	if ca.Spec.BalanceSimilarNodeGroups != nil {
 		args = append(args, BalanceSimilarNodeGroupsArg.Value(*ca.Spec.BalanceSimilarNodeGroups))
+
+		// Append basic ignore labels for a specific cloud provider.
+		args = appendBasicIgnoreLabels(args, cfg)
 	}
 
 	if ca.Spec.IgnoreDaemonsetsUtilization != nil {
