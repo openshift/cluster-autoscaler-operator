@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	configv1 "github.com/openshift/api/config/v1"
 	autoscalingv1 "github.com/openshift/cluster-autoscaler-operator/pkg/apis/autoscaling/v1"
 	"github.com/openshift/cluster-autoscaler-operator/pkg/util"
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
@@ -37,6 +38,7 @@ const (
 	CAPIGroup           = "machine.openshift.io"
 	CAPIVersionEnvVar   = "CAPI_VERSION"
 	CAPIVersion         = "v1beta1"
+	infrastructureName  = "cluster"
 )
 
 // NewReconciler returns a new Reconciler.
@@ -68,6 +70,8 @@ type Config struct {
 	Verbosity int
 	// Additional arguments passed to the cluster-autoscaler.
 	ExtraArgs string
+	// The provider type for the specific cloud provider of the OpenShift install.
+	platformType configv1.PlatformType
 }
 
 var _ reconcile.Reconciler = &Reconciler{}
@@ -289,6 +293,13 @@ func (r *Reconciler) UpdateAutoscaler(ca *autoscalingv1.ClusterAutoscaler) error
 		return err
 	}
 
+	// Update the cluster provider type.
+	platformType, err := r.getPlatformType()
+	if err != nil {
+		return err
+	}
+	r.config.platformType = platformType
+
 	existingSpec := existingDeployment.Spec.Template.Spec
 	expectedSpec := r.AutoscalerPodSpec(ca)
 
@@ -469,4 +480,13 @@ func (r *Reconciler) objectReference(obj runtime.Object) *corev1.ObjectReference
 	}
 
 	return ref
+}
+
+func (r *Reconciler) getPlatformType() (configv1.PlatformType, error) {
+	infrastructure := &configv1.Infrastructure{}
+	if err := r.client.Get(context.TODO(), client.ObjectKey{Name: infrastructureName}, infrastructure); err != nil {
+		return "", fmt.Errorf("unable to get infrastructure object: %w", err)
+	}
+
+	return infrastructure.Status.PlatformStatus.Type, nil
 }

@@ -2,8 +2,8 @@ package clusterautoscaler
 
 import (
 	"fmt"
-	"strings"
 
+	configv1 "github.com/openshift/api/config/v1"
 	v1 "github.com/openshift/cluster-autoscaler-operator/pkg/apis/autoscaling/v1"
 )
 
@@ -132,24 +132,24 @@ const (
 // AppendBasicIgnoreLabels appends ignore labels for specific cloud provider to the arguments
 // so the autoscaler can use these labels without the user having to input them manually.
 func appendBasicIgnoreLabels(args []string, cfg *Config) []string {
-	switch strings.ToLower(cfg.CloudProvider) {
-	case "alibabacloud":
+	switch cfg.platformType {
+	case configv1.AlibabaCloudPlatformType:
 		args = append(args, BalancingIgnoreLabelArg.Value(AlicloudIgnoredLabelCsiZone))
-	case "aws":
+	case configv1.AWSPlatformType:
 		args = append(args, BalancingIgnoreLabelArg.Value(AwsIgnoredLabelEbsCsiZone),
 			BalancingIgnoreLabelArg.Value(AwsIgnoredLabelLifecycle),
 			BalancingIgnoreLabelArg.Value(AwsIgnoredLabelK8sEniconfig),
 			BalancingIgnoreLabelArg.Value(AwsIgnoredLabelEksNodegroup),
 			BalancingIgnoreLabelArg.Value(AwsIgnoredLabelEksctlNodegroupName),
 			BalancingIgnoreLabelArg.Value(AwsIgnoredLabelEksctlInstanceId))
-	case "azure":
+	case configv1.AzurePlatformType:
 		args = append(args, BalancingIgnoreLabelArg.Value(AzureDiskTopologyKey),
 			BalancingIgnoreLabelArg.Value(AzureNodepoolLegacyLabel),
 			BalancingIgnoreLabelArg.Value(AzureNodepoolLabel),
 		)
-	case "gcp":
+	case configv1.GCPPlatformType:
 		args = append(args, BalancingIgnoreLabelArg.Value(GceIgnoredLabelGkeZone))
-	case "ibmcloud":
+	case configv1.IBMCloudPlatformType:
 		args = append(args, BalancingIgnoreLabelArg.Value(IbmcloudIgnoredLabelWorkerId),
 			BalancingIgnoreLabelArg.Value(IbmcloudIgnoredLabelVpcBlockCsi),
 			BalancingIgnoreLabelArg.Value(IbmcloudIgnoredLabelVpcInstanceId))

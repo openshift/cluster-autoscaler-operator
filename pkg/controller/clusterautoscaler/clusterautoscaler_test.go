@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	configv1 "github.com/openshift/api/config/v1"
 	"github.com/openshift/cluster-autoscaler-operator/pkg/apis"
 	autoscalingv1 "github.com/openshift/cluster-autoscaler-operator/pkg/apis/autoscaling/v1"
 	"github.com/openshift/cluster-autoscaler-operator/pkg/util"
@@ -64,6 +65,7 @@ var TestReconcilerConfig = Config{
 func init() {
 	apis.AddToScheme(scheme.Scheme)
 	monitoringv1.AddToScheme(scheme.Scheme)
+	configv1.AddToScheme(scheme.Scheme)
 }
 
 func NewClusterAutoscaler() *autoscalingv1.ClusterAutoscaler {
@@ -258,6 +260,22 @@ func newFakeReconciler(initObjects ...runtime.Object) *Reconciler {
 // api; that failure mode is not currently captured in this test.
 func TestReconcile(t *testing.T) {
 	ca := NewClusterAutoscaler()
+	ca.ObjectMeta.Name = "cluster"
+	infrastructure := &configv1.Infrastructure{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Infrastructure",
+			APIVersion: "config.openshift.io/v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "my-infrastructure",
+			Namespace: TestNamespace,
+		},
+		Status: configv1.InfrastructureStatus{
+			PlatformStatus: &configv1.PlatformStatus{
+				Type: configv1.AWSPlatformType,
+			},
+		},
+	}
 	dep1 := appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "cluster-autoscaler-test",
@@ -319,7 +337,7 @@ func TestReconcile(t *testing.T) {
 		},
 	}
 	for i, tc := range tCases {
-		r := newFakeReconciler(ca, tc.d)
+		r := newFakeReconciler(ca, tc.d, infrastructure)
 		r.SetConfig(tc.c)
 		res, err := r.Reconcile(context.TODO(), req)
 		assert.Equal(t, tc.expectedRes, res, "case %v: expected res incorrect", i)
