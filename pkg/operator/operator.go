@@ -72,6 +72,10 @@ func New(cfg *Config) (*Operator, error) {
 		return nil, fmt.Errorf("failed to register monitoring types: %v", err)
 	}
 
+	if err := configv1.AddToScheme(operator.manager.GetScheme()); err != nil {
+		return nil, fmt.Errorf("failed to register configv1 types: %v", err)
+	}
+
 	// Setup our controllers and add them to the manager.
 	if err := operator.AddControllers(); err != nil {
 		return nil, fmt.Errorf("failed to add controllers: %v", err)
