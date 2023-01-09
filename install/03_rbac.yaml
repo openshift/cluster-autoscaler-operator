@@ -29,6 +29,7 @@ rules:
   - create
   - get
   - update
+  - list
 - apiGroups: ["authentication.k8s.io"]
   resources:
   - tokenreviews
