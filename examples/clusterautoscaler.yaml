@@ -6,6 +6,7 @@ metadata:
 spec:
   logVerbosity: 1
   balanceSimilarNodeGroups: true
+  expander: "random"
   ignoreDaemonsetsUtilization: false
   skipNodesWithLocalStorage: true
   podPriorityThreshold: -10

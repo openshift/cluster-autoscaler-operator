@@ -16,6 +16,12 @@ type ClusterAutoscalerSpec struct {
 	// Configuration of scale down operation
 	ScaleDown *ScaleDownConfig `json:"scaleDown,omitempty"`
 
+	// Sets `--expander=<expander name>` CA feature flag. This feature provide
+	// strategies for selecting the node group to which new nodes will be added. 5
+	// expanders now: `random`, `most-pods`, `least-waste`, `price`, `priority`.
+	// `random` by default.
+	Expander string `json:"expander,omitempty"`
+
 	// Gives pods graceful termination time before scaling down
 	MaxPodGracePeriod *int32 `json:"maxPodGracePeriod,omitempty"`
 

@@ -67,6 +67,7 @@ const (
 	LeaderElectLeaseDurationArg      AutoscalerArg = "--leader-elect-lease-duration"
 	LeaderElectRenewDeadlineArg      AutoscalerArg = "--leader-elect-renew-deadline"
 	LeaderElectRetryPeriodArg        AutoscalerArg = "--leader-elect-retry-period"
+	ExpanderArg                      AutoscalerArg = "--expander"
 )
 
 // The following values are for cloud providers which have not yet created specific nodegroupset processors.
@@ -181,6 +182,11 @@ func AutoscalerArgs(ca *v1.ClusterAutoscaler, cfg *Config) []string {
 
 	if ca.Spec.MaxNodeProvisionTime != "" {
 		v := MaxNodeProvisionTimeArg.Value(s.MaxNodeProvisionTime)
+		args = append(args, v)
+	}
+
+	if ca.Spec.Expander != "" {
+		v := ExpanderArg.Value(s.Expander)
 		args = append(args, v)
 	}
 

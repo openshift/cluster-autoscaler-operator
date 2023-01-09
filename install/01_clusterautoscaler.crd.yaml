@@ -56,6 +56,12 @@ spec:
                 items:
                   type: string
                 type: array
+              expander:
+                description: Sets `--expander=<expander name>` CA feature flag. This feature provide
+                  strategies for selecting the node group to which new nodes will be added. 5
+                  expanders now: `random`, `most-pods`, `least-waste`, `price`, `priority`.
+                  `random` by default. 
+                type: string
               ignoreDaemonsetsUtilization:
                 description: Enables/Disables `--ignore-daemonsets-utilization` CA
                   feature flag. Should CA ignore DaemonSet pods when calculating resource

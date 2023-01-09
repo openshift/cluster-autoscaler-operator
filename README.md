@@ -33,6 +33,7 @@ The operator manages the following custom resources:
       --leader-elect-lease-duration=137s
       --leader-elect-renew-deadline=107s
       --leader-elect-retry-period=26s
+      --expander=random
       --expendable-pods-priority-cutoff=-10
       --max-nodes-total=24
       --cores-total=8:128
