@@ -25,6 +25,7 @@ rules:
   resources:
   - clusteroperators
   - clusteroperators/status
+  - infrastructures
   verbs:
   - create
   - get
