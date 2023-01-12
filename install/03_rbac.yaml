@@ -25,11 +25,17 @@ rules:
   resources:
   - clusteroperators
   - clusteroperators/status
-  - infrastructures
   verbs:
   - create
   - get
   - update
+  - list
+- apiGroups:
+  - config.openshift.io
+  resources:
+  - infrastructures
+  verbs:
+  - get
   - list
   - watch
 - apiGroups: ["authentication.k8s.io"]
