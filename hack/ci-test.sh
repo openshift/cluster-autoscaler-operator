@@ -34,7 +34,7 @@ if [ $HOME == "/" ]; then
 fi
 
 if [ "$OPENSHIFT_CI" == "true" ] && [ -n "$ARTIFACT_DIR" ] && [ -d "$ARTIFACT_DIR" ]; then # detect ci environment there
-  GINKGO_ARGS="${GINKGO_ARGS} --junit-report=junit_machine_api_provider_azure.xml --cover --coverprofile=test-unit-coverage.out --output-dir=${ARTIFACT_DIR}"
+  GINKGO_ARGS="${GINKGO_ARGS} --junit-report=junit_cluster_autoscaler_operator.xml --cover --coverprofile=test-unit-coverage.out --output-dir=${ARTIFACT_DIR}"
 fi
 
 # Print the command we are going to run as Make would.
