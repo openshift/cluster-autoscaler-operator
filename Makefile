@@ -7,7 +7,7 @@ LD_FLAGS    ?= -X $(REPO_PATH)/pkg/version.Raw=$(VERSION)
 BUILD_DEST  ?= bin/cluster-autoscaler-operator
 MUTABLE_TAG ?= latest
 IMAGE        = origin-cluster-autoscaler-operator
-BUILD_IMAGE ?= registry.ci.openshift.org/openshift/release:golang-1.18
+BUILD_IMAGE ?= registry.ci.openshift.org/openshift/release:golang-1.19
 
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
 ENVTEST_K8S_VERSION = 1.26
