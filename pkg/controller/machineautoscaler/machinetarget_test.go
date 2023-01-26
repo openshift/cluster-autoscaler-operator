@@ -71,30 +71,6 @@ func TestNeedsUpdate(t *testing.T) {
 	if !target.NeedsUpdate(1, 2) {
 		t.Fatal("target should need update, error parsing values")
 	}
-
-	// set the gpu capacity, and reset the min/max
-	target.SetAnnotations(map[string]string{
-		autoscalerCapacityGPU: "1",
-	})
-	target.SetLimits(4, 6)
-	if !target.NeedsUpdate(4, 6) {
-		t.Errorf("target should need update, gpu capacity with no label")
-	}
-
-	// add label
-	target.SetLabels(map[string]string{
-		autoscalerGPUAcceleratorLabel: "",
-	})
-	if target.NeedsUpdate(4, 6) {
-		t.Errorf("target should not need an update, gpu capacity with label")
-	}
-
-	// reset the gpu capacity
-	target.SetAnnotations(map[string]string{})
-	target.SetLimits(4, 6)
-	if target.NeedsUpdate(4, 6) {
-		t.Errorf("target should not need an update, no gpu capacity with label")
-	}
 }
 
 func TestSetLimits(t *testing.T) {
@@ -305,59 +281,5 @@ func TestNamespacedName(t *testing.T) {
 	if nn.Namespace != TargetNamespace {
 		t.Errorf("NamespacedName() returned bad namespace. Got: %s, Want: %s",
 			nn.Namespace, TargetNamespace)
-	}
-}
-
-func TestHasGPUCapacity(t *testing.T) {
-	target := NewTarget()
-	target.SetAnnotations(map[string]string{
-		autoscalerCapacityGPU: "1",
-	})
-
-	if !target.HasGPUCapacity() {
-		t.Error("HasGPUCapacity returned false when true was expected, 1 GPU")
-	}
-
-	target.SetAnnotations(map[string]string{
-		autoscalerCapacityGPU: "0",
-	})
-
-	if target.HasGPUCapacity() {
-		t.Error("HasGPUCapacity returned true when false was expected, 0 GPU")
-	}
-
-	target.SetAnnotations(map[string]string{
-		autoscalerCapacityGPU: "-1",
-	})
-
-	if target.HasGPUCapacity() {
-		t.Error("HasGPUCapacity returned true when false was expected, -1 GPU")
-	}
-}
-
-func TestHasGPUAcceleratorLabel(t *testing.T) {
-	target := NewTarget()
-	if target.HasGPUAcceleratorLabel() {
-		t.Error("HasGPUAcceleratorLabel return true when false was expected, no label")
-	}
-
-	target.SetLabels(map[string]string{
-		autoscalerGPUAcceleratorLabel: "",
-	})
-	if !target.HasGPUAcceleratorLabel() {
-		t.Error("HasGPUAcceleratorLabel return false when true was expected, label present")
-	}
-}
-
-func TestSetGPUAcceleratorLabel(t *testing.T) {
-	target := NewTarget()
-
-	if target.HasGPUAcceleratorLabel() {
-		t.Error("Target has GPU accelerator label when not expected")
-	}
-
-	target.SetGPUAcceleratorLabel()
-	if !target.HasGPUAcceleratorLabel() {
-		t.Error("Target does not have GPU accelerator label when expected")
 	}
 }

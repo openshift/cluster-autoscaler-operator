@@ -403,14 +403,9 @@ func (r *Reconciler) GetTarget(ref *corev1.ObjectReference) (*MachineTarget, err
 
 // UpdateTarget updates the min and max annotations on the given target.
 func (r *Reconciler) UpdateTarget(target *MachineTarget, min, max int) error {
-	// Update the target object's annotations and labels if necessary.
+	// Update the target object's annotations if necessary.
 	if target.NeedsUpdate(min, max) {
 		target.SetLimits(min, max)
-
-		// TODO (elmiko) remove this code path once all the infrastructure providers support adding the accelerator label
-		if target.HasGPUCapacity() && !target.HasGPUAcceleratorLabel() {
-			target.SetGPUAcceleratorLabel()
-		}
 
 		return r.client.Update(context.TODO(), target.ToUnstructured())
 	}
