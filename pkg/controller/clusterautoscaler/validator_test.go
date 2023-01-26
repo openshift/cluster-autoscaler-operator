@@ -12,20 +12,23 @@ func TestValidate(t *testing.T) {
 	ca := NewClusterAutoscaler()
 
 	testCases := []struct {
-		label      string
-		expectedOk bool
-		caFunc     func() *autoscalingv1.ClusterAutoscaler
+		label            string
+		expectedOk       bool
+		expectedWarnings bool
+		caFunc           func() *autoscalingv1.ClusterAutoscaler
 	}{
 		{
-			label:      "ClusterAutoscaler is valid",
-			expectedOk: true,
+			label:            "ClusterAutoscaler is valid",
+			expectedOk:       true,
+			expectedWarnings: false,
 			caFunc: func() *autoscalingv1.ClusterAutoscaler {
 				return ca.DeepCopy()
 			},
 		},
 		{
-			label:      "ClusterAutoscaler name is invalid",
-			expectedOk: false,
+			label:            "ClusterAutoscaler name is invalid",
+			expectedOk:       false,
+			expectedWarnings: false,
 			caFunc: func() *autoscalingv1.ClusterAutoscaler {
 				ca := ca.DeepCopy()
 				ca.SetName("invalid-name")
@@ -33,8 +36,9 @@ func TestValidate(t *testing.T) {
 			},
 		},
 		{
-			label:      "ClusterAutoscaler has negative MaxNodesTotal",
-			expectedOk: false,
+			label:            "ClusterAutoscaler has negative MaxNodesTotal",
+			expectedOk:       false,
+			expectedWarnings: false,
 			caFunc: func() *autoscalingv1.ClusterAutoscaler {
 				ca := ca.DeepCopy()
 				ca.Spec.ResourceLimits.MaxNodesTotal = pointer.Int32Ptr(-10)
@@ -42,8 +46,9 @@ func TestValidate(t *testing.T) {
 			},
 		},
 		{
-			label:      "ClusterAutoscaler has negative Cores",
-			expectedOk: false,
+			label:            "ClusterAutoscaler has negative Cores",
+			expectedOk:       false,
+			expectedWarnings: false,
 			caFunc: func() *autoscalingv1.ClusterAutoscaler {
 				ca := ca.DeepCopy()
 				ca.Spec.ResourceLimits.Cores.Min = -10
@@ -52,8 +57,9 @@ func TestValidate(t *testing.T) {
 			},
 		},
 		{
-			label:      "ClusterAutoscaler has Max Cores lower than Min",
-			expectedOk: false,
+			label:            "ClusterAutoscaler has Max Cores lower than Min",
+			expectedOk:       false,
+			expectedWarnings: false,
 			caFunc: func() *autoscalingv1.ClusterAutoscaler {
 				ca := ca.DeepCopy()
 				ca.Spec.ResourceLimits.Cores.Min = 100
@@ -62,8 +68,9 @@ func TestValidate(t *testing.T) {
 			},
 		},
 		{
-			label:      "ClusterAutoscaler has Max GPU lower than Min",
-			expectedOk: false,
+			label:            "ClusterAutoscaler has Max GPU lower than Min",
+			expectedOk:       false,
+			expectedWarnings: false,
 			caFunc: func() *autoscalingv1.ClusterAutoscaler {
 				ca := ca.DeepCopy()
 				ca.Spec.ResourceLimits.GPUS[0].Min = 100
@@ -72,8 +79,19 @@ func TestValidate(t *testing.T) {
 			},
 		},
 		{
-			label:      "ClusterAutoscaler has invalid ScaleDown durations",
-			expectedOk: false,
+			label:            "ClusterAutoscaler has GPU Type with invalid characters",
+			expectedOk:       true,
+			expectedWarnings: true,
+			caFunc: func() *autoscalingv1.ClusterAutoscaler {
+				ca := ca.DeepCopy()
+				ca.Spec.ResourceLimits.GPUS[0].Type = "nvidia.com/gpu"
+				return ca
+			},
+		},
+		{
+			label:            "ClusterAutoscaler has invalid ScaleDown durations",
+			expectedOk:       false,
+			expectedWarnings: false,
 			caFunc: func() *autoscalingv1.ClusterAutoscaler {
 				ca := ca.DeepCopy()
 				ca.Spec.ScaleDown.DelayAfterAdd = pointer.StringPtr("not-a-duration")
@@ -82,8 +100,9 @@ func TestValidate(t *testing.T) {
 			},
 		},
 		{
-			label:      "ClusterAutoscaler has invalid ScaleDown utilizationThreshold",
-			expectedOk: false,
+			label:            "ClusterAutoscaler has invalid ScaleDown utilizationThreshold",
+			expectedOk:       false,
+			expectedWarnings: false,
 			caFunc: func() *autoscalingv1.ClusterAutoscaler {
 				ca := ca.DeepCopy()
 				ca.Spec.ScaleDown.UtilizationThreshold = pointer.StringPtr("not-a-float-value")
@@ -91,8 +110,9 @@ func TestValidate(t *testing.T) {
 			},
 		},
 		{
-			label:      "ClusterAutoscaler has out of range ScaleDown utilizationThreshold",
-			expectedOk: false,
+			label:            "ClusterAutoscaler has out of range ScaleDown utilizationThreshold",
+			expectedOk:       false,
+			expectedWarnings: false,
 			caFunc: func() *autoscalingv1.ClusterAutoscaler {
 				ca := ca.DeepCopy()
 				ca.Spec.ScaleDown.UtilizationThreshold = pointer.StringPtr("1.5")
@@ -109,8 +129,12 @@ func TestValidate(t *testing.T) {
 				t.Error("validation failed, but err is nil")
 			}
 
+			if tc.expectedWarnings && len(res.Warnings) == 0 {
+				t.Errorf("expected warnings but none were generated")
+			}
+
 			if res.IsValid() != tc.expectedOk {
-				t.Errorf("got %v, want %v, err: %v", res.IsValid(), tc.expectedOk, res.Errors)
+				t.Errorf("invalid resource, got %v, want %v, err: %v", res.IsValid(), tc.expectedOk, res.Errors)
 			}
 		})
 	}
