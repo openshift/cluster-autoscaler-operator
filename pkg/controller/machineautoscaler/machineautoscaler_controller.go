@@ -215,12 +215,12 @@ func (r *Reconciler) Reconcile(_ context.Context, request reconcile.Request) (re
 	}
 
 	// Validate the MachineAutoscaler early and return if any errors are found.
-	if ok, err := r.validator.Validate(ma); !ok {
-		errMsg := fmt.Sprintf("MachineAutoscaler validation error: %v", err)
+	if res := r.validator.Validate(ma); !res.IsValid() {
+		errMsg := fmt.Sprintf("MachineAutoscaler validation error: %v", res.Errors)
 		r.recorder.Event(ma, corev1.EventTypeWarning, "FailedValidation", errMsg)
 		klog.Errorf("%s: %s", request.NamespacedName, errMsg)
 
-		return reconcile.Result{}, err
+		return reconcile.Result{}, res.Errors
 	}
 
 	targetRef := objectReference(ma.Spec.ScaleTargetRef)

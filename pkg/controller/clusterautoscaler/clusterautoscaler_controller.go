@@ -178,12 +178,12 @@ func (r *Reconciler) Reconcile(_ context.Context, request reconcile.Request) (re
 	caRef := r.objectReference(ca)
 
 	// Validate the ClusterAutoscaler early and requeue if any errors are found.
-	if ok, err := r.validator.Validate(ca); !ok {
-		errMsg := fmt.Sprintf("ClusterAutoscaler validation error: %v", err)
+	if res := r.validator.Validate(ca); !res.IsValid() {
+		errMsg := fmt.Sprintf("ClusterAutoscaler validation error: %v", res.Errors)
 		r.recorder.Event(caRef, corev1.EventTypeWarning, "FailedValidation", errMsg)
 		klog.Error(errMsg)
 
-		return reconcile.Result{}, err
+		return reconcile.Result{}, res.Errors
 	}
 
 	existingDeployment, err := r.GetAutoscaler(ca)

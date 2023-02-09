@@ -103,14 +103,14 @@ func TestValidate(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.label, func(t *testing.T) {
-			ok, err := validator.Validate(tc.caFunc())
+			res := validator.Validate(tc.caFunc())
 
-			if !ok && err == nil {
+			if !res.IsValid() && len(res.Errors.Errors()) == 0 {
 				t.Error("validation failed, but err is nil")
 			}
 
-			if ok != tc.expectedOk {
-				t.Errorf("got %v, want %v, err: %v", ok, tc.expectedOk, err)
+			if res.IsValid() != tc.expectedOk {
+				t.Errorf("got %v, want %v, err: %v", res.IsValid(), tc.expectedOk, res.Errors)
 			}
 		})
 	}

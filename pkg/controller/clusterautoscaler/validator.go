@@ -9,6 +9,7 @@ import (
 	"time"
 
 	autoscalingv1 "github.com/openshift/cluster-autoscaler-operator/pkg/apis/autoscaling/v1"
+	util "github.com/openshift/cluster-autoscaler-operator/pkg/util"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/klog/v2"
 
@@ -35,12 +36,12 @@ func NewValidator(name string) *Validator {
 // Validate validates the given ClusterAutoscaler resource and returns a bool
 // indicating whether validation passed, and possibly an aggregate error
 // representing any validation errors found.
-func (v *Validator) Validate(ca *autoscalingv1.ClusterAutoscaler) (bool, utilerrors.Aggregate) {
+func (v *Validator) Validate(ca *autoscalingv1.ClusterAutoscaler) util.ValidatorResponse {
 	var errs []error
 
 	if ca == nil {
 		err := errors.New("ClusterAutoscaler is nil")
-		return false, utilerrors.NewAggregate([]error{err})
+		return util.ValidatorResponse{nil, utilerrors.NewAggregate([]error{err})}
 	}
 
 	if ca.GetName() != v.clusterAutoscalerName {
@@ -61,10 +62,10 @@ func (v *Validator) Validate(ca *autoscalingv1.ClusterAutoscaler) (bool, utilerr
 	}
 
 	if len(errs) > 0 {
-		return false, utilerrors.NewAggregate(errs)
+		return util.ValidatorResponse{nil, utilerrors.NewAggregate(errs)}
 	}
 
-	return true, nil
+	return util.ValidatorResponse{nil, nil}
 }
 
 // validateResourceLimits validates ResourceLimits objects.
@@ -160,8 +161,8 @@ func (v *Validator) Handle(ctx context.Context, req admission.Request) admission
 
 	klog.Infof("Validation webhook called for ClustAutoscaler: %s", ca.GetName())
 
-	if ok, err := v.Validate(ca); !ok {
-		return admission.Denied(err.Error())
+	if res := v.Validate(ca); !res.IsValid() {
+		return admission.Denied(res.Errors.Error())
 	}
 
 	return admission.Allowed("ClusterAutoscaler valid")
