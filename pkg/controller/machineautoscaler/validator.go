@@ -30,7 +30,7 @@ func (v *Validator) Validate(ma *autoscalingv1beta1.MachineAutoscaler) util.Vali
 
 	if ma == nil {
 		err := errors.New("MachineAutoscaler is nil")
-		return util.ValidatorResponse{nil, utilerrors.NewAggregate([]error{err})}
+		return util.ValidatorResponse{Warnings: nil, Errors: utilerrors.NewAggregate([]error{err})}
 	}
 
 	if ma.Spec.MinReplicas < 0 || ma.Spec.MaxReplicas < 0 {
@@ -42,7 +42,7 @@ func (v *Validator) Validate(ma *autoscalingv1beta1.MachineAutoscaler) util.Vali
 	}
 
 	if len(errs) > 0 {
-		return util.ValidatorResponse{nil, utilerrors.NewAggregate(errs)}
+		return util.ValidatorResponse{Warnings: nil, Errors: utilerrors.NewAggregate(errs)}
 	}
 
 	return util.ValidatorResponse{}
@@ -58,11 +58,20 @@ func (v *Validator) Handle(ctx context.Context, req admission.Request) admission
 
 	klog.Infof("Validation webhook called for MachineAutoscaler: %s", ma.GetName())
 
-	if res := v.Validate(ma); !res.IsValid() {
-		return admission.Denied(res.Errors.Error())
+	var admRes admission.Response
+
+	valRes := v.Validate(ma)
+	if valRes.IsValid() {
+		admRes = admission.Allowed("MachineAutoscaler valid")
+	} else {
+		admRes = admission.Denied(valRes.Errors.Error())
 	}
 
-	return admission.Allowed("MachineAutoscaler valid")
+	if len(valRes.Warnings) > 0 {
+		admRes = admRes.WithWarnings(valRes.Warnings...)
+	}
+
+	return admRes
 }
 
 // InjectClient injects the client.

@@ -6,13 +6,11 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
-	"strings"
 	"time"
 
 	autoscalingv1 "github.com/openshift/cluster-autoscaler-operator/pkg/apis/autoscaling/v1"
 	util "github.com/openshift/cluster-autoscaler-operator/pkg/util"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
-	validation "k8s.io/apimachinery/pkg/util/validation"
 	"k8s.io/klog/v2"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -81,12 +79,8 @@ func (v *Validator) validateGPULimitsTypes(gpus []autoscalingv1.GPULimit) []stri
 	// strings to return that will give information about the problem and a link to
 	// more information.
 	for _, gpu := range gpus {
-		if errs := validation.IsValidLabelValue(gpu.Type); len(errs) > 0 {
-			// concatenate the strings from IsValidLabelValue() as it can return multiple syntax errors
-			warntext := fmt.Sprintf("Poorly formed value for ResourceLimits.GPUS.Type %s, errors: %s.", gpu.Type, strings.Join(errs, ","))
-			warntext += "This is not an error but could cause resource leaks."
-			warntext += "For more information on the proper use of these values, please see https://access.redhat.com/solutions/6055181"
-			warnings = append(warnings, warntext)
+		if warning := util.IsValidGPUAcceleratorLabel(gpu.Type); len(warning) > 0 {
+			warnings = append(warnings, warning)
 		}
 	}
 
@@ -196,7 +190,7 @@ func (v *Validator) Handle(ctx context.Context, req admission.Request) admission
 	}
 
 	if len(valRes.Warnings) > 0 {
-		admRes.WithWarnings(valRes.Warnings...)
+		admRes = admRes.WithWarnings(valRes.Warnings...)
 	}
 
 	return admRes

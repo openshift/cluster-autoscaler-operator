@@ -6,10 +6,23 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/openshift/cluster-autoscaler-operator/pkg/util"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+)
+
+const (
+	// autoscalerCapacityGPU is the annotation key used by infrastructure providers
+	// to indicate that a machine will have GPU capacity.
+	// ref: https://github.com/openshift/kubernetes-autoscaler/blob/master/cluster-autoscaler/cloudprovider/clusterapi/clusterapi_utils.go#L41
+	autoscalerCapacityGPU = "machine.openshift.io/GPU"
+	// autoscalerGPUAcceleratorLabel is the label name used by the cluster autoscaler
+	// to indicate that a node will have a GPU, this is to help the autoscaler wait for GPU drivers to be installed
+	// ref: https://github.com/openshift/kubernetes-autoscaler/blob/master/cluster-autoscaler/cloudprovider/clusterapi/clusterapi_provider.go#L40
+	autoscalerGPUAcceleratorLabel = "cluster-api/accelerator"
 )
 
 var (
@@ -61,6 +74,8 @@ func (mt *MachineTarget) ToUnstructured() *unstructured.Unstructured {
 // NeedsUpdate indicates whether a target needs to be updates to match
 // the given min and max values. If there is an error reading the current
 // min/max values then this will return true.
+// If the machine target has capacity for GPUs but does not contain the
+// accelerator label then this function will return true.
 func (mt *MachineTarget) NeedsUpdate(min, max int) bool {
 	currentMin, currentMax, err := mt.GetLimits()
 	if err != nil {
@@ -221,4 +236,47 @@ func (mt *MachineTarget) NamespacedName() types.NamespacedName {
 		Name:      mt.GetName(),
 		Namespace: mt.GetNamespace(),
 	}
+}
+
+// HasGPUCapacity returns true if the machine target contains the annotation
+// which indicates that the target will have GPU capacity, and that the
+// value is positive.
+func (mt *MachineTarget) HasGPUCapacity() bool {
+	annotations := mt.GetAnnotations()
+	value, found := annotations[autoscalerCapacityGPU]
+	if found {
+		quantityGPU := resource.MustParse(value)
+		numGPU, converted := quantityGPU.AsInt64()
+		if !converted || numGPU < 1 {
+			found = false
+		}
+	}
+	return found
+}
+
+// WarningForInvalidGPUAcceleratorLabel inspects the target's
+// `.spec.template.spec.metadata.labels` to determine if the value exists and is
+// valid for GPU resource limit usage. If invalid it returns a string containing
+// the warning related to the label. If valid it returns an empty string.
+func (mt *MachineTarget) WarningForInvalidGPUAcceleratorLabel() string {
+	var warning string
+	gpuLabelFound := false
+	gpuLabelValue := ""
+
+	labels, metadataFound, err := unstructured.NestedStringMap(mt.Object, "spec", "template", "spec", "metadata", "labels")
+	if metadataFound {
+		// if the metadata.labels exists, check that the accelerator value exists and is a valid value
+		gpuLabelValue, gpuLabelFound = labels[autoscalerGPUAcceleratorLabel]
+	}
+
+	if !metadataFound || err != nil || !gpuLabelFound {
+		// if there is no metadata, a problem getting it, or the label does not exist, the warning must indicate this condition to the user
+		warning = fmt.Sprintf(util.GPUAcceleratorLabelAbsentWarning, mt.GetKind(), mt.GetName())
+		warning += util.GPUAcceleratorLabelKCSWarning
+	} else if metadataFound && gpuLabelFound {
+		// found a value for the label, check to ensure that it is well formed
+		warning = util.IsValidGPUAcceleratorLabel(gpuLabelValue)
+	}
+
+	return warning
 }
