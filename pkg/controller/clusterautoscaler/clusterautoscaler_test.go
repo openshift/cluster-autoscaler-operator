@@ -30,7 +30,7 @@ import (
 )
 
 const (
-	NvidiaGPU          = "nvidia.com/gpu"
+	NvidiaGPU          = "nvidia.com"
 	TestNamespace      = "test-namespace"
 	TestCloudProvider  = "testProvider"
 	TestReleaseVersion = "v100"

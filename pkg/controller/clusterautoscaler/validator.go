@@ -9,6 +9,7 @@ import (
 	"time"
 
 	autoscalingv1 "github.com/openshift/cluster-autoscaler-operator/pkg/apis/autoscaling/v1"
+	util "github.com/openshift/cluster-autoscaler-operator/pkg/util"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/klog/v2"
 
@@ -35,12 +36,13 @@ func NewValidator(name string) *Validator {
 // Validate validates the given ClusterAutoscaler resource and returns a bool
 // indicating whether validation passed, and possibly an aggregate error
 // representing any validation errors found.
-func (v *Validator) Validate(ca *autoscalingv1.ClusterAutoscaler) (bool, utilerrors.Aggregate) {
-	var errs []error
+func (v *Validator) Validate(ca *autoscalingv1.ClusterAutoscaler) util.ValidatorResponse {
+	errs := []error{}
+	warns := []string{}
 
 	if ca == nil {
 		err := errors.New("ClusterAutoscaler is nil")
-		return false, utilerrors.NewAggregate([]error{err})
+		return util.ValidatorResponse{Warnings: nil, Errors: utilerrors.NewAggregate([]error{err})}
 	}
 
 	if ca.GetName() != v.clusterAutoscalerName {
@@ -52,6 +54,10 @@ func (v *Validator) Validate(ca *autoscalingv1.ClusterAutoscaler) (bool, utilerr
 		if aggErr := v.validateResourceLimits(limits); aggErr != nil {
 			errs = append(errs, aggErr.Errors()...)
 		}
+
+		if gpus := limits.GPUS; gpus != nil {
+			warns = append(warns, v.validateGPULimitsTypes(gpus)...)
+		}
 	}
 
 	if scaleDown := ca.Spec.ScaleDown; scaleDown != nil {
@@ -60,11 +66,25 @@ func (v *Validator) Validate(ca *autoscalingv1.ClusterAutoscaler) (bool, utilerr
 		}
 	}
 
-	if len(errs) > 0 {
-		return false, utilerrors.NewAggregate(errs)
+	return util.ValidatorResponse{Warnings: warns, Errors: utilerrors.NewAggregate(errs)}
+}
+
+// validateGPUTypes validates that the GPU limits Type fields are properly formatted.
+func (v *Validator) validateGPULimitsTypes(gpus []autoscalingv1.GPULimit) []string {
+	warnings := []string{}
+
+	// Because this validation is being added after the original implementation of the CAO
+	// we don't want to make errors on these values because it will cause users with
+	// existing ClusterAutoscaler resources to break. Instead we will create a warning
+	// strings to return that will give information about the problem and a link to
+	// more information.
+	for _, gpu := range gpus {
+		if warning := util.IsValidGPUAcceleratorLabel(gpu.Type); len(warning) > 0 {
+			warnings = append(warnings, warning)
+		}
 	}
 
-	return true, nil
+	return warnings
 }
 
 // validateResourceLimits validates ResourceLimits objects.
@@ -158,13 +178,22 @@ func (v *Validator) Handle(ctx context.Context, req admission.Request) admission
 		return admission.Errored(http.StatusBadRequest, err)
 	}
 
-	klog.Infof("Validation webhook called for ClustAutoscaler: %s", ca.GetName())
+	klog.Infof("Validation webhook called for ClusterAutoscaler: %s", ca.GetName())
 
-	if ok, err := v.Validate(ca); !ok {
-		return admission.Denied(err.Error())
+	var admRes admission.Response
+
+	valRes := v.Validate(ca)
+	if valRes.IsValid() {
+		admRes = admission.Allowed("ClusterAutoscaler valid")
+	} else {
+		admRes = admission.Denied(valRes.Errors.Error())
 	}
 
-	return admission.Allowed("ClusterAutoscaler valid")
+	if len(valRes.Warnings) > 0 {
+		admRes = admRes.WithWarnings(valRes.Warnings...)
+	}
+
+	return admRes
 }
 
 // InjectClient injects the client.

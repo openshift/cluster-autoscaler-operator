@@ -215,12 +215,12 @@ func (r *Reconciler) Reconcile(_ context.Context, request reconcile.Request) (re
 	}
 
 	// Validate the MachineAutoscaler early and return if any errors are found.
-	if ok, err := r.validator.Validate(ma); !ok {
-		errMsg := fmt.Sprintf("MachineAutoscaler validation error: %v", err)
+	if res := r.validator.Validate(ma); !res.IsValid() {
+		errMsg := fmt.Sprintf("MachineAutoscaler validation error: %v", res.Errors)
 		r.recorder.Event(ma, corev1.EventTypeWarning, "FailedValidation", errMsg)
 		klog.Errorf("%s: %s", request.NamespacedName, errMsg)
 
-		return reconcile.Result{}, err
+		return reconcile.Result{}, res.Errors
 	}
 
 	targetRef := objectReference(ma.Spec.ScaleTargetRef)
@@ -402,10 +402,25 @@ func (r *Reconciler) GetTarget(ref *corev1.ObjectReference) (*MachineTarget, err
 }
 
 // UpdateTarget updates the min and max annotations on the given target.
+// If the target needs an update and it contains a GPU resource, and the target
+// is not properly marked to create node that will obey GPU resource limits,
+// then it will emit a warning event letting the user know about this condition
+// so that they may take action if appropriate.
 func (r *Reconciler) UpdateTarget(target *MachineTarget, min, max int) error {
 	// Update the target object's annotations if necessary.
 	if target.NeedsUpdate(min, max) {
 		target.SetLimits(min, max)
+
+		// If the target has GPU capacity, check to see if it is configured
+		// properly for GPU resource limits. If it is not, emit a log message
+		// and a warning event to alert users of potential issues.
+		if target.HasGPUCapacity() {
+			warning := target.WarningForInvalidGPUAcceleratorLabel()
+			if len(warning) > 0 {
+				r.recorder.Event(target, corev1.EventTypeWarning, "InvalidOrMissingGPUAcceleratorLabel", warning)
+				klog.Warningf(warning)
+			}
+		}
 
 		return r.client.Update(context.TODO(), target.ToUnstructured())
 	}

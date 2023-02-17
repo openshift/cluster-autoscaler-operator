@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	autoscalingv1beta1 "github.com/openshift/cluster-autoscaler-operator/pkg/apis/autoscaling/v1beta1"
+	"github.com/openshift/cluster-autoscaler-operator/pkg/util"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -24,12 +25,12 @@ func NewValidator() *Validator {
 }
 
 // Validate validates the given MachineAutoscaler resource.
-func (v *Validator) Validate(ma *autoscalingv1beta1.MachineAutoscaler) (bool, utilerrors.Aggregate) {
+func (v *Validator) Validate(ma *autoscalingv1beta1.MachineAutoscaler) util.ValidatorResponse {
 	var errs []error
 
 	if ma == nil {
 		err := errors.New("MachineAutoscaler is nil")
-		return false, utilerrors.NewAggregate([]error{err})
+		return util.ValidatorResponse{Warnings: nil, Errors: utilerrors.NewAggregate([]error{err})}
 	}
 
 	if ma.Spec.MinReplicas < 0 || ma.Spec.MaxReplicas < 0 {
@@ -41,10 +42,10 @@ func (v *Validator) Validate(ma *autoscalingv1beta1.MachineAutoscaler) (bool, ut
 	}
 
 	if len(errs) > 0 {
-		return false, utilerrors.NewAggregate(errs)
+		return util.ValidatorResponse{Warnings: nil, Errors: utilerrors.NewAggregate(errs)}
 	}
 
-	return true, nil
+	return util.ValidatorResponse{}
 }
 
 // Handle handles HTTP requests for admission webhook servers.
@@ -57,11 +58,20 @@ func (v *Validator) Handle(ctx context.Context, req admission.Request) admission
 
 	klog.Infof("Validation webhook called for MachineAutoscaler: %s", ma.GetName())
 
-	if ok, err := v.Validate(ma); !ok {
-		return admission.Denied(err.Error())
+	var admRes admission.Response
+
+	valRes := v.Validate(ma)
+	if valRes.IsValid() {
+		admRes = admission.Allowed("MachineAutoscaler valid")
+	} else {
+		admRes = admission.Denied(valRes.Errors.Error())
 	}
 
-	return admission.Allowed("MachineAutoscaler valid")
+	if len(valRes.Warnings) > 0 {
+		admRes = admRes.WithWarnings(valRes.Warnings...)
+	}
+
+	return admRes
 }
 
 // InjectClient injects the client.
