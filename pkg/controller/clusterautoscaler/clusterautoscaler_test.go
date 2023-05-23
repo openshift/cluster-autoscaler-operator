@@ -246,7 +246,12 @@ func TestCanGetca(t *testing.T) {
 
 // newFakeReconciler returns a new reconcile.Reconciler with a fake client
 func newFakeReconciler(initObjects ...runtime.Object) *Reconciler {
-	fakeClient := fakeclient.NewFakeClient(initObjects...)
+	fakeClient := fakeclient.
+		NewClientBuilder().
+		WithScheme(scheme.Scheme).
+		WithRuntimeObjects(initObjects...).
+		WithStatusSubresource(&autoscalingv1.ClusterAutoscaler{}).
+		Build()
 	return &Reconciler{
 		client:    fakeClient,
 		scheme:    scheme.Scheme,
@@ -349,6 +354,8 @@ func TestCADeleting(t *testing.T) {
 	ca := NewClusterAutoscaler()
 	now := metav1.Now()
 	ca.DeletionTimestamp = &now
+	// the fake client requires a finalizer when creating an object with a deletion timestamp
+	ca.SetFinalizers([]string{"fake-test-finalizer"})
 
 	req := reconcile.Request{
 		NamespacedName: types.NamespacedName{

@@ -54,7 +54,12 @@ func setTarget(ma *autoscalingv1beta1.MachineAutoscaler, mt *MachineTarget) {
 
 // newFakeReconciler returns a new reconcile.Reconciler with a fake client.
 func newFakeReconciler(cfg Config, initObjects ...runtime.Object) *Reconciler {
-	fakeClient := fakeclient.NewFakeClient(initObjects...)
+	fakeClient := fakeclient.
+		NewClientBuilder().
+		WithScheme(scheme.Scheme).
+		WithRuntimeObjects(initObjects...).
+		WithStatusSubresource(&autoscalingv1beta1.MachineAutoscaler{}).
+		Build()
 	return &Reconciler{
 		client:   fakeClient,
 		scheme:   scheme.Scheme,

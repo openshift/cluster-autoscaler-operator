@@ -114,37 +114,45 @@ func (r *Reconciler) AddToManager(mgr manager.Manager) error {
 	}
 
 	// Watch for changes to primary resource ClusterAutoscaler
-	if err := c.Watch(&source.Kind{Type: &autoscalingv1.ClusterAutoscaler{}}, &handler.EnqueueRequestForObject{}, p); err != nil {
+	if err := c.Watch(source.Kind(mgr.GetCache(), &autoscalingv1.ClusterAutoscaler{}), &handler.EnqueueRequestForObject{}, p); err != nil {
 		return err
 	}
 
 	// Watch for changes to secondary resources owned by a ClusterAutoscaler
-	if err := c.Watch(&source.Kind{Type: &appsv1.Deployment{}}, &handler.EnqueueRequestForOwner{
-		IsController: true,
-		OwnerType:    &autoscalingv1.ClusterAutoscaler{},
-	}); err != nil {
+	if err := c.Watch(source.Kind(mgr.GetCache(), &appsv1.Deployment{}), handler.EnqueueRequestForOwner(
+		mgr.GetScheme(),
+		mgr.GetRESTMapper(),
+		&autoscalingv1.ClusterAutoscaler{},
+		handler.OnlyControllerOwner(),
+	)); err != nil {
 		return err
 	}
 
 	// Watch for changes to monitoring resources owned by a ClusterAutoscaler
-	if err := c.Watch(&source.Kind{Type: &corev1.Service{}}, &handler.EnqueueRequestForOwner{
-		IsController: true,
-		OwnerType:    &autoscalingv1.ClusterAutoscaler{},
-	}); err != nil {
+	if err := c.Watch(source.Kind(mgr.GetCache(), &corev1.Service{}), handler.EnqueueRequestForOwner(
+		mgr.GetScheme(),
+		mgr.GetRESTMapper(),
+		&autoscalingv1.ClusterAutoscaler{},
+		handler.OnlyControllerOwner(),
+	)); err != nil {
 		return err
 	}
 
-	if err := c.Watch(&source.Kind{Type: &monitoringv1.ServiceMonitor{}}, &handler.EnqueueRequestForOwner{
-		IsController: true,
-		OwnerType:    &autoscalingv1.ClusterAutoscaler{},
-	}); err != nil {
+	if err := c.Watch(source.Kind(mgr.GetCache(), &monitoringv1.ServiceMonitor{}), handler.EnqueueRequestForOwner(
+		mgr.GetScheme(),
+		mgr.GetRESTMapper(),
+		&autoscalingv1.ClusterAutoscaler{},
+		handler.OnlyControllerOwner(),
+	)); err != nil {
 		return err
 	}
 
-	return c.Watch(&source.Kind{Type: &monitoringv1.PrometheusRule{}}, &handler.EnqueueRequestForOwner{
-		IsController: true,
-		OwnerType:    &autoscalingv1.ClusterAutoscaler{},
-	})
+	return c.Watch(source.Kind(mgr.GetCache(), &monitoringv1.PrometheusRule{}), handler.EnqueueRequestForOwner(
+		mgr.GetScheme(),
+		mgr.GetRESTMapper(),
+		&autoscalingv1.ClusterAutoscaler{},
+		handler.OnlyControllerOwner(),
+	))
 }
 
 // Reconcile reads that state of the cluster for a ClusterAutoscaler
