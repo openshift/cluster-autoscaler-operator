@@ -56,11 +56,12 @@ var (
 
 // DefaultSupportedTargetGVKs returns the default list of GroupVersionKinds
 // supported as targets for a MachineAutocaler instance.
+// TODO (elmiko) add more types if/when the CAO will support other types, for
+// example:
+// {Group: "cluster.x-k8s.io", Version: "v1beta1", Kind: "MachineDeployment"},
+// see the TestRemoveSupportedGVK test for more examples.
 func DefaultSupportedTargetGVKs() []schema.GroupVersionKind {
 	return []schema.GroupVersionKind{
-		{Group: "cluster.k8s.io", Version: "v1beta1", Kind: "MachineDeployment"},
-		{Group: "cluster.k8s.io", Version: "v1beta1", Kind: "MachineSet"},
-		{Group: "machine.openshift.io", Version: "v1beta1", Kind: "MachineDeployment"},
 		{Group: "machine.openshift.io", Version: "v1beta1", Kind: "MachineSet"},
 	}
 }
