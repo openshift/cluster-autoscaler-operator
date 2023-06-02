@@ -257,7 +257,7 @@ func newFakeReconciler(initObjects ...runtime.Object) *Reconciler {
 		scheme:    scheme.Scheme,
 		recorder:  record.NewFakeRecorder(128),
 		config:    TestReconcilerConfig,
-		validator: NewValidator(TestReconcilerConfig.Name),
+		validator: NewValidator(TestReconcilerConfig.Name, fakeClient, scheme.Scheme),
 	}
 }
 

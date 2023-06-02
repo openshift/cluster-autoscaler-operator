@@ -7,6 +7,7 @@ import (
 
 	autoscalingv1beta1 "github.com/openshift/cluster-autoscaler-operator/pkg/apis/autoscaling/v1beta1"
 	"github.com/openshift/cluster-autoscaler-operator/pkg/util"
+	"k8s.io/apimachinery/pkg/runtime"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -20,8 +21,11 @@ type Validator struct {
 }
 
 // NewValidator returns a new Validator.
-func NewValidator() *Validator {
-	return &Validator{}
+func NewValidator(client client.Client, scheme *runtime.Scheme) *Validator {
+	return &Validator{
+		client:  client,
+		decoder: admission.NewDecoder(scheme),
+	}
 }
 
 // Validate validates the given MachineAutoscaler resource.

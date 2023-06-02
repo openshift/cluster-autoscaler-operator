@@ -81,7 +81,7 @@ func NewReconciler(mgr manager.Manager, config Config) *Reconciler {
 		client:    mgr.GetClient(),
 		scheme:    mgr.GetScheme(),
 		recorder:  mgr.GetEventRecorderFor(controllerName),
-		validator: NewValidator(),
+		validator: NewValidator(mgr.GetClient(), mgr.GetScheme()),
 		config:    config,
 	}
 }

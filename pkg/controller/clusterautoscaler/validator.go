@@ -10,6 +10,7 @@ import (
 
 	autoscalingv1 "github.com/openshift/cluster-autoscaler-operator/pkg/apis/autoscaling/v1"
 	util "github.com/openshift/cluster-autoscaler-operator/pkg/util"
+	"k8s.io/apimachinery/pkg/runtime"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/klog/v2"
 
@@ -27,8 +28,10 @@ type Validator struct {
 
 // NewValidator returns a new Validator configured with the given
 // ClusterAutoscaler singleton resource name.
-func NewValidator(name string) *Validator {
+func NewValidator(name string, client client.Client, scheme *runtime.Scheme) *Validator {
 	return &Validator{
+		client:                client,
+		decoder:               admission.NewDecoder(scheme),
 		clusterAutoscalerName: name,
 	}
 }
