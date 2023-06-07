@@ -72,6 +72,12 @@ const (
 // The following values are for cloud providers which have not yet created specific nodegroupset processors.
 // These values should be removed and replaced in the event that one of the cloud providers creates a nodegroupset processor.
 
+// Alibaba cloud provider ignore labels for the autoscaler.
+const (
+	// AlicloudIgnoredLabelCsiZone is a label used by the Alibaba Cloud CSI driver as a target for Persistent Volume Node Affinity.
+	AlicloudIgnoredLabelCsiZone = "topology.diskplugin.csi.alibabacloud.com/zone"
+)
+
 // AWS cloud provider ignore labels for the autoscaler.
 const (
 	// AwsIgnoredLabelEksctlInstanceId  is a label used by eksctl to identify instances.
@@ -93,24 +99,6 @@ const (
 	AwsIgnoredLabelEbsCsiZone = "topology.ebs.csi.aws.com/zone"
 )
 
-// IBM cloud provider ignore labels for the autoscaler.
-const (
-	// IbmcloudIgnoredLabelWorkerId is a label used by the IBM Cloud Cloud Controler Manager.
-	IbmcloudIgnoredLabelWorkerId = "ibm-cloud.kubernetes.io/worker-id"
-
-	// IbmcloudIgnoredLabelVpcBlockCsi is a label used by the IBM Cloud CSI driver as a target for Persisten Volume Node Affinity.
-	IbmcloudIgnoredLabelVpcBlockCsi = "vpc-block-csi-driver-labels"
-
-	// IbmcloudIgnoredLabelVpcInstanceId on IBM Cloud when a VPC is in use.
-	IbmcloudIgnoredLabelVpcInstanceId = "ibm-cloud.kubernetes.io/vpc-instance-id"
-)
-
-// GCP cloud provider ignore labels for the autoscaler.
-const (
-	// GceIgnoredLabelGkeZone label is used to specify the zone of the instance.
-	GceIgnoredLabelGkeZone = "topology.gke.io/zone"
-)
-
 // Azure cloud provider ignore labels for the autoscaler.
 const (
 	// AzureDiskTopologyKey is the topology key of Azure Disk CSI driver.
@@ -123,10 +111,37 @@ const (
 	AzureNodepoolLabel = "kubernetes.azure.com/agentpool"
 )
 
-// Alibaba cloud provider ignore labels for the autoscaler.
+// GCP cloud provider ignore labels for the autoscaler.
 const (
-	// AlicloudIgnoredLabelCsiZone is a label used by the Alibaba Cloud CSI driver as a target for Persistent Volume Node Affinity.
-	AlicloudIgnoredLabelCsiZone = "topology.diskplugin.csi.alibabacloud.com/zone"
+	// GceIgnoredLabelGkeZone label is used to specify the zone of the instance.
+	GceIgnoredLabelGkeZone = "topology.gke.io/zone"
+)
+
+// IBM cloud provider ignore labels for the autoscaler.
+const (
+	// IbmcloudIgnoredLabelWorkerId is a label used by the IBM Cloud Cloud Controler Manager.
+	IbmcloudIgnoredLabelWorkerId = "ibm-cloud.kubernetes.io/worker-id"
+
+	// IbmcloudIgnoredLabelVpcBlockCsi is a label used by the IBM Cloud CSI driver as a target for Persisten Volume Node Affinity.
+	IbmcloudIgnoredLabelVpcBlockCsi = "vpc-block-csi-driver-labels"
+
+	// IbmcloudIgnoredLabelVpcInstanceId on IBM Cloud when a VPC is in use.
+	IbmcloudIgnoredLabelVpcInstanceId = "ibm-cloud.kubernetes.io/vpc-instance-id"
+)
+
+// Nutanix cloud provider ignore labels for the autoscaler.
+const (
+	// NutanixPrismElementName is a label used by the Nutanix Cloud Controller Manager to identify the Prism service.
+	NutanixPrismElementName = "nutanix.com/prism-element-name"
+
+	// NutanixPrismElementUuid is a label used by the Nutanix Cloud Controller Manager to uniquely identify the Prism service.
+	NutanixPrismElementUuid = "nutanix.com/prism-element-uuid"
+
+	// NutanixPrismHostName is a label used by the Nutanix Cloud Controller Manager to identify the host.
+	NutanixPrismHostName = "nutanix.com/prism-host-name"
+
+	// NutanixPrismHostUuid is a label used by the Nutanix Cloud Controller Manager to uniquely identify the host.
+	NutanixPrismHostUuid = "nutanix.com/prism-host-uuid"
 )
 
 // AppendBasicIgnoreLabels appends ignore labels for specific cloud provider to the arguments
@@ -153,6 +168,11 @@ func appendBasicIgnoreLabels(args []string, cfg *Config) []string {
 		args = append(args, BalancingIgnoreLabelArg.Value(IbmcloudIgnoredLabelWorkerId),
 			BalancingIgnoreLabelArg.Value(IbmcloudIgnoredLabelVpcBlockCsi),
 			BalancingIgnoreLabelArg.Value(IbmcloudIgnoredLabelVpcInstanceId))
+	case configv1.NutanixPlatformType:
+		args = append(args, BalancingIgnoreLabelArg.Value(NutanixPrismElementName),
+			BalancingIgnoreLabelArg.Value(NutanixPrismElementUuid),
+			BalancingIgnoreLabelArg.Value(NutanixPrismHostName),
+			BalancingIgnoreLabelArg.Value(NutanixPrismHostUuid))
 	}
 
 	return args
