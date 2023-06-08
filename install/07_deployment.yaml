@@ -84,6 +84,8 @@ spec:
           value: "8443"
         - name: METRICS_PORT
           value: "9191"
+        - name: CLUSTER_AUTOSCALER_EXTRA_ARGS
+          value: "--scan-interval=5"
         ports:
         - containerPort: 8443
         resources:
