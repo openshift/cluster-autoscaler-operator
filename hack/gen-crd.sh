@@ -6,6 +6,7 @@ function annotate_crd() {
   script1='/^  annotations:/a\
 \ \ \ \ exclude.release.openshift.io/internal-openshift-hosted: "true"\
 \ \ \ \ include.release.openshift.io/self-managed-high-availability: "true"\
+\ \ \ \ capability.openshift.io/name: MachineAPI\
 \ \ \ \ include.release.openshift.io/single-node-developer: "true"'
   script2='/^    controller-gen.kubebuilder.io\/version: .*$/d'
   input="${1}"

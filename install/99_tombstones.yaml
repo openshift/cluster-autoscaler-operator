@@ -6,6 +6,7 @@ metadata:
   annotations:
     include.release.openshift.io/self-managed-high-availability: "true"
     release.openshift.io/delete: "true"
+    capability.openshift.io/name: MachineAPI
 ---
 apiVersion: monitoring.coreos.com/v1
 kind: PrometheusRule
@@ -15,3 +16,4 @@ metadata:
   annotations:
     include.release.openshift.io/self-managed-high-availability: "true"
     release.openshift.io/delete: "true"
+    capability.openshift.io/name: MachineAPI
