@@ -7,6 +7,8 @@ import (
 	"github.com/openshift/cluster-autoscaler-operator/pkg/operator"
 	"github.com/openshift/cluster-autoscaler-operator/pkg/version"
 	"k8s.io/klog/v2"
+	"k8s.io/klog/v2/klogr"
+	ctrl "sigs.k8s.io/controller-runtime"
 )
 
 func printVersion() {
@@ -22,6 +24,9 @@ func main() {
 	flag.Parse()
 
 	printVersion()
+
+	// setup the logger for controller-runtime
+	ctrl.SetLogger(klogr.New())
 
 	config, err := operator.ConfigFromEnvironment()
 	if err != nil {

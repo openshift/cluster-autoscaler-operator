@@ -354,7 +354,7 @@ func TestWarningForInvalidGPUAcceleratorLabel(t *testing.T) {
 		{
 			name:            "Missing .spec.template.spec.metadata.labels produces a warning",
 			targetLabel:     removeField,
-			expectedWarning: fmt.Sprintf(util.GPUAcceleratorLabelAbsentWarning, "MachineDeployment", "test-name") + util.GPUAcceleratorLabelKCSWarning,
+			expectedWarning: fmt.Sprintf(util.GPUAcceleratorLabelAbsentWarning, "MachineSet", "test-name") + util.GPUAcceleratorLabelKCSWarning,
 		},
 	}
 

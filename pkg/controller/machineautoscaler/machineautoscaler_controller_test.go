@@ -54,7 +54,12 @@ func setTarget(ma *autoscalingv1beta1.MachineAutoscaler, mt *MachineTarget) {
 
 // newFakeReconciler returns a new reconcile.Reconciler with a fake client.
 func newFakeReconciler(cfg Config, initObjects ...runtime.Object) *Reconciler {
-	fakeClient := fakeclient.NewFakeClient(initObjects...)
+	fakeClient := fakeclient.
+		NewClientBuilder().
+		WithScheme(scheme.Scheme).
+		WithRuntimeObjects(initObjects...).
+		WithStatusSubresource(&autoscalingv1beta1.MachineAutoscaler{}).
+		Build()
 	return &Reconciler{
 		client:   fakeClient,
 		scheme:   scheme.Scheme,
@@ -74,26 +79,26 @@ func TestRemoveSupportedGVK(t *testing.T) {
 			label:  "remove one",
 			before: DefaultSupportedTargetGVKs(),
 			remove: []schema.GroupVersionKind{
-				{Group: "cluster.k8s.io", Version: "v1beta1", Kind: "MachineDeployment"},
-			},
-			after: []schema.GroupVersionKind{
-				{Group: "cluster.k8s.io", Version: "v1beta1", Kind: "MachineSet"},
-				{Group: "machine.openshift.io", Version: "v1beta1", Kind: "MachineDeployment"},
 				{Group: "machine.openshift.io", Version: "v1beta1", Kind: "MachineSet"},
 			},
+			after: []schema.GroupVersionKind{},
 		},
-		{
-			label:  "remove multiple",
-			before: DefaultSupportedTargetGVKs(),
-			remove: []schema.GroupVersionKind{
-				{Group: "cluster.k8s.io", Version: "v1beta1", Kind: "MachineDeployment"},
-				{Group: "machine.openshift.io", Version: "v1beta1", Kind: "MachineSet"},
-			},
-			after: []schema.GroupVersionKind{
-				{Group: "cluster.k8s.io", Version: "v1beta1", Kind: "MachineSet"},
-				{Group: "machine.openshift.io", Version: "v1beta1", Kind: "MachineDeployment"},
-			},
-		},
+		/*
+			        TODO (elmiko) in the future if the CAO will support more than one type of CRD, this
+			        test should be rewritten for those new types. I am leaving the old test here as an example.
+
+					{
+						label:  "remove multiple",
+						before: DefaultSupportedTargetGVKs(),
+						remove: []schema.GroupVersionKind{
+							{Group: "cluster.x-k8s.io", Version: "v1beta1", Kind: "MachineDeployment"},
+							{Group: "machine.openshift.io", Version: "v1beta1", Kind: "MachineSet"},
+						},
+						after: []schema.GroupVersionKind{
+							{Group: "cluster.x-k8s.io", Version: "v1beta1", Kind: "MachineSet"},
+						},
+					},
+		*/
 		{
 			label:  "remove none",
 			before: DefaultSupportedTargetGVKs(),
@@ -151,7 +156,7 @@ func TestValidateReference(t *testing.T) {
 			ref: &corev1.ObjectReference{
 				Name:       "test",
 				Kind:       "MachineSet",
-				APIVersion: "cluster.k8s.io/v1beta1",
+				APIVersion: "machine.openshift.io/v1beta1",
 			},
 		},
 	}

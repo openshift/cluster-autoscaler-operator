@@ -56,11 +56,12 @@ var (
 
 // DefaultSupportedTargetGVKs returns the default list of GroupVersionKinds
 // supported as targets for a MachineAutocaler instance.
+// TODO (elmiko) add more types if/when the CAO will support other types, for
+// example:
+// {Group: "cluster.x-k8s.io", Version: "v1beta1", Kind: "MachineDeployment"},
+// see the TestRemoveSupportedGVK test for more examples.
 func DefaultSupportedTargetGVKs() []schema.GroupVersionKind {
 	return []schema.GroupVersionKind{
-		{Group: "cluster.k8s.io", Version: "v1beta1", Kind: "MachineDeployment"},
-		{Group: "cluster.k8s.io", Version: "v1beta1", Kind: "MachineSet"},
-		{Group: "machine.openshift.io", Version: "v1beta1", Kind: "MachineDeployment"},
 		{Group: "machine.openshift.io", Version: "v1beta1", Kind: "MachineSet"},
 	}
 }
@@ -80,7 +81,7 @@ func NewReconciler(mgr manager.Manager, config Config) *Reconciler {
 		client:    mgr.GetClient(),
 		scheme:    mgr.GetScheme(),
 		recorder:  mgr.GetEventRecorderFor(controllerName),
-		validator: NewValidator(),
+		validator: NewValidator(mgr.GetClient(), mgr.GetScheme()),
 		config:    config,
 	}
 }
@@ -95,7 +96,7 @@ func (r *Reconciler) AddToManager(mgr manager.Manager) error {
 	}
 
 	// Watch for changes to primary resource MachineAutoscaler
-	err = c.Watch(&source.Kind{Type: &v1beta1.MachineAutoscaler{}}, &handler.EnqueueRequestForObject{})
+	err = c.Watch(source.Kind(mgr.GetCache(), &v1beta1.MachineAutoscaler{}), &handler.EnqueueRequestForObject{})
 	if err != nil {
 		return err
 	}
@@ -122,7 +123,7 @@ func (r *Reconciler) AddToManager(mgr manager.Manager) error {
 		// Watch for changes to each supported target resource type and enqueue
 		// reconcile requests for their owning MachineAutoscaler resources.
 		if err = c.Watch(
-			&source.Kind{Type: target},
+			source.Kind(mgr.GetCache(), target),
 			handler.EnqueueRequestsFromMapFunc(targetOwnerRequest)); err != nil {
 			return err
 		}
@@ -548,7 +549,7 @@ func (r *Reconciler) ValidateReference(obj *corev1.ObjectReference) (bool, error
 
 // targetOwnerRequest is used with handler.EnqueueRequestsFromMapFunc to enqueue
 // reconcile requests for the owning MachineAutoscaler of a watched target.
-func targetOwnerRequest(a client.Object) []reconcile.Request {
+func targetOwnerRequest(_ context.Context, a client.Object) []reconcile.Request {
 	target, err := MachineTargetFromObject(a)
 	if err != nil {
 		klog.Errorf("Failed to convert object to MachineTarget: %v", err)

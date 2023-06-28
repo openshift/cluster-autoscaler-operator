@@ -194,10 +194,11 @@ func (o *Operator) AddWebhooks() error {
 		return err
 	}
 
-	server := &webhook.Server{
+	serverOpts := webhook.Options{
 		Port:    o.config.WebhooksPort,
 		CertDir: o.config.WebhooksCertDir,
 	}
+	server := webhook.NewServer(serverOpts)
 
 	server.Register("/validate-clusterautoscalers",
 		&webhook.Admission{Handler: o.caReconciler.Validator()})

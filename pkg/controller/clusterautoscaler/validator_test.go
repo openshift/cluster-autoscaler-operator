@@ -4,11 +4,14 @@ import (
 	"testing"
 
 	autoscalingv1 "github.com/openshift/cluster-autoscaler-operator/pkg/apis/autoscaling/v1"
+	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/utils/pointer"
+	fakeclient "sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
 func TestValidate(t *testing.T) {
-	validator := NewValidator("test")
+	client := fakeclient.NewClientBuilder().Build()
+	validator := NewValidator("test", client, scheme.Scheme)
 	ca := NewClusterAutoscaler()
 
 	testCases := []struct {

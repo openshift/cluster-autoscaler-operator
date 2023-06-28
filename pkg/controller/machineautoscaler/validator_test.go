@@ -5,6 +5,8 @@ import (
 
 	autoscalingv1beta1 "github.com/openshift/cluster-autoscaler-operator/pkg/apis/autoscaling/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes/scheme"
+	fakeclient "sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
 const (
@@ -35,7 +37,8 @@ func NewMachineAutoscaler() *autoscalingv1beta1.MachineAutoscaler {
 }
 
 func TestValidate(t *testing.T) {
-	validator := NewValidator()
+	client := fakeclient.NewClientBuilder().Build()
+	validator := NewValidator(client, scheme.Scheme)
 	ma := NewMachineAutoscaler()
 
 	testCases := []struct {
