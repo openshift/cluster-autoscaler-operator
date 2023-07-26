@@ -7,6 +7,7 @@ import (
 
 	configv1 "github.com/openshift/api/config/v1"
 	osconfig "github.com/openshift/client-go/config/clientset/versioned"
+	configv1informers "github.com/openshift/client-go/config/informers/externalversions"
 	autoscalingv1 "github.com/openshift/cluster-autoscaler-operator/pkg/apis/autoscaling/v1"
 	"github.com/openshift/cluster-autoscaler-operator/pkg/util"
 	"github.com/openshift/library-go/pkg/config/clusteroperator/v1helpers"
@@ -15,6 +16,8 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/client-go/tools/cache"
+	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -31,9 +34,11 @@ const (
 // StatusReporter reports the status of the operator to the OpenShift
 // cluster-version-operator via ClusterOperator resource status.
 type StatusReporter struct {
-	client       client.Client
-	configClient osconfig.Interface
-	config       *StatusReporterConfig
+	client          client.Client
+	configClient    osconfig.Interface
+	config          *StatusReporterConfig
+	configInformers configv1informers.SharedInformerFactory
+	queue           workqueue.RateLimitingInterface
 }
 
 // StatusReporterConfig represents the configuration of a given StatusReporter.
@@ -58,6 +63,11 @@ func NewStatusReporter(mgr manager.Manager, cfg *StatusReporterConfig) (*StatusR
 	if err != nil {
 		return nil, err
 	}
+
+	reporter.configInformers = configv1informers.NewSharedInformerFactory(reporter.configClient, 10*time.Minute)
+	reporter.queue = workqueue.NewRateLimitingQueueWithConfig(workqueue.DefaultControllerRateLimiter(), workqueue.RateLimitingQueueConfig{
+		Name: "status-report",
+	})
 
 	return reporter, nil
 }
@@ -290,25 +300,73 @@ func (r *StatusReporter) progressing(reason, message string) error {
 	return r.ApplyStatus(status)
 }
 
+func (c *StatusReporter) processNextWorkItem() {
+	key, quit := c.queue.Get()
+	if quit {
+		return
+	}
+	defer c.queue.Done(key)
+	_, err := c.ReportStatus()
+	if err != nil {
+		klog.Errorf("status reporting failed: %v", err)
+		c.queue.AddRateLimited(key)
+		return
+	}
+	c.queue.Forget(key)
+}
+
+func (c *StatusReporter) runWorker(queueCtx context.Context) {
+	wait.UntilWithContext(
+		queueCtx,
+		func(queueCtx context.Context) {
+			for {
+				select {
+				case <-queueCtx.Done():
+					return
+				default:
+					c.processNextWorkItem()
+				}
+			}
+		},
+		1*time.Second)
+}
+
 // Start checks the status of dependencies and reports the operator's status. It
 // will poll until stopCh is closed or prerequisites are satisfied, in which
 // case it will report the operator as available the configured version and wait
 // for stopCh to close before returning.
 func (r *StatusReporter) Start(stop context.Context) error {
+	// run informer to make sure that we report status everytime the cluster operator changes
+	// for example. if some external process override message or reason.
+	go r.configInformers.Start(stop.Done())
+	operatorInformer := r.configInformers.Config().V1().ClusterOperators().Informer()
+	if !cache.WaitForCacheSync(stop.Done(), operatorInformer.HasSynced) {
+		return fmt.Errorf("unable to sync clusteroperators informer")
+	}
+
+	go r.runWorker(stop)
+
+	operatorInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc: func(obj interface{}) {
+			r.queue.Add("cluster")
+		},
+		UpdateFunc: func(oldObj, newObj interface{}) {
+			r.queue.Add("cluster")
+		},
+		DeleteFunc: func(obj interface{}) {
+			r.queue.Add("cluster")
+		},
+	})
+
 	interval := 15 * time.Second
 
 	// Poll the status of our prerequisites and set our status accordingly.
 	// Rather than return errors and stop polling, errors here should just be
 	// reported in the status message or logged.
 	pollFunc := func() (bool, error) {
-		available, err := r.ReportStatus()
-		if err != nil {
-			klog.Errorf("Error reporting operator status: %v", err)
-		}
-
-		return available, nil
+		r.queue.Add("cluster")
+		return false, nil
 	}
-
 	err := wait.PollImmediateUntil(interval, pollFunc, stop.Done())
 
 	// Block until the stop channel is closed.
