@@ -338,12 +338,18 @@ func (c *StatusReporter) runWorker(queueCtx context.Context) {
 func (r *StatusReporter) Start(stop context.Context) error {
 	// run informer to make sure that we report status everytime the cluster operator changes
 	// for example. if some external process override message or reason.
+	klog.Info("Starting status reporter: cluster operator informers")
 	go r.configInformers.Start(stop.Done())
+
+	cacheWaitCtx, cacheWaitCancel := context.WithTimeout(stop, 30*time.Second)
+	defer cacheWaitCancel()
+
 	operatorInformer := r.configInformers.Config().V1().ClusterOperators().Informer()
-	if !cache.WaitForCacheSync(stop.Done(), operatorInformer.HasSynced) {
+	if !cache.WaitForCacheSync(cacheWaitCtx.Done(), operatorInformer.HasSynced) {
 		return fmt.Errorf("unable to sync clusteroperators informer")
 	}
 
+	klog.Info("Starting status reporter: worker")
 	go r.runWorker(stop)
 
 	operatorInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
