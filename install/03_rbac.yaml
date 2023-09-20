@@ -30,6 +30,7 @@ rules:
   - get
   - update
   - list
+  - watch
 - apiGroups:
   - config.openshift.io
   resources:
