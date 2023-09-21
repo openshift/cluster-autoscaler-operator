@@ -48,14 +48,15 @@ func New(cfg *Config) (*Operator, error) {
 
 	// Create the controller-manager.
 	managerOptions := manager.Options{
-		Namespace:               cfg.WatchNamespace,
-		LeaderElection:          cfg.LeaderElection,
-		LeaderElectionNamespace: cfg.LeaderElectionNamespace,
-		LeaderElectionID:        cfg.LeaderElectionID,
-		LeaseDuration:           &le.LeaseDuration.Duration,
-		RenewDeadline:           &le.RenewDeadline.Duration,
-		RetryPeriod:             &le.RetryPeriod.Duration,
-		MetricsBindAddress:      fmt.Sprintf("127.0.0.1:%d", cfg.MetricsPort),
+		Namespace:                     cfg.WatchNamespace,
+		LeaderElection:                cfg.LeaderElection,
+		LeaderElectionNamespace:       cfg.LeaderElectionNamespace,
+		LeaderElectionID:              cfg.LeaderElectionID,
+		LeaseDuration:                 &le.LeaseDuration.Duration,
+		LeaderElectionReleaseOnCancel: true,
+		RenewDeadline:                 &le.RenewDeadline.Duration,
+		RetryPeriod:                   &le.RetryPeriod.Duration,
+		MetricsBindAddress:            fmt.Sprintf("127.0.0.1:%d", cfg.MetricsPort),
 	}
 
 	operator.manager, err = manager.New(clientConfig, managerOptions)
