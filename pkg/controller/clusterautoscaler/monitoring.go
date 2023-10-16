@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"k8s.io/klog/v2"
+	"k8s.io/utils/ptr"
 
 	autoscalingv1 "github.com/openshift/cluster-autoscaler-operator/pkg/apis/autoscaling/v1"
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
@@ -172,7 +173,7 @@ func (r *Reconciler) AutoscalerPrometheusRule(ca *autoscalingv1.ClusterAutoscale
 						{
 							Alert: "ClusterAutoscalerUnschedulablePods",
 							Expr:  intstr.FromString(fmt.Sprintf("cluster_autoscaler_unschedulable_pods_count{service=\"%s\"} > 0", namespacedName.Name)),
-							For:   "20m",
+							For:   ptr.To[monitoringv1.Duration]("20m"),
 							Labels: map[string]string{
 								"severity": "info",
 							},
@@ -185,7 +186,7 @@ This may be caused by the cluster autoscaler reaching its resources limits, or b
 						{
 							Alert: "ClusterAutoscalerNotSafeToScale",
 							Expr:  intstr.FromString(fmt.Sprintf("cluster_autoscaler_cluster_safe_to_autoscale{service=\"%s\"} != 1", namespacedName.Name)),
-							For:   "15m",
+							For:   ptr.To[monitoringv1.Duration]("15m"),
 							Labels: map[string]string{
 								"severity": "warning",
 							},
@@ -201,7 +202,7 @@ true then the cluster autoscaler will enter an unsafe to scale state until the c
 							Alert: "ClusterAutoscalerUnableToScaleCPULimitReached",
 							Expr:  intstr.FromString("increase(cluster_autoscaler_skipped_scale_events_count{direction=\"up\",reason=\"CpuResourceLimit\"}[15m]) > 0"),
 
-							For: "15m",
+							For: ptr.To[monitoringv1.Duration]("15m"),
 							Labels: map[string]string{
 								"severity": "info",
 							},
@@ -215,7 +216,7 @@ cluster autoscaler (default 320000 cores). Limits can be adjusted by modifying t
 						{
 							Alert: "ClusterAutoscalerUnableToScaleMemoryLimitReached",
 							Expr:  intstr.FromString("increase(cluster_autoscaler_skipped_scale_events_count{direction=\"up\",reason=\"MemoryResourceLimit\"}[15m]) > 0"),
-							For:   "15m",
+							For:   ptr.To[monitoringv1.Duration]("15m"),
 							Labels: map[string]string{
 								"severity": "info",
 							},
