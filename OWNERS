@@ -11,7 +11,9 @@ reviewers:
 - RadekManak
 - damdo
 - elmiko
-- lobziik
+- nrb
 - odvarkadaniel
+- racheljpg
+- vincepri
 component: Cloud Compute
 subcomponent: Cluster Autoscaler
