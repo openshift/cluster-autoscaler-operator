@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/openshift/cluster-autoscaler-operator/pkg/util"
+	annotationsutil "github.com/openshift/machine-api-operator/pkg/util/machineset"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -279,4 +280,67 @@ func (mt *MachineTarget) WarningForInvalidGPUAcceleratorLabel() string {
 	}
 
 	return warning
+}
+
+// UpdateScaleFromZeroAnnotations inspects the target's annotations
+// and checks whether scale from zero annotations are present and appends
+// the set of annotations that are missing. We are interested in appending
+// annotations with `capacity.cluster-autoscaler.kubernetes.io` prefix.
+func (mt *MachineTarget) UpdateScaleFromZeroAnnotations() error {
+	annotations := mt.GetAnnotations()
+
+	if annotations == nil {
+		return nil
+	}
+
+	annotations, err := checkScaleFromZeroAnnotations(annotations)
+	if err != nil {
+		return fmt.Errorf("failed to check scale from zero annotations: %w", err)
+	}
+
+	mt.SetAnnotations(annotations)
+
+	return nil
+}
+
+// checkScaleFromZeroAnnotations makes sure that for every Deprecated OpenShift
+// scale from zero annotations, a copy for the upstream annotation exists.
+func checkScaleFromZeroAnnotations(annotations map[string]string) (map[string]string, error) {
+	cpu, err := annotationsutil.ParseMachineSetAnnotationKey(annotations, annotationsutil.CpuKeyDeprecated)
+	if err != nil {
+		return annotations, fmt.Errorf("failed to parse key %s: %w", annotationsutil.CpuKeyDeprecated, err)
+	}
+	annotations = annotationsutil.SetCpuAnnotation(annotations, cpu)
+
+	// Originally, the memory key specifies the memory in memibytes, thus
+	// we need to convert this intereger into bytes.
+	mem, err := annotationsutil.ParseMachineSetAnnotationKey(annotations, annotationsutil.MemoryKeyDeprecated)
+	if err != nil {
+		return annotations, fmt.Errorf("failed to parse key %s: %w", annotationsutil.MemoryKeyDeprecated, err)
+	}
+	memInt, err := strconv.ParseInt(mem, 10, 0)
+	if err != nil {
+		return annotations, fmt.Errorf("could not parse integer: %w", err)
+	}
+	annotations = annotationsutil.SetMemoryAnnotation(annotations, resource.NewQuantity(memInt*util.MiB, resource.DecimalSI).String())
+
+	// Deprecated GPU annotation is split into 2 upstream annotations.
+	// TODO: Once we introduce proper gpu types, the gpu type in the annotation module in MAO needs to be changed.
+	gpu, err := annotationsutil.ParseMachineSetAnnotationKey(annotations, annotationsutil.GpuCountKeyDeprecated)
+	if err != nil {
+		return annotations, fmt.Errorf("could not parse key %s: %w", annotationsutil.GpuCountKeyDeprecated, err)
+	}
+	annotations = annotationsutil.SetGpuCountAnnotation(annotations, gpu)
+	// TODO: Once we introduce proper gpu types, the function SetGpuTypeAnnotation
+	// should take in the correct value as a second argument. We currently only support
+	// nvidia as a gpu type.
+	annotations = annotationsutil.SetGpuTypeAnnotation(annotations, annotationsutil.GpuNvidiaType)
+
+	maxPods, err := annotationsutil.ParseMachineSetAnnotationKey(annotations, annotationsutil.MaxPodsKeyDeprecated)
+	if err != nil {
+		return annotations, fmt.Errorf("could not parse key %s: %w", annotationsutil.MaxPodsKeyDeprecated, err)
+	}
+	annotations = annotationsutil.SetMaxPodsAnnotation(annotations, maxPods)
+
+	return annotations, nil
 }
