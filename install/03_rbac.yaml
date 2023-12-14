@@ -276,7 +276,7 @@ metadata:
 rules:
 - apiGroups: [""]
   resources: ["configmaps"]
-  verbs: ["create"]
+  verbs: ["create", "get", "list", "watch"]
 - apiGroups: [""]
   resources: ["configmaps"]
   resourceNames: ["cluster-autoscaler-status"]

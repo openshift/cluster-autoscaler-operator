@@ -8,6 +8,17 @@ func init() {
 	SchemeBuilder.Register(&ClusterAutoscaler{}, &ClusterAutoscalerList{})
 }
 
+// ExpanderString contains the name of an expander to be used by the cluster autoscaler.
+// +kubebuilder:validation:Enum=least-waste;priority;random
+type ExpanderString string
+
+// These constants define the valid values for an ExpanderString
+const (
+	LeastWasteExpander ExpanderString = "least-waste"
+	PriorityExpander   ExpanderString = "priority"
+	RandomExpander     ExpanderString = "random"
+)
+
 // ClusterAutoscalerSpec defines the desired state of ClusterAutoscaler
 type ClusterAutoscalerSpec struct {
 	// Constraints of autoscaling resources
@@ -53,6 +64,16 @@ type ClusterAutoscalerSpec struct {
 	// This option has priority over log level set by the `CLUSTER_AUTOSCALER_VERBOSITY` environment variable.
 	// +kubebuilder:validation:Minimum=0
 	LogVerbosity *int32 `json:"logVerbosity,omitempty"`
+
+	// Sets the type and order of expanders to be used during scale out operations.
+	// This option specifies an ordered list, highest priority first, of expanders that
+	// will be used by the cluster autoscaler to select node groups for expansion
+	// when scaling out.
+	// If not specified, the default value is `random`, available options are: `least-waste`, `priority`, `random`.
+	//
+	// +listType=set
+	// +kubebuilder:validation:MaxItems=3
+	ExpanderOrderList []ExpanderString `json:"expanderOrderList"`
 }
 
 // ClusterAutoscalerStatus defines the observed state of ClusterAutoscaler

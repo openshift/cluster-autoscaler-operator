@@ -56,6 +56,24 @@ spec:
                 items:
                   type: string
                 type: array
+              expanderOrderList:
+                description: 'Sets the type and order of expanders to be used during
+                  scale out operations. This option specifies an ordered list, highest
+                  priority first, of expanders that will be used by the cluster autoscaler
+                  to select node groups for expansion when scaling out. If not specified,
+                  the default value is `random`, available options are: `least-waste`,
+                  `priority`, `random`.'
+                items:
+                  description: ExpanderString contains the name of an expander to
+                    be used by the cluster autoscaler.
+                  enum:
+                  - least-waste
+                  - priority
+                  - random
+                  type: string
+                maxItems: 3
+                type: array
+                x-kubernetes-list-type: set
               ignoreDaemonsetsUtilization:
                 description: Enables/Disables `--ignore-daemonsets-utilization` CA
                   feature flag. Should CA ignore DaemonSet pods when calculating resource
@@ -198,6 +216,8 @@ spec:
                   with pods with local storage, e.g. EmptyDir or HostPath. true by
                   default at autoscaler
                 type: boolean
+            required:
+            - expanderOrderList
             type: object
           status:
             description: Most recently observed status of ClusterAutoscaler resource

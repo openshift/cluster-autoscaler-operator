@@ -2,6 +2,7 @@ package clusterautoscaler
 
 import (
 	"fmt"
+	"strings"
 
 	configv1 "github.com/openshift/api/config/v1"
 	v1 "github.com/openshift/cluster-autoscaler-operator/pkg/apis/autoscaling/v1"
@@ -67,6 +68,8 @@ const (
 	LeaderElectLeaseDurationArg      AutoscalerArg = "--leader-elect-lease-duration"
 	LeaderElectRenewDeadlineArg      AutoscalerArg = "--leader-elect-renew-deadline"
 	LeaderElectRetryPeriodArg        AutoscalerArg = "--leader-elect-retry-period"
+	ScaleUpFromZeroDefaultArch       AutoscalerArg = "--scale-up-from-zero-default-arch"
+	ExpanderArg                      AutoscalerArg = "--expander"
 )
 
 // The following values are for cloud providers which have not yet created specific nodegroupset processors.
@@ -242,6 +245,14 @@ func AutoscalerArgs(ca *v1.ClusterAutoscaler, cfg *Config) []string {
 	} else {
 		// From environment variable or default
 		args = append(args, VerbosityArg.Value(cfg.Verbosity))
+	}
+
+	if len(ca.Spec.ExpanderOrderList) > 0 {
+		expanders := make([]string, len(ca.Spec.ExpanderOrderList))
+		for i, v := range ca.Spec.ExpanderOrderList {
+			expanders[i] = string(v)
+		}
+		args = append(args, ExpanderArg.Value(strings.Join(expanders, ",")))
 	}
 
 	return args
