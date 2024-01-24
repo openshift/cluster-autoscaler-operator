@@ -3,6 +3,7 @@ package clusterautoscaler
 import (
 	"context"
 	"fmt"
+	goruntime "runtime"
 
 	configv1 "github.com/openshift/api/config/v1"
 	autoscalingv1 "github.com/openshift/cluster-autoscaler-operator/pkg/apis/autoscaling/v1"
@@ -31,14 +32,15 @@ import (
 )
 
 const (
-	controllerName      = "cluster_autoscaler_controller"
-	caServiceAccount    = "cluster-autoscaler"
-	caPriorityClassName = "system-cluster-critical"
-	CAPIGroupEnvVar     = "CAPI_GROUP"
-	CAPIGroup           = "machine.openshift.io"
-	CAPIVersionEnvVar   = "CAPI_VERSION"
-	CAPIVersion         = "v1beta1"
-	infrastructureName  = "cluster"
+	controllerName                 = "cluster_autoscaler_controller"
+	caServiceAccount               = "cluster-autoscaler"
+	caPriorityClassName            = "system-cluster-critical"
+	CAPIGroupEnvVar                = "CAPI_GROUP"
+	CAPIGroup                      = "machine.openshift.io"
+	CAPIScaleZeroDefaultArchEnvVar = "CAPI_SCALE_ZERO_DEFAULT_ARCH"
+	CAPIVersionEnvVar              = "CAPI_VERSION"
+	CAPIVersion                    = "v1beta1"
+	infrastructureName             = "cluster"
 )
 
 // NewReconciler returns a new Reconciler.
@@ -444,6 +446,10 @@ func (r *Reconciler) AutoscalerPodSpec(ca *autoscalingv1.ClusterAutoscaler) *cor
 					{
 						Name:  CAPIVersionEnvVar,
 						Value: CAPIVersion,
+					},
+					{
+						Name:  CAPIScaleZeroDefaultArchEnvVar,
+						Value: goruntime.GOARCH,
 					},
 				},
 				Resources: corev1.ResourceRequirements{
