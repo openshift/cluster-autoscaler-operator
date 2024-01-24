@@ -2,7 +2,6 @@ package clusterautoscaler
 
 import (
 	"fmt"
-	"runtime"
 
 	configv1 "github.com/openshift/api/config/v1"
 	v1 "github.com/openshift/cluster-autoscaler-operator/pkg/apis/autoscaling/v1"
@@ -68,7 +67,6 @@ const (
 	LeaderElectLeaseDurationArg      AutoscalerArg = "--leader-elect-lease-duration"
 	LeaderElectRenewDeadlineArg      AutoscalerArg = "--leader-elect-renew-deadline"
 	LeaderElectRetryPeriodArg        AutoscalerArg = "--leader-elect-retry-period"
-	ScaleUpFromZeroDefaultArch       AutoscalerArg = "--scale-up-from-zero-default-arch"
 )
 
 // The following values are for cloud providers which have not yet created specific nodegroupset processors.
@@ -194,7 +192,6 @@ func AutoscalerArgs(ca *v1.ClusterAutoscaler, cfg *Config) []string {
 		LeaderElectLeaseDurationArg.Value(leaderElectLeaseDuration),
 		LeaderElectRenewDeadlineArg.Value(leaderElectRenewDeadline),
 		LeaderElectRetryPeriodArg.Value(leaderElectRetryPeriod),
-		ScaleUpFromZeroDefaultArch.Value(runtime.GOARCH),
 	}
 
 	if ca.Spec.MaxPodGracePeriod != nil {
