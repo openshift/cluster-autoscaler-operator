@@ -141,9 +141,9 @@ spec:
                     minimum: 0
                     type: integer
                   memory:
-                    description: Minimum and maximum number of gigabytes of memory
-                      in cluster, in the format <min>:<max>. Cluster autoscaler will
-                      not scale the cluster beyond these numbers.
+                    description: Minimum and maximum number of GiB of memory in cluster,
+                      in the format <min>:<max>. Cluster autoscaler will not scale
+                      the cluster beyond these numbers.
                     properties:
                       max:
                         format: int32

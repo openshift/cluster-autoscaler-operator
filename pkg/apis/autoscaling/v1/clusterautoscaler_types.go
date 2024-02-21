@@ -97,7 +97,7 @@ type ResourceLimits struct {
 	// Cluster autoscaler will not scale the cluster beyond these numbers.
 	Cores *ResourceRange `json:"cores,omitempty"`
 
-	// Minimum and maximum number of gigabytes of memory in cluster, in the format <min>:<max>.
+	// Minimum and maximum number of GiB of memory in cluster, in the format <min>:<max>.
 	// Cluster autoscaler will not scale the cluster beyond these numbers.
 	Memory *ResourceRange `json:"memory,omitempty"`
 
