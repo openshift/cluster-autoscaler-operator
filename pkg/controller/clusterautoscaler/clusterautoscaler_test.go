@@ -350,6 +350,69 @@ func TestReconcile(t *testing.T) {
 	}
 }
 
+func TestReconcileWithExtraArgs(t *testing.T) {
+	ca := NewClusterAutoscaler()
+	ca.ObjectMeta.Name = "test"
+	infrastructure := &configv1.Infrastructure{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Infrastructure",
+			APIVersion: "config.openshift.io/v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "cluster",
+		},
+		Status: configv1.InfrastructureStatus{
+			PlatformStatus: &configv1.PlatformStatus{
+				Type: configv1.AWSPlatformType,
+			},
+		},
+	}
+	req := reconcile.Request{
+		NamespacedName: types.NamespacedName{
+			Namespace: TestNamespace,
+			Name:      "test",
+		},
+	}
+	cfgWithExtraArgs := Config{
+		ReleaseVersion: "test-1",
+		Name:           "test",
+		Namespace:      TestNamespace,
+		ExtraArgs:      "--test-arg1=arg1,--test-arg2=arg2",
+	}
+	tCases := []struct {
+		expectedError error
+		expectedRes   reconcile.Result
+		expectedArgs  []string
+		c             Config
+		d             *appsv1.Deployment
+	}{
+		{
+			expectedError: nil,
+			expectedRes:   reconcile.Result{},
+			expectedArgs:  []string{"--test-arg1=arg1", "--test-arg2=arg2"},
+			c:             cfgWithExtraArgs,
+			d:             &appsv1.Deployment{},
+		},
+	}
+	for i, tc := range tCases {
+		r := newFakeReconciler(ca, tc.d, infrastructure)
+		r.SetConfig(tc.c)
+		res, err := r.Reconcile(context.TODO(), req)
+		reconciledDeployment := &appsv1.Deployment{}
+		_ = r.client.Get(context.TODO(), types.NamespacedName{Namespace: TestNamespace, Name: "cluster-autoscaler-test"}, reconciledDeployment)
+		reconciledArgs := reconciledDeployment.Spec.Template.Spec.Containers[0].Args
+
+		for _, e := range tc.expectedArgs {
+			if !includeString(reconciledArgs, e) {
+				t.Fatalf("missing arg: %s", e)
+			}
+		}
+
+		assert.Equal(t, tc.expectedRes, res, "case %v: expected res incorrect", i)
+		assert.Equal(t, tc.expectedError, err, "case %v: expected err incorrect", i)
+	}
+}
+
 func TestCADeleting(t *testing.T) {
 	ca := NewClusterAutoscaler()
 	now := metav1.Now()
