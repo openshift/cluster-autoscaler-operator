@@ -21,6 +21,7 @@ spec:
       annotations:
         target.workload.openshift.io/management: '{"effect": "PreferredDuringScheduling"}'
         kubectl.kubernetes.io/default-container: cluster-autoscaler-operator
+        openshift.io/required-scc: restricted-v2
       labels:
         k8s-app: cluster-autoscaler-operator
     spec:
