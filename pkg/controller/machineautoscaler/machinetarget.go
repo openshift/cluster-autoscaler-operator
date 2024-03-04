@@ -306,41 +306,56 @@ func (mt *MachineTarget) UpdateScaleFromZeroAnnotations() error {
 // checkScaleFromZeroAnnotations makes sure that for every Deprecated OpenShift
 // scale from zero annotations, a copy for the upstream annotation exists.
 func checkScaleFromZeroAnnotations(annotations map[string]string) (map[string]string, error) {
+	//check for deprecated annotation
 	cpu, err := annotationsutil.ParseMachineSetAnnotationKey(annotations, annotationsutil.CpuKeyDeprecated)
-	if err != nil {
-		return annotations, fmt.Errorf("failed to parse key %s: %w", annotationsutil.CpuKeyDeprecated, err)
+	//did it find an annotation?
+	if err == nil {
+		//check if new annotation is also there
+		_, err := annotationsutil.ParseMachineSetAnnotationKey(annotations, annotationsutil.CpuKey)
+		//if it's not, set it
+		if err != nil {
+			annotations = annotationsutil.SetCpuAnnotation(annotations, cpu)
+		}
 	}
-	annotations = annotationsutil.SetCpuAnnotation(annotations, cpu)
 
 	// Originally, the memory key specifies the memory in memibytes, thus
 	// we need to convert this intereger into bytes.
 	mem, err := annotationsutil.ParseMachineSetAnnotationKey(annotations, annotationsutil.MemoryKeyDeprecated)
-	if err != nil {
-		return annotations, fmt.Errorf("failed to parse key %s: %w", annotationsutil.MemoryKeyDeprecated, err)
+	if err == nil {
+		_, err := annotationsutil.ParseMachineSetAnnotationKey(annotations, annotationsutil.MemoryKey)
+		if err != nil {
+			memInt, err := strconv.ParseInt(mem, 10, 0)
+			if err != nil {
+				return annotations, fmt.Errorf("could not parse integer: %w", err)
+			}
+			annotations = annotationsutil.SetMemoryAnnotation(annotations, resource.NewQuantity(memInt*util.MiB, resource.DecimalSI).String())
+		}
 	}
-	memInt, err := strconv.ParseInt(mem, 10, 0)
-	if err != nil {
-		return annotations, fmt.Errorf("could not parse integer: %w", err)
-	}
-	annotations = annotationsutil.SetMemoryAnnotation(annotations, resource.NewQuantity(memInt*util.MiB, resource.DecimalSI).String())
-
 	// Deprecated GPU annotation is split into 2 upstream annotations.
 	// TODO: Once we introduce proper gpu types, the gpu type in the annotation module in MAO needs to be changed.
 	gpu, err := annotationsutil.ParseMachineSetAnnotationKey(annotations, annotationsutil.GpuCountKeyDeprecated)
-	if err != nil {
-		return annotations, fmt.Errorf("could not parse key %s: %w", annotationsutil.GpuCountKeyDeprecated, err)
+	if err == nil {
+		_, err := annotationsutil.ParseMachineSetAnnotationKey(annotations, annotationsutil.GpuCountKey)
+		if err != nil {
+			annotations = annotationsutil.SetGpuCountAnnotation(annotations, gpu)
+		}
+		_, err = annotationsutil.ParseMachineSetAnnotationKey(annotations, annotationsutil.GpuTypeKey)
+		if err != nil {
+			annotations = annotationsutil.SetGpuTypeAnnotation(annotations, annotationsutil.GpuNvidiaType)
+		}
 	}
-	annotations = annotationsutil.SetGpuCountAnnotation(annotations, gpu)
+
 	// TODO: Once we introduce proper gpu types, the function SetGpuTypeAnnotation
 	// should take in the correct value as a second argument. We currently only support
 	// nvidia as a gpu type.
-	annotations = annotationsutil.SetGpuTypeAnnotation(annotations, annotationsutil.GpuNvidiaType)
 
 	maxPods, err := annotationsutil.ParseMachineSetAnnotationKey(annotations, annotationsutil.MaxPodsKeyDeprecated)
-	if err != nil {
-		return annotations, fmt.Errorf("could not parse key %s: %w", annotationsutil.MaxPodsKeyDeprecated, err)
+	if err == nil {
+		_, err := annotationsutil.ParseMachineSetAnnotationKey(annotations, annotationsutil.MaxPodsKey)
+		if err != nil {
+			annotations = annotationsutil.SetMaxPodsAnnotation(annotations, maxPods)
+		}
 	}
-	annotations = annotationsutil.SetMaxPodsAnnotation(annotations, maxPods)
 
 	return annotations, nil
 }
