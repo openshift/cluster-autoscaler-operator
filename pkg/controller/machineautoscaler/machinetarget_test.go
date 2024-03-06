@@ -378,8 +378,8 @@ func TestWarningForInvalidGPUAcceleratorLabel(t *testing.T) {
 	}
 }
 
-// Updating multiple annotations
-func TestUpdatingAnnotations(t *testing.T) {
+// Testing updating multiple annotations and adding new upstream annotations when the old ones exist
+func TestUpdatingScaleFromZeroAnnotations(t *testing.T) {
 	testConfigs := []struct {
 		name                  string
 		expectedNewAnnotation map[string]string
@@ -397,7 +397,7 @@ func TestUpdatingAnnotations(t *testing.T) {
 			},
 		},
 		{
-			name: "Supplying old CPU annotation and adding new one",
+			name: "Supplying old CPU annotation and adding upstream annotations",
 			expectedNewAnnotation: map[string]string{
 				annotationsutil.CpuKey:           "1",
 				annotationsutil.CpuKeyDeprecated: "1",
@@ -407,19 +407,19 @@ func TestUpdatingAnnotations(t *testing.T) {
 			},
 		},
 		{
-			name: "Supplying old GPU annotation and adding new one",
+			name: "Supplying old GPU annotation and adding upstream annotations",
 			expectedNewAnnotation: map[string]string{
 				annotationsutil.GpuCountKey:           "1",
 				annotationsutil.GpuCountKeyDeprecated: "1",
-				annotationsutil.GpuTypeKey:            "1",
+				annotationsutil.GpuTypeKey:            "nvidia.com/gpu",
 			},
 			suppliedAnnotations: map[string]string{
 				annotationsutil.GpuCountKeyDeprecated: "1",
-				annotationsutil.GpuTypeKey:            "1",
+				annotationsutil.GpuTypeKey:            "nvidia.com/gpu",
 			},
 		},
 		{
-			name: "Supplying old max pods annotation and adding new one",
+			name: "Supplying old max pods annotation and adding upstream annotations",
 			expectedNewAnnotation: map[string]string{
 				annotationsutil.MaxPodsKey:           "1",
 				annotationsutil.MaxPodsKeyDeprecated: "1",
@@ -443,33 +443,6 @@ func TestUpdatingAnnotations(t *testing.T) {
 
 			if !maps.Equal(observed, tc.expectedNewAnnotation) {
 				t.Errorf("SetAnnotations() returned %v, expected %v", observed, tc.expectedNewAnnotation)
-			}
-		})
-	}
-}
-
-// test checkscalefromzeroannotations on a new machine
-func TestScaleFromZeroAnnotations(t *testing.T) {
-	testConfigs := []struct {
-		name                string
-		suppliedAnnotations map[string]string
-	}{
-		{
-			name: "Supplying new machine with CPU and Memory annotations",
-			suppliedAnnotations: map[string]string{
-				annotationsutil.CpuKey:    "1",
-				annotationsutil.MemoryKey: "4Gi",
-			},
-		},
-	}
-	for _, tc := range testConfigs {
-		t.Run(tc.name, func(t *testing.T) {
-			target := NewTarget()
-			target.SetAnnotations(tc.suppliedAnnotations)
-			observed := target.GetAnnotations()
-
-			if !maps.Equal(observed, tc.suppliedAnnotations) {
-				t.Errorf("SetAnnotations() returned %v, expected %v", observed, tc.suppliedAnnotations)
 			}
 		})
 	}
