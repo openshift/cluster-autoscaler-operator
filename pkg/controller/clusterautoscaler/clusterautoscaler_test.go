@@ -224,6 +224,21 @@ func TestAutoscalerArgsFromSpec(t *testing.T) {
 				fmt.Sprintf("--balancing-ignore-label=test/anotherIgnoredLabel"),
 			},
 		},
+		{
+			name: "set ExpanderOrderList",
+			caFunc: func() *autoscalingv1.ClusterAutoscaler {
+				ca := NewClusterAutoscaler()
+				ca.Spec.ExpanderOrderList = []autoscalingv1.ExpanderString{
+					autoscalingv1.PriorityExpander,
+					autoscalingv1.LeastWasteExpander,
+					autoscalingv1.RandomExpander,
+				}
+				return ca
+			},
+			expected: []string{
+				fmt.Sprintf("--expander=priority,least-waste,random"),
+			},
+		},
 	}
 
 	for _, tc := range testCases {
