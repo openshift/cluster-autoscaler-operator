@@ -6,6 +6,7 @@ import (
 
 	configv1 "github.com/openshift/api/config/v1"
 	v1 "github.com/openshift/cluster-autoscaler-operator/pkg/apis/autoscaling/v1"
+	"k8s.io/klog/v2"
 )
 
 const (
@@ -70,6 +71,13 @@ const (
 	LeaderElectRetryPeriodArg        AutoscalerArg = "--leader-elect-retry-period"
 	ScaleUpFromZeroDefaultArch       AutoscalerArg = "--scale-up-from-zero-default-arch"
 	ExpanderArg                      AutoscalerArg = "--expander"
+)
+
+// Constants for the command line expander flags
+const (
+	leastWasteFlag = "least-waste"
+	priorityFlag   = "priority"
+	randomFlag     = "random"
 )
 
 // The following values are for cloud providers which have not yet created specific nodegroupset processors.
@@ -247,10 +255,21 @@ func AutoscalerArgs(ca *v1.ClusterAutoscaler, cfg *Config) []string {
 		args = append(args, VerbosityArg.Value(cfg.Verbosity))
 	}
 
-	if len(ca.Spec.ExpanderOrderList) > 0 {
-		expanders := make([]string, len(ca.Spec.ExpanderOrderList))
-		for i, v := range ca.Spec.ExpanderOrderList {
-			expanders[i] = string(v)
+	if len(ca.Spec.Expanders) > 0 {
+		expanders := make([]string, 0)
+		for _, v := range ca.Spec.Expanders {
+			switch v {
+			case v1.LeastWasteExpander:
+				expanders = append(expanders, leastWasteFlag)
+			case v1.PriorityExpander:
+				expanders = append(expanders, priorityFlag)
+			case v1.RandomExpander:
+				expanders = append(expanders, randomFlag)
+			default:
+				// this shouldn't happen since we have validation on the API types, but just in case
+				klog.Errorf("skipping unknown expander: %s", v)
+				continue
+			}
 		}
 		args = append(args, ExpanderArg.Value(strings.Join(expanders, ",")))
 	}

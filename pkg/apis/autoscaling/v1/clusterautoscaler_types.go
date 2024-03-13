@@ -9,14 +9,14 @@ func init() {
 }
 
 // ExpanderString contains the name of an expander to be used by the cluster autoscaler.
-// +kubebuilder:validation:Enum=least-waste;priority;random
+// +kubebuilder:validation:Enum=LeastWaste;Priority;Random
 type ExpanderString string
 
 // These constants define the valid values for an ExpanderString
 const (
-	LeastWasteExpander ExpanderString = "least-waste"
-	PriorityExpander   ExpanderString = "priority"
-	RandomExpander     ExpanderString = "random"
+	LeastWasteExpander ExpanderString = "LeastWaste"
+	PriorityExpander   ExpanderString = "Priority"
+	RandomExpander     ExpanderString = "Random"
 )
 
 // ClusterAutoscalerSpec defines the desired state of ClusterAutoscaler
@@ -69,11 +69,22 @@ type ClusterAutoscalerSpec struct {
 	// This option specifies an ordered list, highest priority first, of expanders that
 	// will be used by the cluster autoscaler to select node groups for expansion
 	// when scaling out.
-	// If not specified, the default value is `random`, available options are: `least-waste`, `priority`, `random`.
+	// Expanders instruct the autoscaler on how to choose node groups when scaling out
+	// the cluster. They can be specified in order so that the result from the first expander
+	// is used as the input to the second, and so forth. For example, if set to `[LeastWaste, Random]`
+	// the autoscaler will first evaluate node groups to determine which will have the least
+	// resource waste, if multiple groups are selected the autoscaler will then randomly choose
+	// between those groups to determine the group for scaling.
+	// The following expanders are available:
+	// * LeastWaste - selects the node group that will have the least idle CPU (if tied, unused memory) after scale-up.
+	// * Priority - selects the node group that has the highest priority assigned by the user. For details, please see https://github.com/openshift/kubernetes-autoscaler/blob/master/cluster-autoscaler/expander/priority/readme.md
+	// * Random - selects the node group randomly.
+	// If not specified, the default value is `Random`, available options are: `LeastWaste`, `Priority`, `Random`.
 	//
 	// +listType=set
 	// +kubebuilder:validation:MaxItems=3
-	ExpanderOrderList []ExpanderString `json:"expanderOrderList"`
+	// +optional
+	Expanders []ExpanderString `json:"expanders"`
 }
 
 // ClusterAutoscalerStatus defines the observed state of ClusterAutoscaler

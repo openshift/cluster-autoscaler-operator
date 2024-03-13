@@ -132,8 +132,8 @@ func (in *ClusterAutoscalerSpec) DeepCopyInto(out *ClusterAutoscalerSpec) {
 		*out = new(int32)
 		**out = **in
 	}
-	if in.ExpanderOrderList != nil {
-		in, out := &in.ExpanderOrderList, &out.ExpanderOrderList
+	if in.Expanders != nil {
+		in, out := &in.Expanders, &out.Expanders
 		*out = make([]ExpanderString, len(*in))
 		copy(*out, *in)
 	}

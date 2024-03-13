@@ -225,10 +225,10 @@ func TestAutoscalerArgsFromSpec(t *testing.T) {
 			},
 		},
 		{
-			name: "set ExpanderOrderList",
+			name: "set Expanders",
 			caFunc: func() *autoscalingv1.ClusterAutoscaler {
 				ca := NewClusterAutoscaler()
-				ca.Spec.ExpanderOrderList = []autoscalingv1.ExpanderString{
+				ca.Spec.Expanders = []autoscalingv1.ExpanderString{
 					autoscalingv1.PriorityExpander,
 					autoscalingv1.LeastWasteExpander,
 					autoscalingv1.RandomExpander,

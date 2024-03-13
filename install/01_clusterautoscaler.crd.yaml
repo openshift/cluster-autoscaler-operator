@@ -56,20 +56,33 @@ spec:
                 items:
                   type: string
                 type: array
-              expanderOrderList:
+              expanders:
                 description: 'Sets the type and order of expanders to be used during
                   scale out operations. This option specifies an ordered list, highest
                   priority first, of expanders that will be used by the cluster autoscaler
-                  to select node groups for expansion when scaling out. If not specified,
-                  the default value is `random`, available options are: `least-waste`,
-                  `priority`, `random`.'
+                  to select node groups for expansion when scaling out. Expanders
+                  instruct the autoscaler on how to choose node groups when scaling
+                  out the cluster. They can be specified in order so that the result
+                  from the first expander is used as the input to the second, and
+                  so forth. For example, if set to `[LeastWaste, Random]` the autoscaler
+                  will first evaluate node groups to determine which will have the
+                  least resource waste, if multiple groups are selected the autoscaler
+                  will then randomly choose between those groups to determine the
+                  group for scaling. The following expanders are available: * LeastWaste
+                  - selects the node group that will have the least idle CPU (if tied,
+                  unused memory) after scale-up. * Priority - selects the node group
+                  that has the highest priority assigned by the user. For details,
+                  please see https://github.com/openshift/kubernetes-autoscaler/blob/master/cluster-autoscaler/expander/priority/readme.md
+                  * Random - selects the node group randomly. If not specified, the
+                  default value is `Random`, available options are: `LeastWaste`,
+                  `Priority`, `Random`.'
                 items:
                   description: ExpanderString contains the name of an expander to
                     be used by the cluster autoscaler.
                   enum:
-                  - least-waste
-                  - priority
-                  - random
+                  - LeastWaste
+                  - Priority
+                  - Random
                   type: string
                 maxItems: 3
                 type: array
@@ -216,8 +229,6 @@ spec:
                   with pods with local storage, e.g. EmptyDir or HostPath. true by
                   default at autoscaler
                 type: boolean
-            required:
-            - expanderOrderList
             type: object
           status:
             description: Most recently observed status of ClusterAutoscaler resource
