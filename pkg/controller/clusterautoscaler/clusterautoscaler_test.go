@@ -23,7 +23,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/record"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	fakeclient "sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -130,111 +130,134 @@ func includeString(list []string, item string) bool {
 	return false
 }
 
-func TestAutoscalerArgs(t *testing.T) {
-	ca := NewClusterAutoscaler()
-
-	args := AutoscalerArgs(ca, &Config{CloudProvider: TestCloudProvider, Namespace: TestNamespace})
-
-	defaults := []string{
-		"--logtostderr",
-		"--record-duplicated-events",
-		"--v=0",
-		fmt.Sprintf("--cloud-provider=%s", TestCloudProvider),
-		fmt.Sprintf("--namespace=%s", TestNamespace),
-		fmt.Sprintf("--leader-elect-lease-duration=%s", leaderElectLeaseDuration),
-		fmt.Sprintf("--leader-elect-renew-deadline=%s", leaderElectRenewDeadline),
-		fmt.Sprintf("--leader-elect-retry-period=%s", leaderElectRetryPeriod),
+// TestAutoscalerArgsFromSpec validates that command line flags to the
+// autoscaler appear in the proper format when set in the ClusterAutoscaler.spec
+func TestAutoscalerArgsFromSpec(t *testing.T) {
+	testCases := []struct {
+		name            string
+		caFunc          func() *autoscalingv1.ClusterAutoscaler
+		expected        []string
+		expectedMissing []string
+	}{
+		{
+			name:   "all default arguments",
+			caFunc: NewClusterAutoscaler,
+			expected: []string{
+				"--logtostderr",
+				"--record-duplicated-events",
+				"--v=0",
+				fmt.Sprintf("--cores-total=%d:%d", CoresMin, CoresMax),
+				fmt.Sprintf("--cloud-provider=%s", TestCloudProvider),
+				fmt.Sprintf("--expendable-pods-priority-cutoff=%d", PodPriorityThreshold),
+				fmt.Sprintf("--leader-elect-lease-duration=%s", leaderElectLeaseDuration),
+				fmt.Sprintf("--leader-elect-renew-deadline=%s", leaderElectRenewDeadline),
+				fmt.Sprintf("--leader-elect-retry-period=%s", leaderElectRetryPeriod),
+				fmt.Sprintf("--max-graceful-termination-sec=%d", MaxPodGracePeriod),
+				fmt.Sprintf("--max-nodes-total=%d", MaxNodesTotal),
+				fmt.Sprintf("--namespace=%s", TestNamespace),
+				fmt.Sprintf("--scale-down-delay-after-add=%s", ScaleDownDelayAfterAdd),
+				fmt.Sprintf("--scale-down-unneeded-time=%s", ScaleDownUnneededTime),
+				fmt.Sprintf("--scale-down-utilization-threshold=%s", ScaleDownUtilizationThreshold),
+			},
+			expectedMissing: []string{
+				"--scale-down-delay-after-delete",
+				"--scale-down-delay-after-failure",
+				"--max-node-provision-time",
+				"--balance-similar-node-groups",
+				"--ignore-daemonsets-utilization",
+				"--skip-nodes-with-local-storage",
+				"--balancing-ignore-label",
+			},
+		},
+		{
+			name: "set boolean options as true",
+			caFunc: func() *autoscalingv1.ClusterAutoscaler {
+				ca := NewClusterAutoscaler()
+				ca.Spec.BalanceSimilarNodeGroups = ptr.To(true)
+				ca.Spec.IgnoreDaemonsetsUtilization = ptr.To(true)
+				ca.Spec.SkipNodesWithLocalStorage = ptr.To(true)
+				return ca
+			},
+			expected: []string{
+				fmt.Sprintf("--balance-similar-node-groups=true"),
+				fmt.Sprintf("--ignore-daemonsets-utilization=true"),
+				fmt.Sprintf("--skip-nodes-with-local-storage=true"),
+			},
+		},
+		{
+			name: "set boolean options as false",
+			caFunc: func() *autoscalingv1.ClusterAutoscaler {
+				ca := NewClusterAutoscaler()
+				ca.Spec.BalanceSimilarNodeGroups = ptr.To(false)
+				ca.Spec.IgnoreDaemonsetsUtilization = ptr.To(false)
+				ca.Spec.SkipNodesWithLocalStorage = ptr.To(false)
+				return ca
+			},
+			expected: []string{
+				fmt.Sprintf("--balance-similar-node-groups=false"),
+				fmt.Sprintf("--ignore-daemonsets-utilization=false"),
+				fmt.Sprintf("--skip-nodes-with-local-storage=false"),
+			},
+		},
+		{
+			name: "set MaxNodeProvisionTime",
+			caFunc: func() *autoscalingv1.ClusterAutoscaler {
+				ca := NewClusterAutoscaler()
+				ca.Spec.MaxNodeProvisionTime = MaxNodeProvisionTime
+				return ca
+			},
+			expected: []string{
+				fmt.Sprintf("--max-node-provision-time=%s", MaxNodeProvisionTime),
+			},
+		},
+		{
+			name: "set BalancingIgnoredLabels",
+			caFunc: func() *autoscalingv1.ClusterAutoscaler {
+				ca := NewClusterAutoscaler()
+				ca.Spec.BalanceSimilarNodeGroups = ptr.To(true)
+				ca.Spec.BalancingIgnoredLabels = []string{"test/ignoredLabel", "test/anotherIgnoredLabel"}
+				return ca
+			},
+			expected: []string{
+				fmt.Sprintf("--balance-similar-node-groups=true"),
+				fmt.Sprintf("--balancing-ignore-label=test/ignoredLabel"),
+				fmt.Sprintf("--balancing-ignore-label=test/anotherIgnoredLabel"),
+			},
+		},
+		{
+			name: "set Expanders",
+			caFunc: func() *autoscalingv1.ClusterAutoscaler {
+				ca := NewClusterAutoscaler()
+				ca.Spec.Expanders = []autoscalingv1.ExpanderString{
+					autoscalingv1.PriorityExpander,
+					autoscalingv1.LeastWasteExpander,
+					autoscalingv1.RandomExpander,
+				}
+				return ca
+			},
+			expected: []string{
+				fmt.Sprintf("--expander=priority,least-waste,random"),
+			},
+		},
 	}
 
-	for _, e := range defaults {
-		if !includeString(args, e) {
-			t.Fatalf("missing arg: %s", e)
-		}
-	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(tt *testing.T) {
+			ca := tc.caFunc()
+			args := AutoscalerArgs(ca, &Config{CloudProvider: TestCloudProvider, Namespace: TestNamespace})
 
-	expected := []string{
-		fmt.Sprintf("--scale-down-delay-after-add=%s", ScaleDownDelayAfterAdd),
-		fmt.Sprintf("--scale-down-unneeded-time=%s", ScaleDownUnneededTime),
-		fmt.Sprintf("--scale-down-utilization-threshold=%s", ScaleDownUtilizationThreshold),
-		fmt.Sprintf("--expendable-pods-priority-cutoff=%d", PodPriorityThreshold),
-		fmt.Sprintf("--max-graceful-termination-sec=%d", MaxPodGracePeriod),
-		fmt.Sprintf("--cores-total=%d:%d", CoresMin, CoresMax),
-		fmt.Sprintf("--max-nodes-total=%d", MaxNodesTotal),
-		fmt.Sprintf("--namespace=%s", TestNamespace),
-		fmt.Sprintf("--cloud-provider=%s", TestCloudProvider),
-	}
+			for _, e := range tc.expected {
+				if !includeString(args, e) {
+					t.Fatalf("missing expected argument: \"%s\"", e)
+				}
+			}
 
-	for _, e := range expected {
-		if !includeString(args, e) {
-			t.Fatalf("missing arg: %s", e)
-		}
-	}
-
-	expectedMissing := []string{
-		"--scale-down-delay-after-delete",
-		"--scale-down-delay-after-failure",
-		"--max-node-provision-time",
-		"--balance-similar-node-groups",
-		"--ignore-daemonsets-utilization",
-		"--skip-nodes-with-local-storage",
-		"--balancing-ignore-label",
-	}
-
-	for _, e := range expectedMissing {
-		if includesStringWithPrefix(args, e) {
-			t.Fatalf("found arg expected to be missing: %s", e)
-		}
-	}
-}
-
-// TestAutoscalerArgEnabled validates that args appear in the autoscaler args when
-// enabled in the ClusterAutoscalerSpec.
-func TestAutoscalerArgEnabled(t *testing.T) {
-	ca := NewClusterAutoscaler()
-	ca.Spec.BalanceSimilarNodeGroups = pointer.BoolPtr(true)
-	ca.Spec.IgnoreDaemonsetsUtilization = pointer.BoolPtr(true)
-	ca.Spec.SkipNodesWithLocalStorage = pointer.BoolPtr(true)
-	ca.Spec.MaxNodeProvisionTime = MaxNodeProvisionTime
-	ca.Spec.BalancingIgnoredLabels = []string{"test/ignoredLabel", "test/anotherIgnoredLabel"}
-
-	args := AutoscalerArgs(ca, &Config{CloudProvider: TestCloudProvider, Namespace: TestNamespace})
-
-	expected := []string{
-		fmt.Sprintf("--balance-similar-node-groups=true"),
-		fmt.Sprintf("--ignore-daemonsets-utilization=true"),
-		fmt.Sprintf("--skip-nodes-with-local-storage=true"),
-		fmt.Sprintf("--max-node-provision-time=%s", MaxNodeProvisionTime),
-		fmt.Sprintf("--balancing-ignore-label=test/ignoredLabel"),
-		fmt.Sprintf("--balancing-ignore-label=test/anotherIgnoredLabel"),
-	}
-
-	for _, e := range expected {
-		if !includeString(args, e) {
-			t.Fatalf("missing arg: %s", e)
-		}
-	}
-}
-
-// TestAutoscalerArgEnabledWithFalse validates that args appear in the autoscaler args when
-// set to false in the ClusterAutoscalerSpec.
-func TestAutoscalerArgEnabledWithFalse(t *testing.T) {
-	ca := NewClusterAutoscaler()
-	ca.Spec.BalanceSimilarNodeGroups = pointer.BoolPtr(false)
-	ca.Spec.IgnoreDaemonsetsUtilization = pointer.BoolPtr(false)
-	ca.Spec.SkipNodesWithLocalStorage = pointer.BoolPtr(false)
-
-	args := AutoscalerArgs(ca, &Config{CloudProvider: TestCloudProvider, Namespace: TestNamespace})
-
-	expected := []string{
-		fmt.Sprintf("--balance-similar-node-groups=false"),
-		fmt.Sprintf("--ignore-daemonsets-utilization=false"),
-		fmt.Sprintf("--skip-nodes-with-local-storage=false"),
-	}
-
-	for _, e := range expected {
-		if !includeString(args, e) {
-			t.Fatalf("missing arg: %s", e)
-		}
+			for _, e := range tc.expectedMissing {
+				if includesStringWithPrefix(args, e) {
+					t.Fatalf("found argument expected to be missing: \"%s\"", e)
+				}
+			}
+		})
 	}
 }
 
