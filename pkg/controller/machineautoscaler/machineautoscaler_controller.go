@@ -409,6 +409,13 @@ func (r *Reconciler) GetTarget(ref *corev1.ObjectReference) (*MachineTarget, err
 // so that they may take action if appropriate.
 func (r *Reconciler) UpdateTarget(target *MachineTarget, min, max int) error {
 	// Update the target object's annotations if necessary.
+	oldAnnotations := target.GetAnnotations()
+	if updatedAnnotations, err := checkScaleFromZeroAnnotations(oldAnnotations); err != nil {
+		return err
+	} else {
+		target.SetAnnotations(updatedAnnotations)
+	}
+
 	if target.NeedsUpdate(min, max) {
 		target.SetLimits(min, max)
 

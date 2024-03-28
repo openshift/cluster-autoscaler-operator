@@ -2,9 +2,11 @@ package machineautoscaler
 
 import (
 	"fmt"
+	"maps"
 	"testing"
 
 	"github.com/openshift/cluster-autoscaler-operator/pkg/util"
+	annotationsutil "github.com/openshift/machine-api-operator/pkg/util/machineset"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
@@ -371,6 +373,76 @@ func TestWarningForInvalidGPUAcceleratorLabel(t *testing.T) {
 
 			if observedWarning != tc.expectedWarning {
 				t.Errorf("Expected %v, got %v", tc.expectedWarning, observedWarning)
+			}
+		})
+	}
+}
+
+// Testing updating multiple annotations and adding new upstream annotations when the old ones exist
+func TestUpdatingScaleFromZeroAnnotations(t *testing.T) {
+	testConfigs := []struct {
+		name                  string
+		expectedNewAnnotation map[string]string
+		suppliedAnnotations   map[string]string
+	}{
+		{
+			name: "Supplying new CPU and Memory annotations",
+			expectedNewAnnotation: map[string]string{
+				annotationsutil.CpuKey:    "1",
+				annotationsutil.MemoryKey: "4Gi",
+			},
+			suppliedAnnotations: map[string]string{
+				annotationsutil.CpuKey:    "1",
+				annotationsutil.MemoryKey: "4Gi",
+			},
+		},
+		{
+			name: "Supplying old CPU annotation and adding upstream annotations",
+			expectedNewAnnotation: map[string]string{
+				annotationsutil.CpuKey:           "1",
+				annotationsutil.CpuKeyDeprecated: "1",
+			},
+			suppliedAnnotations: map[string]string{
+				annotationsutil.CpuKeyDeprecated: "1",
+			},
+		},
+		{
+			name: "Supplying old GPU annotation and adding upstream annotations",
+			expectedNewAnnotation: map[string]string{
+				annotationsutil.GpuCountKey:           "1",
+				annotationsutil.GpuCountKeyDeprecated: "1",
+				annotationsutil.GpuTypeKey:            "nvidia.com/gpu",
+			},
+			suppliedAnnotations: map[string]string{
+				annotationsutil.GpuCountKeyDeprecated: "1",
+				annotationsutil.GpuTypeKey:            "nvidia.com/gpu",
+			},
+		},
+		{
+			name: "Supplying old max pods annotation and adding upstream annotations",
+			expectedNewAnnotation: map[string]string{
+				annotationsutil.MaxPodsKey:           "1",
+				annotationsutil.MaxPodsKeyDeprecated: "1",
+			},
+			suppliedAnnotations: map[string]string{
+				annotationsutil.MaxPodsKeyDeprecated: "1",
+			},
+		},
+	}
+
+	for _, tc := range testConfigs {
+		t.Run(tc.name, func(t *testing.T) {
+			target := NewTarget()
+			target.SetAnnotations(tc.suppliedAnnotations)
+			err := target.UpdateScaleFromZeroAnnotations()
+			if err != nil {
+				t.Errorf("Unexpected error updating ScaleFromZero annotations :%v", err)
+			}
+
+			observed := target.GetAnnotations()
+
+			if !maps.Equal(observed, tc.expectedNewAnnotation) {
+				t.Errorf("SetAnnotations() returned %v, expected %v", observed, tc.expectedNewAnnotation)
 			}
 		})
 	}
