@@ -341,7 +341,12 @@ func checkScaleFromZeroAnnotations(annotations map[string]string) (map[string]st
 		}
 		_, err = annotationsutil.ParseMachineSetAnnotationKey(annotations, annotationsutil.GpuTypeKey)
 		if err != nil {
-			annotations = annotationsutil.SetGpuTypeAnnotation(annotations, annotationsutil.GpuNvidiaType)
+			//If there are no gpus, gputype needs to be an empty string
+			if gpu == "0" {
+				annotations = annotationsutil.SetGpuTypeAnnotation(annotations, "")
+			} else {
+				annotations = annotationsutil.SetGpuTypeAnnotation(annotations, annotationsutil.GpuNvidiaType)
+			}
 		}
 	}
 
