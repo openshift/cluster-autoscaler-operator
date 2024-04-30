@@ -407,7 +407,7 @@ func TestUpdatingScaleFromZeroAnnotations(t *testing.T) {
 			},
 		},
 		{
-			name: "Supplying old GPU annotation and adding upstream annotations",
+			name: "Supplying old GPU annotations and adding upstream annotations",
 			expectedNewAnnotation: map[string]string{
 				annotationsutil.GpuCountKey:           "1",
 				annotationsutil.GpuCountKeyDeprecated: "1",
@@ -415,7 +415,17 @@ func TestUpdatingScaleFromZeroAnnotations(t *testing.T) {
 			},
 			suppliedAnnotations: map[string]string{
 				annotationsutil.GpuCountKeyDeprecated: "1",
-				annotationsutil.GpuTypeKey:            "nvidia.com/gpu",
+			},
+		},
+		{
+			name: "Supplying old GPU annotations and adding upstream annotations with empty string if count is 0",
+			expectedNewAnnotation: map[string]string{
+				annotationsutil.GpuCountKey:           "0",
+				annotationsutil.GpuCountKeyDeprecated: "0",
+				annotationsutil.GpuTypeKey:            "",
+			},
+			suppliedAnnotations: map[string]string{
+				annotationsutil.GpuCountKeyDeprecated: "0",
 			},
 		},
 		{
