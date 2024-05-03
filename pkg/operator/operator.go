@@ -1,6 +1,7 @@
 package operator
 
 import (
+	"crypto/tls"
 	"fmt"
 
 	configv1 "github.com/openshift/api/config/v1"
@@ -57,6 +58,15 @@ func New(cfg *Config) (*Operator, error) {
 		RenewDeadline:                 &le.RenewDeadline.Duration,
 		RetryPeriod:                   &le.RetryPeriod.Duration,
 		MetricsBindAddress:            fmt.Sprintf("127.0.0.1:%d", cfg.MetricsPort),
+		WebhookServer: &webhook.DefaultServer{
+			Options: webhook.Options{
+				TLSOpts: []func(*tls.Config){
+					func(cfg *tls.Config) {
+						cfg.MinVersion = uint16(13)
+					},
+				},
+			},
+		},
 	}
 
 	operator.manager, err = manager.New(clientConfig, managerOptions)
