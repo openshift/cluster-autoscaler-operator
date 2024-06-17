@@ -17,7 +17,7 @@ import (
 // Validator validates MachineAutoscaler resources.
 type Validator struct {
 	client  client.Client
-	decoder *admission.Decoder
+	decoder admission.Decoder
 }
 
 // NewValidator returns a new Validator.
@@ -85,7 +85,7 @@ func (v *Validator) InjectClient(c client.Client) error {
 }
 
 // InjectDecoder injects the decoder.
-func (v *Validator) InjectDecoder(d *admission.Decoder) error {
+func (v *Validator) InjectDecoder(d admission.Decoder) error {
 	v.decoder = d
 	return nil
 }

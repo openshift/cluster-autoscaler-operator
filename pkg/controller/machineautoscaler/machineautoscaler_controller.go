@@ -96,7 +96,7 @@ func (r *Reconciler) AddToManager(mgr manager.Manager) error {
 	}
 
 	// Watch for changes to primary resource MachineAutoscaler
-	err = c.Watch(source.Kind(mgr.GetCache(), &v1beta1.MachineAutoscaler{}), &handler.EnqueueRequestForObject{})
+	err = c.Watch(source.Kind(mgr.GetCache(), &v1beta1.MachineAutoscaler{}, &handler.TypedEnqueueRequestForObject[*v1beta1.MachineAutoscaler]{}))
 	if err != nil {
 		return err
 	}
@@ -123,8 +123,8 @@ func (r *Reconciler) AddToManager(mgr manager.Manager) error {
 		// Watch for changes to each supported target resource type and enqueue
 		// reconcile requests for their owning MachineAutoscaler resources.
 		if err = c.Watch(
-			source.Kind(mgr.GetCache(), target),
-			handler.EnqueueRequestsFromMapFunc(targetOwnerRequest)); err != nil {
+			source.Kind(mgr.GetCache(), target,
+				handler.TypedEnqueueRequestsFromMapFunc[*unstructured.Unstructured](targetOwnerRequest))); err != nil {
 			return err
 		}
 	}
@@ -556,7 +556,7 @@ func (r *Reconciler) ValidateReference(obj *corev1.ObjectReference) (bool, error
 
 // targetOwnerRequest is used with handler.EnqueueRequestsFromMapFunc to enqueue
 // reconcile requests for the owning MachineAutoscaler of a watched target.
-func targetOwnerRequest(_ context.Context, a client.Object) []reconcile.Request {
+func targetOwnerRequest[T client.Object](_ context.Context, a T) []reconcile.Request {
 	target, err := MachineTargetFromObject(a)
 	if err != nil {
 		klog.Errorf("Failed to convert object to MachineTarget: %v", err)

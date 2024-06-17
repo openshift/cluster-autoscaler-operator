@@ -100,61 +100,61 @@ func (r *Reconciler) AddToManager(mgr manager.Manager) error {
 	// ClusterAutoscaler is effectively a singleton resource.  A
 	// deployment is only created if an instance is found matching the
 	// name set at runtime.
-	p := predicate.Funcs{
-		CreateFunc: func(e event.CreateEvent) bool {
+	p := predicate.TypedFuncs[*autoscalingv1.ClusterAutoscaler]{
+		CreateFunc: func(e event.TypedCreateEvent[*autoscalingv1.ClusterAutoscaler]) bool {
 			return r.NamePredicate(e.Object)
 		},
-		UpdateFunc: func(e event.UpdateEvent) bool {
+		UpdateFunc: func(e event.TypedUpdateEvent[*autoscalingv1.ClusterAutoscaler]) bool {
 			return r.NamePredicate(e.ObjectNew)
 		},
-		DeleteFunc: func(e event.DeleteEvent) bool {
+		DeleteFunc: func(e event.TypedDeleteEvent[*autoscalingv1.ClusterAutoscaler]) bool {
 			return r.NamePredicate(e.Object)
 		},
-		GenericFunc: func(e event.GenericEvent) bool {
+		GenericFunc: func(e event.TypedGenericEvent[*autoscalingv1.ClusterAutoscaler]) bool {
 			return r.NamePredicate(e.Object)
 		},
 	}
 
 	// Watch for changes to primary resource ClusterAutoscaler
-	if err := c.Watch(source.Kind(mgr.GetCache(), &autoscalingv1.ClusterAutoscaler{}), &handler.EnqueueRequestForObject{}, p); err != nil {
+	if err := c.Watch(source.Kind(mgr.GetCache(), &autoscalingv1.ClusterAutoscaler{}, &handler.TypedEnqueueRequestForObject[*autoscalingv1.ClusterAutoscaler]{}, p)); err != nil {
 		return err
 	}
 
 	// Watch for changes to secondary resources owned by a ClusterAutoscaler
-	if err := c.Watch(source.Kind(mgr.GetCache(), &appsv1.Deployment{}), handler.EnqueueRequestForOwner(
+	if err := c.Watch(source.Kind(mgr.GetCache(), &appsv1.Deployment{}, handler.TypedEnqueueRequestForOwner[*appsv1.Deployment](
 		mgr.GetScheme(),
 		mgr.GetRESTMapper(),
 		&autoscalingv1.ClusterAutoscaler{},
 		handler.OnlyControllerOwner(),
-	)); err != nil {
+	))); err != nil {
 		return err
 	}
 
 	// Watch for changes to monitoring resources owned by a ClusterAutoscaler
-	if err := c.Watch(source.Kind(mgr.GetCache(), &corev1.Service{}), handler.EnqueueRequestForOwner(
+	if err := c.Watch(source.Kind(mgr.GetCache(), &corev1.Service{}, handler.TypedEnqueueRequestForOwner[*corev1.Service](
 		mgr.GetScheme(),
 		mgr.GetRESTMapper(),
 		&autoscalingv1.ClusterAutoscaler{},
 		handler.OnlyControllerOwner(),
-	)); err != nil {
+	))); err != nil {
 		return err
 	}
 
-	if err := c.Watch(source.Kind(mgr.GetCache(), &monitoringv1.ServiceMonitor{}), handler.EnqueueRequestForOwner(
+	if err := c.Watch(source.Kind(mgr.GetCache(), &monitoringv1.ServiceMonitor{}, handler.TypedEnqueueRequestForOwner[*monitoringv1.ServiceMonitor](
 		mgr.GetScheme(),
 		mgr.GetRESTMapper(),
 		&autoscalingv1.ClusterAutoscaler{},
 		handler.OnlyControllerOwner(),
-	)); err != nil {
+	))); err != nil {
 		return err
 	}
 
-	return c.Watch(source.Kind(mgr.GetCache(), &monitoringv1.PrometheusRule{}), handler.EnqueueRequestForOwner(
+	return c.Watch(source.Kind(mgr.GetCache(), &monitoringv1.PrometheusRule{}, handler.TypedEnqueueRequestForOwner[*monitoringv1.PrometheusRule](
 		mgr.GetScheme(),
 		mgr.GetRESTMapper(),
 		&autoscalingv1.ClusterAutoscaler{},
 		handler.OnlyControllerOwner(),
-	))
+	)))
 }
 
 // Reconcile reads that state of the cluster for a ClusterAutoscaler
