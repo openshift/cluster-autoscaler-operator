@@ -21,7 +21,7 @@ import (
 // Validator validates ClusterAutoscaler resources.
 type Validator struct {
 	client  client.Client
-	decoder *admission.Decoder
+	decoder admission.Decoder
 
 	clusterAutoscalerName string
 }
@@ -206,7 +206,7 @@ func (v *Validator) InjectClient(c client.Client) error {
 }
 
 // InjectDecoder injects the decoder.
-func (v *Validator) InjectDecoder(d *admission.Decoder) error {
+func (v *Validator) InjectDecoder(d admission.Decoder) error {
 	v.decoder = d
 	return nil
 }
