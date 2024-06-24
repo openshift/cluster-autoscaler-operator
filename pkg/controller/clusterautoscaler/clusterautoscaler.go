@@ -108,6 +108,9 @@ const (
 
 	// AwsIgnoredLabelEbsCsiZone is a label used by the AWS EBS CSI driver as a target for Persistent Volume Node Affinity.
 	AwsIgnoredLabelEbsCsiZone = "topology.ebs.csi.aws.com/zone"
+
+	// AwsIgnoredLabelZoneID is a label used for the AWS-specific zone identifier, see https://github.com/kubernetes/cloud-provider-aws/issues/300 for a more detailed explanation of its use.
+	AwsIgnoredLabelZoneID = "topology.k8s.aws/zone-id"
 )
 
 // Azure cloud provider ignore labels for the autoscaler.
@@ -167,7 +170,8 @@ func appendBasicIgnoreLabels(args []string, cfg *Config) []string {
 			BalancingIgnoreLabelArg.Value(AwsIgnoredLabelK8sEniconfig),
 			BalancingIgnoreLabelArg.Value(AwsIgnoredLabelEksNodegroup),
 			BalancingIgnoreLabelArg.Value(AwsIgnoredLabelEksctlNodegroupName),
-			BalancingIgnoreLabelArg.Value(AwsIgnoredLabelEksctlInstanceId))
+			BalancingIgnoreLabelArg.Value(AwsIgnoredLabelEksctlInstanceId),
+			BalancingIgnoreLabelArg.Value(AwsIgnoredLabelZoneID))
 	case configv1.AzurePlatformType:
 		args = append(args, BalancingIgnoreLabelArg.Value(AzureDiskTopologyKey),
 			BalancingIgnoreLabelArg.Value(AzureNodepoolLegacyLabel),
