@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	goruntime "runtime"
+	"strings"
 
 	configv1 "github.com/openshift/api/config/v1"
 	autoscalingv1 "github.com/openshift/cluster-autoscaler-operator/pkg/apis/autoscaling/v1"
@@ -416,7 +417,7 @@ func (r *Reconciler) AutoscalerPodSpec(ca *autoscalingv1.ClusterAutoscaler) *cor
 	args := AutoscalerArgs(ca, &r.config)
 
 	if r.config.ExtraArgs != "" {
-		args = append(args, r.config.ExtraArgs)
+		args = append(args, strings.Split(r.config.ExtraArgs, ",")...)
 	}
 
 	spec := &corev1.PodSpec{
