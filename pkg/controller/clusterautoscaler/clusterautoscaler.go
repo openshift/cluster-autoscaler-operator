@@ -83,12 +83,6 @@ const (
 // The following values are for cloud providers which have not yet created specific nodegroupset processors.
 // These values should be removed and replaced in the event that one of the cloud providers creates a nodegroupset processor.
 
-// Alibaba cloud provider ignore labels for the autoscaler.
-const (
-	// AlicloudIgnoredLabelCsiZone is a label used by the Alibaba Cloud CSI driver as a target for Persistent Volume Node Affinity.
-	AlicloudIgnoredLabelCsiZone = "topology.diskplugin.csi.alibabacloud.com/zone"
-)
-
 // AWS cloud provider ignore labels for the autoscaler.
 const (
 	// AwsIgnoredLabelEksctlInstanceId  is a label used by eksctl to identify instances.
@@ -162,8 +156,6 @@ const (
 // so the autoscaler can use these labels without the user having to input them manually.
 func appendBasicIgnoreLabels(args []string, cfg *Config) []string {
 	switch cfg.platformType {
-	case configv1.AlibabaCloudPlatformType:
-		args = append(args, BalancingIgnoreLabelArg.Value(AlicloudIgnoredLabelCsiZone))
 	case configv1.AWSPlatformType:
 		args = append(args, BalancingIgnoreLabelArg.Value(AwsIgnoredLabelEbsCsiZone),
 			BalancingIgnoreLabelArg.Value(AwsIgnoredLabelLifecycle),
