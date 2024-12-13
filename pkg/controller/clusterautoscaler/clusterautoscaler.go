@@ -159,6 +159,15 @@ const (
 	NutanixPrismHostUuid = "nutanix.com/prism-host-uuid"
 )
 
+// Vsphere cloud provider ignore labels for the autoscaler.
+const (
+	// VsphereZone is a label used by the Nutanix Cloud Controller Manager to identify the Prism service.
+	VsphereZone = "machine.openshift.io/region"
+
+	// VsphereRegion is a label used by the Nutanix Cloud Controller Manager to uniquely identify the Prism service.
+	VsphereRegion = "machine.openshift.io/zone"
+)
+
 // AppendBasicIgnoreLabels appends ignore labels for specific cloud provider to the arguments
 // so the autoscaler can use these labels without the user having to input them manually.
 func appendBasicIgnoreLabels(args []string, cfg *Config) []string {
@@ -187,6 +196,9 @@ func appendBasicIgnoreLabels(args []string, cfg *Config) []string {
 			BalancingIgnoreLabelArg.Value(NutanixPrismElementUuid),
 			BalancingIgnoreLabelArg.Value(NutanixPrismHostName),
 			BalancingIgnoreLabelArg.Value(NutanixPrismHostUuid))
+	case configv1.VSpherePlatformType:
+		args = append(args, BalancingIgnoreLabelArg.Value(VsphereZone),
+			BalancingIgnoreLabelArg.Value(VsphereRegion))
 	}
 
 	return args
