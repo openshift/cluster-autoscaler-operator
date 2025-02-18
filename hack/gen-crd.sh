@@ -15,8 +15,10 @@ function annotate_crd() {
 }
 
 go run ./vendor/sigs.k8s.io/controller-tools/cmd/controller-gen crd:crdVersions=v1 paths=./pkg/apis/...
+go run ./vendor/sigs.k8s.io/controller-tools/cmd/controller-gen crd:crdVersions=v1 paths=./vendor/k8s.io/autoscaler/cluster-autoscaler/apis/provisioningrequest/autoscaling.x-k8s.io/v1/...
 
 echo "Copying generated CRDs"
 annotate_crd config/crd/autoscaling.openshift.io_clusterautoscalers.yaml install/01_clusterautoscaler.crd.yaml
 annotate_crd config/crd/autoscaling.openshift.io_machineautoscalers.yaml install/02_machineautoscaler.crd.yaml
+annotate_crd config/crd/autoscaling.x-k8s.io_provisioningrequests.yaml install/11_provisioningrequest.crd.yaml
 rm -rf ./config/crd
