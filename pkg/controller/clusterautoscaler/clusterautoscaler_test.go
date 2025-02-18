@@ -150,6 +150,7 @@ func TestAutoscalerArgsFromSpec(t *testing.T) {
 				"--logtostderr",
 				"--record-duplicated-events",
 				"--v=0",
+				"--enable-provisioning-requests=true",
 				fmt.Sprintf("--cores-total=%d:%d", CoresMin, CoresMax),
 				fmt.Sprintf("--cloud-provider=%s", TestCloudProvider),
 				fmt.Sprintf("--expendable-pods-priority-cutoff=%d", PodPriorityThreshold),
