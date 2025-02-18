@@ -79,6 +79,7 @@ const (
 	ScaleUpFromZeroDefaultArch       AutoscalerArg = "--scale-up-from-zero-default-arch"
 	ExpanderArg                      AutoscalerArg = "--expander"
 	MaxBulkSoftTaintCountArg         AutoscalerArg = "--max-bulk-soft-taint-count"
+	EnableProvisioningRequestsArg    AutoscalerArg = "--enable-provisioning-requests"
 )
 
 // Constants for the command line expander flags
@@ -86,6 +87,7 @@ const (
 	leastWasteFlag = "least-waste"
 	priorityFlag   = "priority"
 	randomFlag     = "random"
+	trueFlag       = "true"
 )
 
 // The following values are for cloud providers which have not yet created specific nodegroupset processors.
@@ -208,6 +210,7 @@ func AutoscalerArgs(ca *v1.ClusterAutoscaler, cfg *Config) []string {
 		LeaderElectRenewDeadlineArg.Value(leaderElectRenewDeadline),
 		LeaderElectRetryPeriodArg.Value(leaderElectRetryPeriod),
 		MaxBulkSoftTaintCountArg.Value(maxBulkSoftTaintCount),
+		EnableProvisioningRequestsArg.Value(trueFlag),
 	}
 
 	if ca.Spec.MaxPodGracePeriod != nil {
