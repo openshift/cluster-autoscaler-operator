@@ -31,6 +31,7 @@ github.com/fxamacker/cbor/v2
 # github.com/go-logr/logr v1.4.2
 ## explicit; go 1.18
 github.com/go-logr/logr
+github.com/go-logr/logr/funcr
 github.com/go-logr/logr/slogr
 # github.com/go-logr/zapr v1.3.0
 ## explicit; go 1.18
@@ -109,6 +110,7 @@ github.com/modern-go/reflect2
 github.com/munnerz/goautoneg
 # github.com/onsi/ginkgo/v2 v2.21.0
 ## explicit; go 1.22.0
+github.com/onsi/ginkgo/v2
 github.com/onsi/ginkgo/v2/config
 github.com/onsi/ginkgo/v2/formatter
 github.com/onsi/ginkgo/v2/ginkgo
@@ -121,11 +123,30 @@ github.com/onsi/ginkgo/v2/ginkgo/outline
 github.com/onsi/ginkgo/v2/ginkgo/run
 github.com/onsi/ginkgo/v2/ginkgo/unfocus
 github.com/onsi/ginkgo/v2/ginkgo/watch
+github.com/onsi/ginkgo/v2/internal
+github.com/onsi/ginkgo/v2/internal/global
 github.com/onsi/ginkgo/v2/internal/interrupt_handler
 github.com/onsi/ginkgo/v2/internal/parallel_support
+github.com/onsi/ginkgo/v2/internal/testingtproxy
 github.com/onsi/ginkgo/v2/reporters
 github.com/onsi/ginkgo/v2/types
+<<<<<<< HEAD
 # github.com/openshift/api v0.0.0-20251015095338-264e80a2b6e7
+=======
+# github.com/onsi/gomega v1.35.1
+## explicit; go 1.22
+github.com/onsi/gomega
+github.com/onsi/gomega/format
+github.com/onsi/gomega/internal
+github.com/onsi/gomega/internal/gutil
+github.com/onsi/gomega/matchers
+github.com/onsi/gomega/matchers/support/goraph/bipartitegraph
+github.com/onsi/gomega/matchers/support/goraph/edge
+github.com/onsi/gomega/matchers/support/goraph/node
+github.com/onsi/gomega/matchers/support/goraph/util
+github.com/onsi/gomega/types
+# github.com/openshift/api v0.0.0-20250821122144-58dfa6dd85fa
+>>>>>>> 47abf8af (vendor provisioning request api code)
 ## explicit; go 1.24.0
 github.com/openshift/api/config/v1
 github.com/openshift/api/config/v1alpha1
@@ -226,6 +247,7 @@ go.uber.org/zap/internal/exit
 go.uber.org/zap/internal/pool
 go.uber.org/zap/internal/stacktrace
 go.uber.org/zap/zapcore
+<<<<<<< HEAD
 # go.yaml.in/yaml/v2 v2.4.2
 ## explicit; go 1.15
 go.yaml.in/yaml/v2
@@ -234,9 +256,19 @@ go.yaml.in/yaml/v2
 go.yaml.in/yaml/v3
 # golang.org/x/mod v0.27.0
 ## explicit; go 1.23.0
+=======
+# golang.org/x/mod v0.21.0
+## explicit; go 1.22.0
+golang.org/x/mod/internal/lazyregexp
+golang.org/x/mod/module
+>>>>>>> 47abf8af (vendor provisioning request api code)
 golang.org/x/mod/semver
 # golang.org/x/net v0.43.0
 ## explicit; go 1.23.0
+golang.org/x/net/context
+golang.org/x/net/html
+golang.org/x/net/html/atom
+golang.org/x/net/html/charset
 golang.org/x/net/http/httpguts
 golang.org/x/net/http2
 golang.org/x/net/http2/hpack
@@ -257,8 +289,30 @@ golang.org/x/sys/windows
 # golang.org/x/term v0.35.0
 ## explicit; go 1.24.0
 golang.org/x/term
+<<<<<<< HEAD
 # golang.org/x/text v0.29.0
 ## explicit; go 1.24.0
+=======
+# golang.org/x/text v0.23.0
+## explicit; go 1.23.0
+golang.org/x/text/cases
+golang.org/x/text/encoding
+golang.org/x/text/encoding/charmap
+golang.org/x/text/encoding/htmlindex
+golang.org/x/text/encoding/internal
+golang.org/x/text/encoding/internal/identifier
+golang.org/x/text/encoding/japanese
+golang.org/x/text/encoding/korean
+golang.org/x/text/encoding/simplifiedchinese
+golang.org/x/text/encoding/traditionalchinese
+golang.org/x/text/encoding/unicode
+golang.org/x/text/internal
+golang.org/x/text/internal/language
+golang.org/x/text/internal/language/compact
+golang.org/x/text/internal/tag
+golang.org/x/text/internal/utf8internal
+golang.org/x/text/language
+>>>>>>> 47abf8af (vendor provisioning request api code)
 golang.org/x/text/runes
 golang.org/x/text/secure/bidirule
 golang.org/x/text/transform
@@ -276,6 +330,7 @@ golang.org/x/tools/go/gcexportdata
 golang.org/x/tools/go/packages
 golang.org/x/tools/go/types/objectpath
 golang.org/x/tools/go/types/typeutil
+golang.org/x/tools/imports
 golang.org/x/tools/internal/aliases
 golang.org/x/tools/internal/event
 golang.org/x/tools/internal/event/core
@@ -283,6 +338,8 @@ golang.org/x/tools/internal/event/keys
 golang.org/x/tools/internal/event/label
 golang.org/x/tools/internal/gcimporter
 golang.org/x/tools/internal/gocommand
+golang.org/x/tools/internal/gopathwalk
+golang.org/x/tools/internal/imports
 golang.org/x/tools/internal/packagesinternal
 golang.org/x/tools/internal/pkgbits
 golang.org/x/tools/internal/stdlib
@@ -467,6 +524,9 @@ k8s.io/apimachinery/pkg/watch
 k8s.io/apimachinery/third_party/forked/golang/json
 k8s.io/apimachinery/third_party/forked/golang/reflect
 # k8s.io/client-go v0.34.1
+# k8s.io/autoscaler/cluster-autoscaler/apis v0.0.0-00010101000000-000000000000 => k8s.io/autoscaler/cluster-autoscaler/apis v0.0.0-20250124163921-a221e41f4be0
+## explicit; go 1.23.0
+k8s.io/autoscaler/cluster-autoscaler/apis/provisioningrequest/autoscaling.x-k8s.io/v1
 ## explicit; go 1.24.0
 k8s.io/client-go/applyconfigurations/admissionregistration/v1
 k8s.io/client-go/applyconfigurations/admissionregistration/v1alpha1
@@ -741,6 +801,49 @@ k8s.io/client-go/util/flowcontrol
 k8s.io/client-go/util/homedir
 k8s.io/client-go/util/keyutil
 k8s.io/client-go/util/workqueue
+# k8s.io/code-generator v0.33.4
+## explicit; go 1.24.0
+k8s.io/code-generator
+k8s.io/code-generator/cmd/applyconfiguration-gen
+k8s.io/code-generator/cmd/applyconfiguration-gen/args
+k8s.io/code-generator/cmd/applyconfiguration-gen/generators
+k8s.io/code-generator/cmd/client-gen
+k8s.io/code-generator/cmd/client-gen/args
+k8s.io/code-generator/cmd/client-gen/generators
+k8s.io/code-generator/cmd/client-gen/generators/fake
+k8s.io/code-generator/cmd/client-gen/generators/scheme
+k8s.io/code-generator/cmd/client-gen/generators/util
+k8s.io/code-generator/cmd/client-gen/types
+k8s.io/code-generator/cmd/conversion-gen
+k8s.io/code-generator/cmd/conversion-gen/args
+k8s.io/code-generator/cmd/conversion-gen/generators
+k8s.io/code-generator/cmd/deepcopy-gen
+k8s.io/code-generator/cmd/deepcopy-gen/args
+k8s.io/code-generator/cmd/deepcopy-gen/generators
+k8s.io/code-generator/cmd/defaulter-gen
+k8s.io/code-generator/cmd/defaulter-gen/args
+k8s.io/code-generator/cmd/defaulter-gen/generators
+k8s.io/code-generator/cmd/go-to-protobuf
+k8s.io/code-generator/cmd/go-to-protobuf/protobuf
+k8s.io/code-generator/cmd/informer-gen
+k8s.io/code-generator/cmd/informer-gen/args
+k8s.io/code-generator/cmd/informer-gen/generators
+k8s.io/code-generator/cmd/lister-gen
+k8s.io/code-generator/cmd/lister-gen/args
+k8s.io/code-generator/cmd/lister-gen/generators
+k8s.io/code-generator/cmd/register-gen
+k8s.io/code-generator/cmd/register-gen/args
+k8s.io/code-generator/cmd/register-gen/generators
+k8s.io/code-generator/pkg/namer
+k8s.io/code-generator/pkg/util
+k8s.io/code-generator/third_party/forked/golang/reflect
+# k8s.io/gengo/v2 v2.0.0-20250207200755-1244d31929d7
+## explicit; go 1.20
+k8s.io/gengo/v2
+k8s.io/gengo/v2/generator
+k8s.io/gengo/v2/namer
+k8s.io/gengo/v2/parser
+k8s.io/gengo/v2/types
 # k8s.io/klog/v2 v2.130.1
 ## explicit; go 1.18
 k8s.io/klog/v2
@@ -753,14 +856,20 @@ k8s.io/klog/v2/internal/sloghandler
 k8s.io/klog/v2/klogr
 # k8s.io/kube-openapi v0.0.0-20250710124328-f3f2b991d03b
 ## explicit; go 1.23
+## explicit; go 1.21
+k8s.io/kube-openapi/cmd/openapi-gen
+k8s.io/kube-openapi/cmd/openapi-gen/args
 k8s.io/kube-openapi/pkg/cached
 k8s.io/kube-openapi/pkg/common
+k8s.io/kube-openapi/pkg/generators
+k8s.io/kube-openapi/pkg/generators/rules
 k8s.io/kube-openapi/pkg/handler3
 k8s.io/kube-openapi/pkg/internal
 k8s.io/kube-openapi/pkg/internal/third_party/go-json-experiment/json
 k8s.io/kube-openapi/pkg/schemaconv
 k8s.io/kube-openapi/pkg/spec3
 k8s.io/kube-openapi/pkg/util/proto
+k8s.io/kube-openapi/pkg/util/sets
 k8s.io/kube-openapi/pkg/validation/spec
 # k8s.io/utils v0.0.0-20250604170112-4c0f3b243397
 ## explicit; go 1.18
@@ -863,3 +972,5 @@ sigs.k8s.io/structured-merge-diff/v6/value
 # sigs.k8s.io/yaml v1.6.0
 ## explicit; go 1.22
 sigs.k8s.io/yaml
+sigs.k8s.io/yaml/goyaml.v2
+# k8s.io/autoscaler/cluster-autoscaler/apis => k8s.io/autoscaler/cluster-autoscaler/apis v0.0.0-20250124163921-a221e41f4be0
