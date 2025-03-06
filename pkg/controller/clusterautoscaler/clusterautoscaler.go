@@ -15,6 +15,12 @@ const (
 	leaderElectLeaseDuration = "137s"
 	leaderElectRenewDeadline = "107s"
 	leaderElectRetryPeriod   = "26s"
+
+	// The max bulk soft taint count is the maximum number of empty nodes that can be soft tainted for
+	// deletion at once. A value of zero disables the bulk soft tainting behavior. This option is being
+	// added to remediate a bad interaction between the bulk delete logic and the cluster-api provider,
+	// for more information see https://issues.redhat.com/browse/OCPBUGS-42132
+	maxBulkSoftTaintCount = "0"
 )
 
 // AutoscalerArg represents a command line argument to the cluster-autoscaler
@@ -71,6 +77,7 @@ const (
 	LeaderElectRetryPeriodArg        AutoscalerArg = "--leader-elect-retry-period"
 	ScaleUpFromZeroDefaultArch       AutoscalerArg = "--scale-up-from-zero-default-arch"
 	ExpanderArg                      AutoscalerArg = "--expander"
+	MaxBulkSoftTaintCountArg         AutoscalerArg = "--max-bulk-soft-taint-count"
 )
 
 // Constants for the command line expander flags
@@ -203,6 +210,7 @@ func AutoscalerArgs(ca *v1.ClusterAutoscaler, cfg *Config) []string {
 		LeaderElectLeaseDurationArg.Value(leaderElectLeaseDuration),
 		LeaderElectRenewDeadlineArg.Value(leaderElectRenewDeadline),
 		LeaderElectRetryPeriodArg.Value(leaderElectRetryPeriod),
+		MaxBulkSoftTaintCountArg.Value(maxBulkSoftTaintCount),
 	}
 
 	if ca.Spec.MaxPodGracePeriod != nil {
