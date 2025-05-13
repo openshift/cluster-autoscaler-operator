@@ -3,6 +3,7 @@ package clusterautoscaler
 import (
 	"context"
 	"fmt"
+	"os"
 	goruntime "runtime"
 
 	configv1 "github.com/openshift/api/config/v1"
@@ -36,10 +37,10 @@ const (
 	caServiceAccount               = "cluster-autoscaler"
 	caPriorityClassName            = "system-cluster-critical"
 	CAPIGroupEnvVar                = "CAPI_GROUP"
-	CAPIGroup                      = "machine.openshift.io"
+	defaultCAPIGroup               = "machine.openshift.io"
 	CAPIScaleZeroDefaultArchEnvVar = "CAPI_SCALE_ZERO_DEFAULT_ARCH"
 	CAPIVersionEnvVar              = "CAPI_VERSION"
-	CAPIVersion                    = "v1beta1"
+	defaultCAPIVersion             = "v1beta1"
 	infrastructureName             = "cluster"
 )
 
@@ -87,6 +88,30 @@ type Reconciler struct {
 	config    Config
 	scheme    *runtime.Scheme
 	validator *Validator
+}
+
+// getCAPIGroup returns a string that specifies the group for the API.
+// It will return either the value from the
+// CAPI_GROUP environment variable, or the default value i.e cluster.x-k8s.io.
+func getCAPIGroup() string {
+	g := os.Getenv(CAPIGroupEnvVar)
+	if g == "" {
+		g = defaultCAPIGroup
+	}
+	klog.V(4).Infof("Using API Group %q", g)
+	return g
+}
+
+// getCAPIVersion returns a string the specifies the version for the API.
+// It will return either the value from the CAPI_VERSION environment variable,
+// or the default value i.e v1beta1
+func getCAPIVersion() string {
+	v := os.Getenv(CAPIVersionEnvVar)
+	if v == "" {
+		v = defaultCAPIVersion
+	}
+	klog.V(4).Infof("Using API Version %q", v)
+	return v
 }
 
 // AddToManager adds a new Controller to mgr with r as the reconcile.Reconciler
@@ -419,6 +444,9 @@ func (r *Reconciler) AutoscalerPodSpec(ca *autoscalingv1.ClusterAutoscaler) *cor
 		args = append(args, r.config.ExtraArgs)
 	}
 
+	capiGroup := getCAPIGroup()
+	capiVersion := getCAPIVersion()
+
 	spec := &corev1.PodSpec{
 		ServiceAccountName: caServiceAccount,
 		PriorityClassName:  caPriorityClassName,
@@ -441,11 +469,11 @@ func (r *Reconciler) AutoscalerPodSpec(ca *autoscalingv1.ClusterAutoscaler) *cor
 				Env: []corev1.EnvVar{
 					{
 						Name:  CAPIGroupEnvVar,
-						Value: CAPIGroup,
+						Value: capiGroup,
 					},
 					{
 						Name:  CAPIVersionEnvVar,
-						Value: CAPIVersion,
+						Value: capiVersion,
 					},
 					{
 						Name:  CAPIScaleZeroDefaultArchEnvVar,
