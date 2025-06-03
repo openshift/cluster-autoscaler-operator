@@ -217,6 +217,15 @@ func (r *Reconciler) Reconcile(_ context.Context, request reconcile.Request) (re
 		return reconcile.Result{}, nil
 	}
 
+	// Update the cluster provider type.
+	if r.config.platformType == "" {
+		platformType, err := r.getPlatformType()
+		if err != nil {
+			return reconcile.Result{}, err
+		}
+		r.config.platformType = platformType
+	}
+
 	if err := r.ensureAutoscalerMonitoring(ca); err != nil {
 		errMsg := fmt.Sprintf("Error ensuring ClusterAutoscaler monitoring: %v", err)
 		r.recorder.Event(caRef, corev1.EventTypeWarning, "FailedCreate", errMsg)
@@ -302,13 +311,6 @@ func (r *Reconciler) UpdateAutoscaler(ca *autoscalingv1.ClusterAutoscaler) error
 	if err != nil {
 		return err
 	}
-
-	// Update the cluster provider type.
-	platformType, err := r.getPlatformType()
-	if err != nil {
-		return err
-	}
-	r.config.platformType = platformType
 
 	existingSpec := existingDeployment.Spec.Template.Spec
 	expectedSpec := r.AutoscalerPodSpec(ca)
