@@ -31,14 +31,23 @@ const (
 	ReasonCheckAutoscaler   = "UnableToCheckAutoscalers"
 )
 
+const (
+	// DegradedCountThreshold is the number of consecutive observed failures (or non-OK statuses)
+	// required before the operator reports itself as Degraded in the ClusterOperator status.
+	// This helps prevent flapping due to transient issues.
+	// At most DegradedCountThreshold * interval seconds will pass before the operator is reported degraded.
+	DegradedCountThreshold = 3
+)
+
 // StatusReporter reports the status of the operator to the OpenShift
 // cluster-version-operator via ClusterOperator resource status.
 type StatusReporter struct {
-	client          client.Client
-	configClient    osconfig.Interface
-	config          *StatusReporterConfig
-	configInformers configv1informers.SharedInformerFactory
-	queue           workqueue.RateLimitingInterface
+	client                   client.Client
+	configClient             osconfig.Interface
+	config                   *StatusReporterConfig
+	configInformers          configv1informers.SharedInformerFactory
+	queue                    workqueue.RateLimitingInterface
+	degradedConsecutiveCount int
 }
 
 // StatusReporterConfig represents the configuration of a given StatusReporter.
@@ -248,6 +257,9 @@ func (r *StatusReporter) available(reason, message string) error {
 
 // degraded reports the operator as degraded but available, and not
 // progressing -- optionally setting a reason and message.
+// The operator will not actually be reported as degraded until
+// the DegradedCountThreshold is reached, in order to avoid
+// flapping the status in the event of transient errors.
 func (r *StatusReporter) degraded(reason, message string) error {
 	status := configv1.ClusterOperatorStatus{
 		Conditions: []configv1.ClusterOperatorStatusCondition{
@@ -268,9 +280,16 @@ func (r *StatusReporter) degraded(reason, message string) error {
 		},
 	}
 
-	klog.Warningf("Operator status degraded: %s", message)
+	r.degradedConsecutiveCount++
+	if r.degradedConsecutiveCount >= DegradedCountThreshold {
+		klog.Warningf("Operator status degraded: %s", message)
+		r.degradedConsecutiveCount = DegradedCountThreshold // Make sure there is no overflow.
+		return r.ApplyStatus(status)
+	}
 
-	return r.ApplyStatus(status)
+	klog.Warningf("Operator status degraded but not yet reported: %s (consecutive count: %d)", message, r.degradedConsecutiveCount)
+
+	return r.available(ReasonAsExpected, "available, but observed potential degradations.")
 }
 
 // progressing reports the operator as progressing but available, and not
@@ -401,6 +420,9 @@ func (r *StatusReporter) ReportStatus() (bool, error) {
 		msg := fmt.Sprintf("error checking autoscaler status: %v", err)
 		return false, r.degraded(ReasonCheckAutoscaler, msg)
 	}
+
+	// Reset the degraded consecutive count since we have not observed degraded.
+	r.degradedConsecutiveCount = 0
 
 	if !ok {
 		msg := fmt.Sprintf("updating to %s", r.config.ReleaseVersion)

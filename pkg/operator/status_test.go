@@ -323,9 +323,21 @@ func TestStatusChanges(t *testing.T) {
 			},
 		},
 		{
-			label:    "degraded",
+			label:    "degraded: initial failures (below threshold)",
+			expected: nil,
+			transition: func(r *StatusReporter) error {
+				return r.degraded("DegradedReason", "degraded message")
+			},
+		},
+		{
+			label:    "degraded: persistent failures (met threshold)",
 			expected: DegradedConditions,
 			transition: func(r *StatusReporter) error {
+				for range DegradedCountThreshold {
+					if err := r.degraded("DegradedReason", "degraded message"); err != nil {
+						return err
+					}
+				}
 				return r.degraded("DegradedReason", "degraded message")
 			},
 		},
@@ -338,8 +350,12 @@ func TestStatusChanges(t *testing.T) {
 				configClient: fakeconfigclient.NewSimpleClientset(),
 				config:       &TestStatusReporterConfig,
 			}
+			_, err := reporter.GetOrCreateClusterOperator()
+			if err != nil {
+				t.Errorf("creating ClusterOperator: %v", err)
+			}
 
-			err := tc.transition(reporter)
+			err = tc.transition(reporter)
 			if err != nil {
 				t.Errorf("error applying status: %v", err)
 			}
@@ -364,25 +380,49 @@ func TestStatusChanges(t *testing.T) {
 
 func TestReportStatus(t *testing.T) {
 	testCases := []struct {
-		label         string
-		versionChange bool
-		expectedBool  bool
-		expectedErr   error
-		expectedConds []configv1.ClusterOperatorStatusCondition
-		clientObjs    []runtime.Object
-		configObjs    []runtime.Object
+		label             string
+		versionChange     bool
+		expectedBool      bool
+		expectedErr       error
+		expectedConds     []configv1.ClusterOperatorStatusCondition
+		clientObjs        []runtime.Object
+		configObjs        []runtime.Object
+		reportStatusCalls int
 	}{
 		{
-			label:         "machine-api not found",
+			label:             "machine-api not found: initial failures (below threshold)",
+			versionChange:     true,
+			expectedBool:      false,
+			expectedErr:       nil,
+			expectedConds:     AvailableConditions,
+			clientObjs:        []runtime.Object{},
+			configObjs:        []runtime.Object{},
+			reportStatusCalls: 1,
+		},
+		{
+			label:         "machine-api not ready: initial failures (below threshold)",
 			versionChange: true,
 			expectedBool:  false,
 			expectedErr:   nil,
-			expectedConds: DegradedConditions,
+			expectedConds: AvailableConditions,
 			clientObjs:    []runtime.Object{},
-			configObjs:    []runtime.Object{},
+			configObjs: []runtime.Object{
+				machineAPI.WithConditions(DegradedConditions).Object(),
+			},
+			reportStatusCalls: 1,
 		},
 		{
-			label:         "machine-api not ready",
+			label:             "machine-api not found: persistent failures (met threshold)",
+			versionChange:     true,
+			expectedBool:      false,
+			expectedErr:       nil,
+			expectedConds:     DegradedConditions,
+			clientObjs:        []runtime.Object{},
+			configObjs:        []runtime.Object{},
+			reportStatusCalls: DegradedCountThreshold,
+		},
+		{
+			label:         "machine-api not ready: persistent failures (met threshold)",
 			versionChange: true,
 			expectedBool:  false,
 			expectedErr:   nil,
@@ -391,6 +431,7 @@ func TestReportStatus(t *testing.T) {
 			configObjs: []runtime.Object{
 				machineAPI.WithConditions(DegradedConditions).Object(),
 			},
+			reportStatusCalls: DegradedCountThreshold,
 		},
 		{
 			label:         "no cluster-autoscaler",
@@ -402,6 +443,7 @@ func TestReportStatus(t *testing.T) {
 			configObjs: []runtime.Object{
 				machineAPI.WithConditions(AvailableConditions).Object(),
 			},
+			reportStatusCalls: 1,
 		},
 		{
 			label:         "no cluster-autoscaler deployment",
@@ -415,6 +457,7 @@ func TestReportStatus(t *testing.T) {
 			configObjs: []runtime.Object{
 				machineAPI.WithConditions(AvailableConditions).Object(),
 			},
+			reportStatusCalls: 1,
 		},
 		{
 			label:         "deployment wrong version",
@@ -429,6 +472,7 @@ func TestReportStatus(t *testing.T) {
 			configObjs: []runtime.Object{
 				machineAPI.WithConditions(AvailableConditions).Object(),
 			},
+			reportStatusCalls: 1,
 		},
 		{
 			label:         "available and updated",
@@ -443,6 +487,7 @@ func TestReportStatus(t *testing.T) {
 			configObjs: []runtime.Object{
 				machineAPI.WithConditions(AvailableConditions).Object(),
 			},
+			reportStatusCalls: 1,
 		},
 		{
 			label:         "no version change",
@@ -458,6 +503,7 @@ func TestReportStatus(t *testing.T) {
 					WithVersion(ReleaseVersion).
 					Object(),
 			},
+			reportStatusCalls: 1,
 		},
 		{
 			label:         "version change noop",
@@ -473,6 +519,7 @@ func TestReportStatus(t *testing.T) {
 					WithVersion("vOLD").
 					Object(),
 			},
+			reportStatusCalls: 1,
 		},
 	}
 
@@ -484,7 +531,11 @@ func TestReportStatus(t *testing.T) {
 				config:       &TestStatusReporterConfig,
 			}
 
-			ok, err := reporter.ReportStatus()
+			var ok bool
+			var err error
+			for range tc.reportStatusCalls {
+				ok, err = reporter.ReportStatus()
+			}
 
 			if ok != tc.expectedBool {
 				t.Errorf("got %t, want %t", ok, tc.expectedBool)
