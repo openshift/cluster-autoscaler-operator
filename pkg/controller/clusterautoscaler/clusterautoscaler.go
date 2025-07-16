@@ -62,6 +62,7 @@ const (
 	ScaleDownDelayAfterFailureArg    AutoscalerArg = "--scale-down-delay-after-failure"
 	ScaleDownUnneededTimeArg         AutoscalerArg = "--scale-down-unneeded-time"
 	ScaleDownUtilizationThresholdArg AutoscalerArg = "--scale-down-utilization-threshold"
+	NewPodScaleUpDelayArg            AutoscalerArg = "--new-pod-scale-up-delay"
 	MaxNodesTotalArg                 AutoscalerArg = "--max-nodes-total"
 	MaxNodeProvisionTimeArg          AutoscalerArg = "--max-node-provision-time"
 	CoresTotalArg                    AutoscalerArg = "--cores-total"
@@ -232,6 +233,10 @@ func AutoscalerArgs(ca *v1.ClusterAutoscaler, cfg *Config) []string {
 		args = append(args, ScaleDownArgs(s.ScaleDown)...)
 	}
 
+	if ca.Spec.ScaleUp != nil {
+		args = append(args, ScaleUpArgs(s.ScaleUp)...)
+	}
+
 	if ca.Spec.BalanceSimilarNodeGroups != nil {
 		args = append(args, BalanceSimilarNodeGroupsArg.Value(*ca.Spec.BalanceSimilarNodeGroups))
 
@@ -311,6 +316,16 @@ func ScaleDownArgs(sd *v1.ScaleDownConfig) []string {
 
 	if sd.UtilizationThreshold != nil {
 		args = append(args, ScaleDownUtilizationThresholdArg.Value(*sd.UtilizationThreshold))
+	}
+
+	return args
+}
+
+func ScaleUpArgs(su *v1.ScaleUpConfig) []string {
+	args := []string{}
+
+	if su.NewPodScaleUpDelay != nil {
+		args = append(args, NewPodScaleUpDelayArg.Value(*su.NewPodScaleUpDelay))
 	}
 
 	return args

@@ -69,6 +69,12 @@ func (v *Validator) Validate(ca *autoscalingv1.ClusterAutoscaler) util.Validator
 		}
 	}
 
+	if scaleUp := ca.Spec.ScaleUp; scaleUp != nil {
+		if aggErr := v.validateScaleUpConfig(scaleUp); aggErr != nil {
+			errs = append(errs, aggErr.Errors()...)
+		}
+	}
+
 	return util.ValidatorResponse{Warnings: warns, Errors: utilerrors.NewAggregate(errs)}
 }
 
@@ -152,14 +158,16 @@ func (v *Validator) validateScaleDownConfig(sd *autoscalingv1.ScaleDownConfig) u
 	}
 
 	for name, durationString := range durations {
-		if durationString == nil {
-			continue
-		}
-
-		if _, err := time.ParseDuration(*durationString); err != nil {
-			errs = append(errs, fmt.Errorf("ScaleDown.%s: %v", name, err))
+		if durationString != nil {
+			duration, err := time.ParseDuration(*durationString)
+			if err != nil {
+				errs = append(errs, fmt.Errorf("ScaleDown.%s: %v", name, err))
+			} else if duration < 0 {
+				errs = append(errs, fmt.Errorf("ScaleDown.%s: cannot use a negative time", name))
+			}
 		}
 	}
+
 	if sd.UtilizationThreshold != nil {
 		utilizationThreshold, err := strconv.ParseFloat(*sd.UtilizationThreshold, 64)
 		if err != nil {
@@ -167,6 +175,22 @@ func (v *Validator) validateScaleDownConfig(sd *autoscalingv1.ScaleDownConfig) u
 		}
 		if utilizationThreshold <= float64(0) || utilizationThreshold >= float64(1) {
 			errs = append(errs, errors.New("ScaleDown.UtilizationThreshold must be a value between 0 and 1."))
+		}
+	}
+
+	return utilerrors.NewAggregate(errs)
+}
+
+// validateScaleUpConfig validates ScaleUpConfig objects
+func (v *Validator) validateScaleUpConfig(su *autoscalingv1.ScaleUpConfig) utilerrors.Aggregate {
+	var errs []error
+
+	if su.NewPodScaleUpDelay != nil {
+		duration, err := time.ParseDuration(*su.NewPodScaleUpDelay)
+		if err != nil {
+			errs = append(errs, fmt.Errorf("ScaleUp.NewPodScaleUpDelay: %v", err))
+		} else if duration < 0 {
+			errs = append(errs, fmt.Errorf("ScaleUp.NewPodScaleUpDelay: cannot use a negative time"))
 		}
 	}
 

@@ -40,6 +40,7 @@ var (
 	ScaleDownUnneededTime               = "10s"
 	ScaleDownUtilizationThreshold       = "0.4"
 	ScaleDownDelayAfterAdd              = "60s"
+	NewPodScaleUpDelay                  = "10s"
 	MaxNodeProvisionTime                = "30m"
 	PodPriorityThreshold          int32 = -10
 	MaxPodGracePeriod             int32 = 60
@@ -106,6 +107,9 @@ func NewClusterAutoscaler() *autoscalingv1.ClusterAutoscaler {
 				UnneededTime:         &ScaleDownUnneededTime,
 				UtilizationThreshold: &ScaleDownUtilizationThreshold,
 			},
+			ScaleUp: &autoscalingv1.ScaleUpConfig{
+				NewPodScaleUpDelay: &NewPodScaleUpDelay,
+			},
 		},
 	}
 }
@@ -158,6 +162,7 @@ func TestAutoscalerArgsFromSpec(t *testing.T) {
 				fmt.Sprintf("--scale-down-delay-after-add=%s", ScaleDownDelayAfterAdd),
 				fmt.Sprintf("--scale-down-unneeded-time=%s", ScaleDownUnneededTime),
 				fmt.Sprintf("--scale-down-utilization-threshold=%s", ScaleDownUtilizationThreshold),
+				fmt.Sprintf("--new-pod-scale-up-delay=%s", NewPodScaleUpDelay),
 			},
 			expectedMissing: []string{
 				"--scale-down-delay-after-delete",

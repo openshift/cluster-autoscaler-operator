@@ -27,6 +27,9 @@ type ClusterAutoscalerSpec struct {
 	// Configuration of scale down operation
 	ScaleDown *ScaleDownConfig `json:"scaleDown,omitempty"`
 
+	// Configuration of scale up operation
+	ScaleUp *ScaleUpConfig `json:"scaleUp,omitempty"`
+
 	// Gives pods graceful termination time before scaling down
 	MaxPodGracePeriod *int32 `json:"maxPodGracePeriod,omitempty"`
 
@@ -182,4 +185,10 @@ type ScaleDownConfig struct {
 	// Node utilization level, defined as sum of requested resources divided by capacity, below which a node can be considered for scale down
 	// +kubebuilder:validation:Pattern=(0.[0-9]+)
 	UtilizationThreshold *string `json:"utilizationThreshold,omitempty"`
+}
+
+type ScaleUpConfig struct {
+	// Scale up delay for new pods, if omitted defaults to 0 seconds
+	// +kubebuilder:validation:Pattern=([0-9]*(\.[0-9]*)?[a-z]+)+
+	NewPodScaleUpDelay *string `json:"newPodScaleUpDelay,omitempty"`
 }
