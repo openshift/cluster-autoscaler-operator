@@ -44,6 +44,7 @@ The operator manages the following custom resources:
       --scale-down-delay-after-delete=10s
       --scale-down-delay-after-failure=10s
       --scale-down-utilization-threshold=0.4
+      --new-pod-scale-up-delay=10s
       --ignore-daemonsets-utilization=false
       --skip-nodes-with-local-storage=true
   ```

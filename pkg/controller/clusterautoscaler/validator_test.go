@@ -44,7 +44,7 @@ func TestValidate(t *testing.T) {
 			expectedWarnings: false,
 			caFunc: func() *autoscalingv1.ClusterAutoscaler {
 				ca := ca.DeepCopy()
-				ca.Spec.ResourceLimits.MaxNodesTotal = pointer.Int32Ptr(-10)
+				ca.Spec.ResourceLimits.MaxNodesTotal = pointer.Int32(-10)
 				return ca
 			},
 		},
@@ -97,8 +97,19 @@ func TestValidate(t *testing.T) {
 			expectedWarnings: false,
 			caFunc: func() *autoscalingv1.ClusterAutoscaler {
 				ca := ca.DeepCopy()
-				ca.Spec.ScaleDown.DelayAfterAdd = pointer.StringPtr("not-a-duration")
-				ca.Spec.ScaleDown.DelayAfterFailure = pointer.StringPtr("not-a-duration")
+				ca.Spec.ScaleDown.DelayAfterAdd = pointer.String("not-a-duration")
+				ca.Spec.ScaleDown.DelayAfterFailure = pointer.String("not-a-duration")
+				return ca
+			},
+		},
+		{
+			label:            "ClusterAutoscaler has negative ScaleDown durations",
+			expectedOk:       false,
+			expectedWarnings: false,
+			caFunc: func() *autoscalingv1.ClusterAutoscaler {
+				ca := ca.DeepCopy()
+				ca.Spec.ScaleDown.DelayAfterAdd = pointer.String("-60s")
+				ca.Spec.ScaleDown.DelayAfterFailure = pointer.String("-60s")
 				return ca
 			},
 		},
@@ -108,7 +119,7 @@ func TestValidate(t *testing.T) {
 			expectedWarnings: false,
 			caFunc: func() *autoscalingv1.ClusterAutoscaler {
 				ca := ca.DeepCopy()
-				ca.Spec.ScaleDown.UtilizationThreshold = pointer.StringPtr("not-a-float-value")
+				ca.Spec.ScaleDown.UtilizationThreshold = pointer.String("not-a-float-value")
 				return ca
 			},
 		},
@@ -118,7 +129,27 @@ func TestValidate(t *testing.T) {
 			expectedWarnings: false,
 			caFunc: func() *autoscalingv1.ClusterAutoscaler {
 				ca := ca.DeepCopy()
-				ca.Spec.ScaleDown.UtilizationThreshold = pointer.StringPtr("1.5")
+				ca.Spec.ScaleDown.UtilizationThreshold = pointer.String("1.5")
+				return ca
+			},
+		},
+		{
+			label:            "ClusterAutoscaler has invalid newPodScaleUpDelay",
+			expectedOk:       false,
+			expectedWarnings: false,
+			caFunc: func() *autoscalingv1.ClusterAutoscaler {
+				ca := ca.DeepCopy()
+				ca.Spec.ScaleUp.NewPodScaleUpDelay = pointer.String("not-a-duration")
+				return ca
+			},
+		},
+		{
+			label:            "ClusterAutoscaler has negative newPodScaleUpDelay",
+			expectedOk:       false,
+			expectedWarnings: false,
+			caFunc: func() *autoscalingv1.ClusterAutoscaler {
+				ca := ca.DeepCopy()
+				ca.Spec.ScaleUp.NewPodScaleUpDelay = pointer.String("-10s")
 				return ca
 			},
 		},
