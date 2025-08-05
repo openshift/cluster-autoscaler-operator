@@ -17,10 +17,9 @@ const (
 	leaderElectRetryPeriod   = "26s"
 
 	// The max bulk soft taint count is the maximum number of empty nodes that can be soft tainted for
-	// deletion at once. A value of zero disables the bulk soft tainting behavior. This option is being
-	// added to remediate a bad interaction between the bulk delete logic and the cluster-api provider,
-	// for more information see https://issues.redhat.com/browse/OCPBUGS-42132
-	maxBulkSoftTaintCount = "0"
+	// deletion at once. The default for this value is 10, but we are increasing it to account for
+	// tested size limits of openshift clusters.
+	maxBulkSoftTaintCount = "500"
 )
 
 // AutoscalerArg represents a command line argument to the cluster-autoscaler
