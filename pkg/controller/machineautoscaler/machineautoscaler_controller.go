@@ -426,7 +426,7 @@ func (r *Reconciler) UpdateTarget(target *MachineTarget, min, max int) error {
 			warning := target.WarningForInvalidGPUAcceleratorLabel()
 			if len(warning) > 0 {
 				r.recorder.Event(target, corev1.EventTypeWarning, "InvalidOrMissingGPUAcceleratorLabel", warning)
-				klog.Warningf(warning)
+				klog.Warningf("%s", warning)
 			}
 		}
 
