@@ -5,18 +5,14 @@ approvers:
 - JoelSpeed
 - RadekManak
 - damdo
-- elmiko
 - racheljpg
 reviewers:
-- JoelSpeed
 - RadekManak
+- chrischdi
 - damdo
-- elmiko
-- jkyros
-- joelsmith
-- maxcao13
+- mdbooth
 - nrb
 - racheljpg
-- sub-mod
 - theobarberbany
-component: Cluster Autoscaler
+component: Cloud Compute
+subcomponent: Cluster Autoscaler
