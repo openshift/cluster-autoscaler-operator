@@ -318,7 +318,7 @@ var map_APIServerSpec = map[string]string{
 	"clientCA":                     "clientCA references a ConfigMap containing a certificate bundle for the signers that will be recognized for incoming client certificates in addition to the operator managed signers. If this is empty, then only operator managed signers are valid. You usually only have to set this if you have your own PKI you wish to honor client certificates from. The ConfigMap must exist in the openshift-config namespace and contain the following required fields: - ConfigMap.Data[\"ca-bundle.crt\"] - CA bundle.",
 	"additionalCORSAllowedOrigins": "additionalCORSAllowedOrigins lists additional, user-defined regular expressions describing hosts for which the API server allows access using the CORS headers. This may be needed to access the API and the integrated OAuth server from JavaScript applications. The values are regular expressions that correspond to the Golang regular expression language.",
 	"encryption":                   "encryption allows the configuration of encryption of resources at the datastore layer.",
-	"tlsSecurityProfile":           "tlsSecurityProfile specifies settings for TLS connections for externally exposed servers.\n\nIf unset, a default (which may change between releases) is chosen. Note that only Old, Intermediate and Custom profiles are currently supported, and the maximum available minTLSVersion is VersionTLS12.",
+	"tlsSecurityProfile":           "tlsSecurityProfile specifies settings for TLS connections for externally exposed servers.\n\nWhen omitted, this means no opinion and the platform is left to choose a reasonable default, which is subject to change over time. The current default is the Intermediate profile.",
 	"audit":                        "audit specifies the settings for audit configuration to be applied to all OpenShift-provided API servers in the cluster.",
 }
 
@@ -651,7 +651,7 @@ func (ClusterImagePolicyStatus) SwaggerDoc() map[string]string {
 }
 
 var map_ClusterOperator = map[string]string{
-	"":         "ClusterOperator is the Custom Resource object which holds the current state of an operator. This object is used by operators to convey their state to the rest of the cluster.\n\nCompatibility level 1: Stable within a major release for a minimum of 12 months or 3 minor releases (whichever is longer).",
+	"":         "ClusterOperator holds the status of a core or optional OpenShift component managed by the Cluster Version Operator (CVO). This object is used by operators to convey their state to the rest of the cluster. Compatibility level 1: Stable within a major release for a minimum of 12 months or 3 minor releases (whichever is longer).",
 	"metadata": "metadata is the standard object's metadata. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata",
 	"spec":     "spec holds configuration that could apply to any operator.",
 	"status":   "status holds the information about the state of an operator.  It is consistent with status information across the Kubernetes ecosystem.",
@@ -893,7 +893,7 @@ var map_UpdateHistory = map[string]string{
 	"version":        "version is a semantic version identifying the update version. If the requested image does not define a version, or if a failure occurs retrieving the image, this value may be empty.",
 	"image":          "image is a container image location that contains the update. This value is always populated.",
 	"verified":       "verified indicates whether the provided update was properly verified before it was installed. If this is false the cluster may not be trusted. Verified does not cover upgradeable checks that depend on the cluster state at the time when the update target was accepted.",
-	"acceptedRisks":  "acceptedRisks records risks which were accepted to initiate the update. For example, it may menition an Upgradeable=False or missing signature that was overriden via desiredUpdate.force, or an update that was initiated despite not being in the availableUpdates set of recommended update targets.",
+	"acceptedRisks":  "acceptedRisks records risks which were accepted to initiate the update. For example, it may menition an Upgradeable=False or missing signature that was overridden via desiredUpdate.force, or an update that was initiated despite not being in the availableUpdates set of recommended update targets.",
 }
 
 func (UpdateHistory) SwaggerDoc() map[string]string {
@@ -1653,7 +1653,7 @@ func (GCPServiceEndpoint) SwaggerDoc() map[string]string {
 
 var map_IBMCloudPlatformSpec = map[string]string{
 	"":                 "IBMCloudPlatformSpec holds the desired state of the IBMCloud infrastructure provider. This only includes fields that can be modified in the cluster.",
-	"serviceEndpoints": "serviceEndpoints is a list of custom endpoints which will override the default service endpoints of an IBM service. These endpoints are used by components within the cluster when trying to reach the IBM Cloud Services that have been overriden. The CCCMO reads in the IBMCloudPlatformSpec and validates each endpoint is resolvable. Once validated, the cloud config and IBMCloudPlatformStatus are updated to reflect the same custom endpoints. A maximum of 13 service endpoints overrides are supported.",
+	"serviceEndpoints": "serviceEndpoints is a list of custom endpoints which will override the default service endpoints of an IBM service. These endpoints are used by components within the cluster when trying to reach the IBM Cloud Services that have been overridden. The CCCMO reads in the IBMCloudPlatformSpec and validates each endpoint is resolvable. Once validated, the cloud config and IBMCloudPlatformStatus are updated to reflect the same custom endpoints. A maximum of 13 service endpoints overrides are supported.",
 }
 
 func (IBMCloudPlatformSpec) SwaggerDoc() map[string]string {
@@ -1667,7 +1667,7 @@ var map_IBMCloudPlatformStatus = map[string]string{
 	"providerType":      "providerType indicates the type of cluster that was created",
 	"cisInstanceCRN":    "cisInstanceCRN is the CRN of the Cloud Internet Services instance managing the DNS zone for the cluster's base domain",
 	"dnsInstanceCRN":    "dnsInstanceCRN is the CRN of the DNS Services instance managing the DNS zone for the cluster's base domain",
-	"serviceEndpoints":  "serviceEndpoints is a list of custom endpoints which will override the default service endpoints of an IBM service. These endpoints are used by components within the cluster when trying to reach the IBM Cloud Services that have been overriden. The CCCMO reads in the IBMCloudPlatformSpec and validates each endpoint is resolvable. Once validated, the cloud config and IBMCloudPlatformStatus are updated to reflect the same custom endpoints.",
+	"serviceEndpoints":  "serviceEndpoints is a list of custom endpoints which will override the default service endpoints of an IBM service. These endpoints are used by components within the cluster when trying to reach the IBM Cloud Services that have been overridden. The CCCMO reads in the IBMCloudPlatformSpec and validates each endpoint is resolvable. Once validated, the cloud config and IBMCloudPlatformStatus are updated to reflect the same custom endpoints.",
 }
 
 func (IBMCloudPlatformStatus) SwaggerDoc() map[string]string {
@@ -2193,6 +2193,104 @@ var map_LoadBalancer = map[string]string{
 
 func (LoadBalancer) SwaggerDoc() map[string]string {
 	return map_LoadBalancer
+}
+
+var map_Custom = map[string]string{
+	"":        "Custom provides the custom configuration of gatherers",
+	"configs": "configs is a required list of gatherers configurations that can be used to enable or disable specific gatherers. It may not exceed 100 items and each gatherer can be present only once. It is possible to disable an entire set of gatherers while allowing a specific function within that set. The particular gatherers IDs can be found at https://github.com/openshift/insights-operator/blob/master/docs/gathered-data.md. Run the following command to get the names of last active gatherers: \"oc get insightsoperators.operator.openshift.io cluster -o json | jq '.status.gatherStatus.gatherers[].name'\"",
+}
+
+func (Custom) SwaggerDoc() map[string]string {
+	return map_Custom
+}
+
+var map_GatherConfig = map[string]string{
+	"":           "GatherConfig provides data gathering configuration options.",
+	"dataPolicy": "dataPolicy is an optional list of DataPolicyOptions that allows user to enable additional obfuscation of the Insights archive data. It may not exceed 2 items and must not contain duplicates. Valid values are ObfuscateNetworking and WorkloadNames. When set to ObfuscateNetworking the IP addresses and the cluster domain name are obfuscated. When set to WorkloadNames, the gathered data about cluster resources will not contain the workload names for your deployments. Resources UIDs will be used instead. When omitted no obfuscation is applied.",
+	"gatherers":  "gatherers is a required field that specifies the configuration of the gatherers.",
+	"storage":    "storage is an optional field that allows user to define persistent storage for gathering jobs to store the Insights data archive. If omitted, the gathering job will use ephemeral storage.",
+}
+
+func (GatherConfig) SwaggerDoc() map[string]string {
+	return map_GatherConfig
+}
+
+var map_GathererConfig = map[string]string{
+	"":      "GathererConfig allows to configure specific gatherers",
+	"name":  "name is the required name of a specific gatherer. It may not exceed 256 characters. The format for a gatherer name is: {gatherer}/{function} where the function is optional. Gatherer consists of a lowercase letters only that may include underscores (_). Function consists of a lowercase letters only that may include underscores (_) and is separated from the gatherer by a forward slash (/). The particular gatherers can be found at https://github.com/openshift/insights-operator/blob/master/docs/gathered-data.md. Run the following command to get the names of last active gatherers: \"oc get insightsoperators.operator.openshift.io cluster -o json | jq '.status.gatherStatus.gatherers[].name'\"",
+	"state": "state is a required field that allows you to configure specific gatherer. Valid values are \"Enabled\" and \"Disabled\". When set to Enabled the gatherer will run. When set to Disabled the gatherer will not run.",
+}
+
+func (GathererConfig) SwaggerDoc() map[string]string {
+	return map_GathererConfig
+}
+
+var map_Gatherers = map[string]string{
+	"":       "Gatherers specifies the configuration of the gatherers",
+	"mode":   "mode is a required field that specifies the mode for gatherers. Allowed values are All, None, and Custom. When set to All, all gatherers will run and gather data. When set to None, all gatherers will be disabled and no data will be gathered. When set to Custom, the custom configuration from the custom field will be applied.",
+	"custom": "custom provides gathering configuration. It is required when mode is Custom, and forbidden otherwise. Custom configuration allows user to disable only a subset of gatherers. Gatherers that are not explicitly disabled in custom configuration will run.",
+}
+
+func (Gatherers) SwaggerDoc() map[string]string {
+	return map_Gatherers
+}
+
+var map_InsightsDataGather = map[string]string{
+	"":         "InsightsDataGather provides data gather configuration options for the Insights Operator.\n\n\n\nCompatibility level 1: Stable within a major release for a minimum of 12 months or 3 minor releases (whichever is longer).",
+	"metadata": "metadata is the standard object's metadata. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata",
+	"spec":     "spec holds user settable values for configuration",
+}
+
+func (InsightsDataGather) SwaggerDoc() map[string]string {
+	return map_InsightsDataGather
+}
+
+var map_InsightsDataGatherList = map[string]string{
+	"":         "InsightsDataGatherList is a collection of items Compatibility level 1: Stable within a major release for a minimum of 12 months or 3 minor releases (whichever is longer).",
+	"metadata": "metadata is the required standard list's metadata. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata",
+	"items":    "items is the required list of InsightsDataGather objects it may not exceed 100 items",
+}
+
+func (InsightsDataGatherList) SwaggerDoc() map[string]string {
+	return map_InsightsDataGatherList
+}
+
+var map_InsightsDataGatherSpec = map[string]string{
+	"":             "InsightsDataGatherSpec contains the configuration for the data gathering.",
+	"gatherConfig": "gatherConfig is a required spec attribute that includes all the configuration options related to gathering of the Insights data and its uploading to the ingress.",
+}
+
+func (InsightsDataGatherSpec) SwaggerDoc() map[string]string {
+	return map_InsightsDataGatherSpec
+}
+
+var map_PersistentVolumeClaimReference = map[string]string{
+	"":     "PersistentVolumeClaimReference is a reference to a PersistentVolumeClaim.",
+	"name": "name is the name of the PersistentVolumeClaim that will be used to store the Insights data archive. It is a string that follows the DNS1123 subdomain format. It must be at most 253 characters in length, and must consist only of lower case alphanumeric characters, '-' and '.', and must start and end with an alphanumeric character.",
+}
+
+func (PersistentVolumeClaimReference) SwaggerDoc() map[string]string {
+	return map_PersistentVolumeClaimReference
+}
+
+var map_PersistentVolumeConfig = map[string]string{
+	"":          "PersistentVolumeConfig provides configuration options for PersistentVolume storage.",
+	"claim":     "claim is a required field that specifies the configuration of the PersistentVolumeClaim that will be used to store the Insights data archive. The PersistentVolumeClaim must be created in the openshift-insights namespace.",
+	"mountPath": "mountPath is an optional field specifying the directory where the PVC will be mounted inside the Insights data gathering Pod. When omitted, this means no opinion and the platform is left to choose a reasonable default, which is subject to change over time. The current default mount path is /var/lib/insights-operator The path may not exceed 1024 characters and must not contain a colon.",
+}
+
+func (PersistentVolumeConfig) SwaggerDoc() map[string]string {
+	return map_PersistentVolumeConfig
+}
+
+var map_Storage = map[string]string{
+	"":                 "Storage provides persistent storage configuration options for gathering jobs. If the type is set to PersistentVolume, then the PersistentVolume must be defined. If the type is set to Ephemeral, then the PersistentVolume must not be defined.",
+	"type":             "type is a required field that specifies the type of storage that will be used to store the Insights data archive. Valid values are \"PersistentVolume\" and \"Ephemeral\". When set to Ephemeral, the Insights data archive is stored in the ephemeral storage of the gathering job. When set to PersistentVolume, the Insights data archive is stored in the PersistentVolume that is defined by the persistentVolume field.",
+	"persistentVolume": "persistentVolume is an optional field that specifies the PersistentVolume that will be used to store the Insights data archive. The PersistentVolume must be created in the openshift-insights namespace.",
+}
+
+func (Storage) SwaggerDoc() map[string]string {
+	return map_Storage
 }
 
 var map_AWSKMSConfig = map[string]string{
