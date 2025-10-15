@@ -244,6 +244,30 @@ func TestAutoscalerArgsFromSpec(t *testing.T) {
 				fmt.Sprintf("--expander=priority,least-waste,random"),
 			},
 		},
+		{
+			name: "set CordonNodeBeforeTerminating to Enabled",
+			caFunc: func() *autoscalingv1.ClusterAutoscaler {
+				ca := NewClusterAutoscaler()
+				mode := autoscalingv1.CordonNodeBeforeTerminatingModeEnabled
+				ca.Spec.ScaleDown.CordonNodeBeforeTerminating = &mode
+				return ca
+			},
+			expected: []string{
+				"--cordon-node-before-terminating=true",
+			},
+		},
+		{
+			name: "set CordonNodeBeforeTerminating to Disabled",
+			caFunc: func() *autoscalingv1.ClusterAutoscaler {
+				ca := NewClusterAutoscaler()
+				mode := autoscalingv1.CordonNodeBeforeTerminatingModeDisabled
+				ca.Spec.ScaleDown.CordonNodeBeforeTerminating = &mode
+				return ca
+			},
+			expected: []string{
+				"--cordon-node-before-terminating=false",
+			},
+		},
 	}
 
 	for _, tc := range testCases {

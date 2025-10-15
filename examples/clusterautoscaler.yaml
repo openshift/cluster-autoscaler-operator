@@ -37,6 +37,8 @@ spec:
     uneededTime: 10s
     # Node utilization level, defined as sum of requested resources divided by capacity, below which a node can be considered for scale down - if omitted defaults to 0.5
     utilizationThreshold: "0.4"
+    # Cordon nodes before terminating during scale down - if omitted, defaults to Disabled. Values: Enabled, Disabled
+    cordonNodeBeforeTerminating: Enabled
   scaleUp:
     # Scale up delay for new pods, if omitted defaults to 0 seconds
     newPodScaleUpDelay: "10s"
