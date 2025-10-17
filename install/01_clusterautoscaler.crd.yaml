@@ -193,6 +193,13 @@ spec:
               scaleDown:
                 description: Configuration of scale down operation
                 properties:
+                  cordonNodeBeforeTerminating:
+                    description: CordonNodeBeforeTerminating enables/disables cordoning
+                      nodes before terminating during scale down.
+                    enum:
+                    - Enabled
+                    - Disabled
+                    type: string
                   delayAfterAdd:
                     description: How long after scale up that scale down evaluation
                       resumes

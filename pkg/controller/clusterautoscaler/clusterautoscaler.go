@@ -62,6 +62,7 @@ const (
 	ScaleDownDelayAfterFailureArg    AutoscalerArg = "--scale-down-delay-after-failure"
 	ScaleDownUnneededTimeArg         AutoscalerArg = "--scale-down-unneeded-time"
 	ScaleDownUtilizationThresholdArg AutoscalerArg = "--scale-down-utilization-threshold"
+	CordonNodeBeforeTerminatingArg   AutoscalerArg = "--cordon-node-before-terminating"
 	NewPodScaleUpDelayArg            AutoscalerArg = "--new-pod-scale-up-delay"
 	MaxNodesTotalArg                 AutoscalerArg = "--max-nodes-total"
 	MaxNodeProvisionTimeArg          AutoscalerArg = "--max-node-provision-time"
@@ -316,6 +317,15 @@ func ScaleDownArgs(sd *v1.ScaleDownConfig) []string {
 
 	if sd.UtilizationThreshold != nil {
 		args = append(args, ScaleDownUtilizationThresholdArg.Value(*sd.UtilizationThreshold))
+	}
+
+	if sd.CordonNodeBeforeTerminating != nil {
+		switch *sd.CordonNodeBeforeTerminating {
+		case v1.CordonNodeBeforeTerminatingModeEnabled:
+			args = append(args, CordonNodeBeforeTerminatingArg.Value(true))
+		case v1.CordonNodeBeforeTerminatingModeDisabled:
+			args = append(args, CordonNodeBeforeTerminatingArg.Value(false))
+		}
 	}
 
 	return args
