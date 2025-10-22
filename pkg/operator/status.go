@@ -19,6 +19,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
+	"k8s.io/utils/clock"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 )
@@ -140,7 +141,7 @@ func (r *StatusReporter) ApplyStatus(status configv1.ClusterOperatorStatus) erro
 		Status: configv1.ConditionTrue,
 	}
 
-	v1helpers.SetStatusCondition(&status.Conditions, upgradeable)
+	v1helpers.SetStatusCondition(&status.Conditions, upgradeable, &clock.RealClock{})
 
 	// Set the currently configured related objects.
 	status.RelatedObjects = r.config.RelatedObjects
