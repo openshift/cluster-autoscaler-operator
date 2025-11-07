@@ -8,6 +8,7 @@ import (
 	configv1 "github.com/openshift/api/config/v1"
 	autoscalingv1 "github.com/openshift/cluster-autoscaler-operator/pkg/apis/autoscaling/v1"
 	"github.com/openshift/cluster-autoscaler-operator/pkg/util"
+	"github.com/openshift/library-go/pkg/operator/configobserver/featuregates"
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -74,6 +75,8 @@ type Config struct {
 	ExtraArgs string
 	// The provider type for the specific cloud provider of the OpenShift install.
 	platformType configv1.PlatformType
+	// Access to the feature gate configurations
+	FeatureGateAccessor featuregates.FeatureGateAccess
 }
 
 var _ reconcile.Reconciler = &Reconciler{}

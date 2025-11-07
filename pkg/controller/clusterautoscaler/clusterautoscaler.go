@@ -211,7 +211,16 @@ func AutoscalerArgs(ca *v1.ClusterAutoscaler, cfg *Config) []string {
 		LeaderElectRenewDeadlineArg.Value(leaderElectRenewDeadline),
 		LeaderElectRetryPeriodArg.Value(leaderElectRetryPeriod),
 		MaxBulkSoftTaintCountArg.Value(maxBulkSoftTaintCount),
-		EnableProvisioningRequestsArg.Value(trueFlag),
+	}
+
+	// if we can't determine the feature gate, log and skip it
+	if featureGates, err := cfg.FeatureGateAccessor.CurrentFeatureGates(); err != nil {
+		klog.Errorf("unable to get feature gate accessor for autoscaler args: %v", err)
+	} else {
+		// TODO elmiko, change this to use the api features package once openshift/api#2587 merges
+		if featureGates.Enabled("ProvisioningRequestAvailable") {
+			args = append(args, EnableProvisioningRequestsArg.Value(trueFlag))
+		}
 	}
 
 	if ca.Spec.MaxPodGracePeriod != nil {
