@@ -304,7 +304,7 @@ func getFeatureGateAccessor(stopCh context.Context, o *Operator) (featuregates.F
 	select {
 	case <-featureGateAccessor.InitialFeatureGatesObserved():
 		features, _ := featureGateAccessor.CurrentFeatureGates()
-		klog.Info("FeatureGates initialized: %v", features.KnownFeatures())
+		klog.Infof("FeatureGates initialized: %v", features.KnownFeatures())
 	case <-time.After(1 * time.Minute):
 		klog.Error(errors.New("timed out waiting for FeatureGate detection"), "unable to start manager")
 		return nil, fmt.Errorf("time out waiting for FeatureGate detection")
