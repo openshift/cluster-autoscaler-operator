@@ -1,0 +1,90 @@
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  annotations:
+    exclude.release.openshift.io/internal-openshift-hosted: "true"
+    include.release.openshift.io/self-managed-high-availability: "true"
+    include.release.openshift.io/single-node-developer: "true"
+    capability.openshift.io/name: MachineAPI
+  name: cluster-autoscaler-operator-default-deny
+  namespace: openshift-machine-api
+spec:
+  podSelector:
+    matchLabels:
+      k8s-app: cluster-autoscaler-operator
+  policyTypes:
+  - Ingress
+  - Egress
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  annotations:
+    exclude.release.openshift.io/internal-openshift-hosted: "true"
+    include.release.openshift.io/self-managed-high-availability: "true"
+    include.release.openshift.io/single-node-developer: "true"
+    capability.openshift.io/name: MachineAPI
+  name: cluster-autoscaler-operator-allow-egress-to-dns
+  namespace: openshift-machine-api
+spec:
+  podSelector:
+    matchLabels:
+      k8s-app: cluster-autoscaler-operator
+  egress:
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: openshift-dns
+      podSelector:
+        matchLabels:
+          dns.operator.openshift.io/daemonset-dns: default
+    ports:
+    - protocol: TCP
+      port: 5353
+    - protocol: UDP
+      port: 5353
+  policyTypes:
+  - Egress
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  annotations:
+    exclude.release.openshift.io/internal-openshift-hosted: "true"
+    include.release.openshift.io/self-managed-high-availability: "true"
+    include.release.openshift.io/single-node-developer: "true"
+    capability.openshift.io/name: MachineAPI
+  name: cluster-autoscaler-operator-allow-egress-to-api-server
+  namespace: openshift-machine-api
+spec:
+  podSelector:
+    matchLabels:
+      k8s-app: cluster-autoscaler-operator
+  egress:
+  - ports:
+    - protocol: TCP
+      port: 6443
+  policyTypes:
+  - Egress
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  annotations:
+    exclude.release.openshift.io/internal-openshift-hosted: "true"
+    include.release.openshift.io/self-managed-high-availability: "true"
+    include.release.openshift.io/single-node-developer: "true"
+    capability.openshift.io/name: MachineAPI
+  name: cluster-autoscaler-operator-allow-ingress-to-metrics
+  namespace: openshift-machine-api
+spec:
+  podSelector:
+    matchLabels:
+      k8s-app: cluster-autoscaler-operator
+  ingress:
+  - ports:
+    - protocol: TCP
+      port: 9192
+  policyTypes:
+  - Ingress
