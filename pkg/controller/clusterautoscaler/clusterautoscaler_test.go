@@ -150,7 +150,8 @@ func TestAutoscalerArgsFromSpec(t *testing.T) {
 				"--logtostderr",
 				"--record-duplicated-events",
 				"--v=0",
-				"--enable-provisioning-requests=true",
+				// TODO elmiko, enable this once ProvisioningRequest is not behind a feature gate
+				// "--enable-provisioning-requests=true",
 				fmt.Sprintf("--cores-total=%d:%d", CoresMin, CoresMax),
 				fmt.Sprintf("--cloud-provider=%s", TestCloudProvider),
 				fmt.Sprintf("--expendable-pods-priority-cutoff=%d", PodPriorityThreshold),
