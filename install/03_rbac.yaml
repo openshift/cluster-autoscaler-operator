@@ -36,6 +36,7 @@ rules:
   - config.openshift.io
   resources:
   - infrastructures
+  - featuregates
   verbs:
   - get
   - list
