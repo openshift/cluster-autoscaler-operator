@@ -2,6 +2,7 @@ package clusterautoscaler
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	configv1 "github.com/openshift/api/config/v1"
@@ -21,6 +22,9 @@ const (
 	// added to remediate a bad interaction between the bulk delete logic and the cluster-api provider,
 	// for more information see https://issues.redhat.com/browse/OCPBUGS-42132
 	maxBulkSoftTaintCount = "0"
+
+	// ProvisioningRequest FeatureGate name
+	provisioningRequestFGName = "ProvisioningRequestAvailable"
 )
 
 // AutoscalerArg represents a command line argument to the cluster-autoscaler
@@ -218,9 +222,13 @@ func AutoscalerArgs(ca *v1.ClusterAutoscaler, cfg *Config) []string {
 		if featureGates, err := cfg.FeatureGateAccessor.CurrentFeatureGates(); err != nil {
 			klog.Errorf("unable to get feature gate accessor for autoscaler args: %v", err)
 		} else {
-			// TODO elmiko, change this to use the api features package once openshift/api#2587 merges
-			if featureGates.Enabled("ProvisioningRequestAvailable") {
-				args = append(args, EnableProvisioningRequestsArg.Value(trueFlag))
+			// prevent a panic from the Enabled call if possible.
+			if slices.Contains(featureGates.KnownFeatures(), provisioningRequestFGName) {
+				if featureGates.Enabled(provisioningRequestFGName) {
+					args = append(args, EnableProvisioningRequestsArg.Value(trueFlag))
+				}
+			} else {
+				klog.Info("ProvisioingRequest feature gate not found.")
 			}
 		}
 	}
