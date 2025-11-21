@@ -18,6 +18,7 @@ function annotate_crd() {
 function annotate_provreq_crd() {
   script1='/^  annotations:/a\
 \ \ \ \ feature-gate.release.openshift.io/ProvisioningRequestAvailable: "true"\
+\ \ \ \ release.openshift.io/feature-set: DevPreviewNoUpgrade\
 \ \ \ \ exclude.release.openshift.io/internal-openshift-hosted: "true"\
 \ \ \ \ include.release.openshift.io/self-managed-high-availability: "true"\
 \ \ \ \ capability.openshift.io/name: MachineAPI\
