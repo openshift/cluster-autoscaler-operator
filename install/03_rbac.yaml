@@ -49,9 +49,6 @@ rules:
   resources:
   - subjectaccessreviews
   verbs: ["create"]
-- apiGroups: ["autoscaling.x-k8s.io"]
-  resources: ["provisioningrequests", "provisioningrequests/status"]
-  verbs: ["create", "delete", "get", "list", "patch", "update", "watch"]
 
 ---
 kind: Role
@@ -383,3 +380,40 @@ rules:
       - get
       - list
       - watch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  annotations:
+    feature-gate.release.openshift.io/ProvisioningRequestAvailable: "true"
+    release.openshift.io/feature-set: DevPreviewNoUpgrade
+    include.release.openshift.io/hypershift: "true"
+    include.release.openshift.io/ibm-cloud-managed: "true"
+    include.release.openshift.io/self-managed-high-availability: "true"
+    include.release.openshift.io/single-node-developer: "true"
+  name: cluster-autoscaler-operator-prov-req
+rules:
+- apiGroups: ["autoscaling.x-k8s.io"]
+  resources: ["provisioningrequests", "provisioningrequests/status"]
+  verbs: ["create", "delete", "get", "list", "patch", "update", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: cluster-autoscaler-operator-prov-req
+  annotations:
+    feature-gate.release.openshift.io/ProvisioningRequestAvailable: "true"
+    release.openshift.io/feature-set: DevPreviewNoUpgrade
+    include.release.openshift.io/hypershift: "true"
+    include.release.openshift.io/ibm-cloud-managed: "true"
+    include.release.openshift.io/self-managed-high-availability: "true"
+    include.release.openshift.io/single-node-developer: "true"
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-autoscaler-operator-prov-req
+subjects:
+  - kind: ServiceAccount
+    name: cluster-autoscaler-operator
+    namespace: openshift-machine-api
+
