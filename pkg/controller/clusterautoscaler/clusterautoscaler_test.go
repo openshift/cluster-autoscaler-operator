@@ -61,6 +61,7 @@ var TestReconcilerConfig = Config{
 	Image:          "test/test:v100",
 	Replicas:       10,
 	Verbosity:      10,
+	WebhooksPort:   1234,
 }
 
 func init() {

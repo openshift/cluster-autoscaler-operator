@@ -199,6 +199,7 @@ func (o *Operator) AddControllers() error {
 		Verbosity:           o.config.ClusterAutoscalerVerbosity,
 		ExtraArgs:           o.config.ClusterAutoscalerExtraArgs,
 		FeatureGateAccessor: o.FeatureGateAccessor,
+		WebhooksPort:        o.config.WebhooksPort,
 	})
 
 	if err := ca.AddToManager(o.manager); err != nil {

@@ -12,6 +12,7 @@ import (
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -77,6 +78,8 @@ type Config struct {
 	platformType configv1.PlatformType
 	// Access to the feature gate configurations
 	FeatureGateAccessor featuregates.FeatureGateAccess
+	// The port the webhooks service is listening on
+	WebhooksPort int
 }
 
 var _ reconcile.Reconciler = &Reconciler{}
@@ -125,6 +128,16 @@ func (r *Reconciler) AddToManager(mgr manager.Manager) error {
 
 	// Watch for changes to secondary resources owned by a ClusterAutoscaler
 	if err := c.Watch(source.Kind(mgr.GetCache(), &appsv1.Deployment{}, handler.TypedEnqueueRequestForOwner[*appsv1.Deployment](
+		mgr.GetScheme(),
+		mgr.GetRESTMapper(),
+		&autoscalingv1.ClusterAutoscaler{},
+		handler.OnlyControllerOwner(),
+	))); err != nil {
+		return err
+	}
+
+	// Watch for changes to network policies owned by a ClusterAutoScaler
+	if err := c.Watch(source.Kind(mgr.GetCache(), &networkingv1.NetworkPolicy{}, handler.TypedEnqueueRequestForOwner[*networkingv1.NetworkPolicy](
 		mgr.GetScheme(),
 		mgr.GetRESTMapper(),
 		&autoscalingv1.ClusterAutoscaler{},
@@ -237,6 +250,15 @@ func (r *Reconciler) Reconcile(_ context.Context, request reconcile.Request) (re
 		return reconcile.Result{}, err
 	}
 	klog.Info("Ensured ClusterAutoscaler monitoring")
+
+	if _, err := r.createOrUpdateAutoscalerNetworkPolicies(ca); err != nil {
+		errMsg := fmt.Sprintf("Error ensuring ClusterAutoscaler networkpolicies: %v", err)
+		r.recorder.Event(caRef, corev1.EventTypeWarning, "FailedCreate", errMsg)
+		klog.Error(errMsg)
+
+		return reconcile.Result{}, err
+	}
+	klog.Info("Ensured ClusterAutoscaler networkpolicies")
 
 	if errors.IsNotFound(err) {
 		if err := r.CreateAutoscaler(ca); err != nil {
