@@ -5,7 +5,7 @@ ENV NO_DOCKER=1
 ENV BUILD_DEST=/go/bin/cluster-autoscaler-operator
 RUN unset VERSION && make build
 
-FROM registry.ci.openshift.org/ocp/4.22:base-rhel9
+FROM registry.ci.openshift.org/ocp/4.22:base-rhel9-minimal
 COPY --from=builder /go/bin/cluster-autoscaler-operator /usr/bin/
 COPY --from=builder /go/src/github.com/openshift/cluster-autoscaler-operator/install /manifests
 CMD ["/usr/bin/cluster-autoscaler-operator"]
