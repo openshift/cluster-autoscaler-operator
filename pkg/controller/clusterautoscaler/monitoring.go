@@ -119,6 +119,7 @@ func (r *Reconciler) AutoscalerService(ca *autoscalingv1.ClusterAutoscaler) *cor
 
 func (r *Reconciler) AutoscalerServiceMonitor(ca *autoscalingv1.ClusterAutoscaler) *monitoringv1.ServiceMonitor {
 	namespacedName := r.AutoscalerName(ca)
+	scheme := monitoringv1.SchemeHTTP
 	return &monitoringv1.ServiceMonitor{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: monitoringv1.SchemeGroupVersion.String(),
@@ -137,7 +138,7 @@ func (r *Reconciler) AutoscalerServiceMonitor(ca *autoscalingv1.ClusterAutoscale
 					BearerTokenFile: "/var/run/secrets/kubernetes.io/serviceaccount/token",
 					Interval:        "30s",
 					Port:            "metrics",
-					Scheme:          "http",
+					Scheme:          &scheme,
 				},
 			},
 			NamespaceSelector: monitoringv1.NamespaceSelector{
