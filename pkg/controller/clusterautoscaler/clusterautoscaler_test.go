@@ -166,6 +166,7 @@ func TestAutoscalerArgsFromSpec(t *testing.T) {
 				fmt.Sprintf("--scale-down-unneeded-time=%s", ScaleDownUnneededTime),
 				fmt.Sprintf("--scale-down-utilization-threshold=%s", ScaleDownUtilizationThreshold),
 				fmt.Sprintf("--new-pod-scale-up-delay=%s", NewPodScaleUpDelay),
+				fmt.Sprintf("--kube-api-content-type=%s", autoscalerAPIContentType),
 			},
 			expectedMissing: []string{
 				"--scale-down-delay-after-delete",
