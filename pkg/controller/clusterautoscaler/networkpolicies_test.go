@@ -83,6 +83,8 @@ func TestCreateOrUpdateAutoscalerNetworkPolicies(t *testing.T) {
 
 		for i := range freshlist {
 			freshlist[i].ResourceVersion = expected[i].ResourceVersion
+			// TODO: find a better way to handle this. Added because of https://github.com/kubernetes-sigs/controller-runtime/pull/2633
+			freshlist[i].TypeMeta = expected[i].TypeMeta
 		}
 
 		if !equality.Semantic.DeepEqual(freshlist, expected) {
