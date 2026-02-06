@@ -1,4 +1,4 @@
-FROM registry.ci.openshift.org/openshift/release:golang-1.20 AS builder
+FROM registry.ci.openshift.org/openshift/release:golang-1.25 AS builder
 WORKDIR /go/src/github.com/openshift/cluster-autoscaler-operator
 COPY . .
 ENV NO_DOCKER=1

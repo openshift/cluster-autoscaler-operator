@@ -61,6 +61,8 @@ func TestCreateOrUpdateAutoscalerService(t *testing.T) {
 		}
 
 		expected.ResourceVersion = fresh.ResourceVersion
+		// TODO: find a better way to handle this. Added because of https://github.com/kubernetes-sigs/controller-runtime/pull/2633
+		fresh.TypeMeta = expected.TypeMeta
 		if !equality.Semantic.DeepEqual(fresh, expected) {
 			t.Errorf("expected: %v, got: %v", expected, fresh)
 		}
@@ -118,6 +120,8 @@ func TestCreateOrUpdateAutoscalerServiceMonitopr(t *testing.T) {
 		}
 
 		fresh.ResourceVersion = expected.ResourceVersion
+		// TODO: find a better way to handle this. Added because of https://github.com/kubernetes-sigs/controller-runtime/pull/2633
+		fresh.TypeMeta = expected.TypeMeta
 		if !equality.Semantic.DeepEqual(fresh, expected) {
 			t.Errorf("expected: %v, got: %v", expected, fresh)
 		}
@@ -175,6 +179,8 @@ func TestCreateOrUpdateAutoscalerPrometheusRule(t *testing.T) {
 		}
 
 		fresh.ResourceVersion = expected.ResourceVersion
+		// TODO: find a better way to handle this. Added because of https://github.com/kubernetes-sigs/controller-runtime/pull/2633
+		fresh.TypeMeta = expected.TypeMeta
 		if !equality.Semantic.DeepEqual(fresh, expected) {
 			t.Errorf("expected: %v, got: %v", expected, fresh)
 		}

@@ -37,6 +37,7 @@ rules:
   resources:
   - infrastructures
   - featuregates
+  - clusterversions
   verbs:
   - get
   - list
