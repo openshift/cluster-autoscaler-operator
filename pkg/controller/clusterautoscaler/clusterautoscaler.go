@@ -25,6 +25,9 @@ const (
 
 	// ProvisioningRequest FeatureGate name
 	provisioningRequestFGName = "ProvisioningRequestAvailable"
+
+	// API Content-Type for autoscaler Kubernetes clients
+	autoscalerAPIContentType = "application/json"
 )
 
 // AutoscalerArg represents a command line argument to the cluster-autoscaler
@@ -85,6 +88,7 @@ const (
 	ExpanderArg                      AutoscalerArg = "--expander"
 	MaxBulkSoftTaintCountArg         AutoscalerArg = "--max-bulk-soft-taint-count"
 	EnableProvisioningRequestsArg    AutoscalerArg = "--enable-provisioning-requests"
+	KubeAPIContentType               AutoscalerArg = "--kube-api-content-type"
 )
 
 // Constants for the command line expander flags
@@ -215,6 +219,7 @@ func AutoscalerArgs(ca *v1.ClusterAutoscaler, cfg *Config) []string {
 		LeaderElectRenewDeadlineArg.Value(leaderElectRenewDeadline),
 		LeaderElectRetryPeriodArg.Value(leaderElectRetryPeriod),
 		MaxBulkSoftTaintCountArg.Value(maxBulkSoftTaintCount),
+		KubeAPIContentType.Value(autoscalerAPIContentType),
 	}
 
 	// if we can't determine the feature gate, log and skip it
