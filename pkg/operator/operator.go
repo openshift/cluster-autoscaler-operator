@@ -174,6 +174,31 @@ func (o *Operator) RelatedObjects() []configv1.ObjectReference {
 			Name:      "",
 			Namespace: o.config.WatchNamespace,
 		},
+		{
+			Group:    "rbac.authorization.k8s.io",
+			Resource: "clusterroles",
+			Name:     "cluster-autoscaler-operator",
+		},
+		{
+			Group:    "rbac.authorization.k8s.io",
+			Resource: "clusterroles",
+			Name:     "cluster-autoscaler",
+		},
+		{
+			Group:    "rbac.authorization.k8s.io",
+			Resource: "clusterroles",
+			Name:     "cluster-autoscaler-operator:cluster-reader",
+		},
+		{
+			Group:    "rbac.authorization.k8s.io",
+			Resource: "clusterrolebindings",
+			Name:     "cluster-autoscaler-operator",
+		},
+		{
+			Group:    "rbac.authorization.k8s.io",
+			Resource: "clusterrolebindings",
+			Name:     "cluster-autoscaler",
+		},
 	}
 
 	for namespace := range relatedNamespaces {

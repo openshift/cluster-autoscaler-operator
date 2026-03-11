@@ -21,3 +21,18 @@ status:
   - group: autoscaling.openshift.io
     name: ""
     resource: machineautoscalers
+  - group: rbac.authorization.k8s.io
+    name: cluster-autoscaler-operator
+    resource: clusterroles
+  - group: rbac.authorization.k8s.io
+    name: cluster-autoscaler
+    resource: clusterroles
+  - group: rbac.authorization.k8s.io
+    name: cluster-autoscaler-operator:cluster-reader
+    resource: clusterroles
+  - group: rbac.authorization.k8s.io
+    name: cluster-autoscaler-operator
+    resource: clusterrolebindings
+  - group: rbac.authorization.k8s.io
+    name: cluster-autoscaler
+    resource: clusterrolebindings
