@@ -23,6 +23,31 @@ func TestRelatedObjects(t *testing.T) {
 			Namespace: DefaultWatchNamespace,
 		},
 		{
+			Group:    "rbac.authorization.k8s.io",
+			Resource: "clusterroles",
+			Name:     "cluster-autoscaler-operator",
+		},
+		{
+			Group:    "rbac.authorization.k8s.io",
+			Resource: "clusterroles",
+			Name:     "cluster-autoscaler",
+		},
+		{
+			Group:    "rbac.authorization.k8s.io",
+			Resource: "clusterroles",
+			Name:     "cluster-autoscaler-operator:cluster-reader",
+		},
+		{
+			Group:    "rbac.authorization.k8s.io",
+			Resource: "clusterrolebindings",
+			Name:     "cluster-autoscaler-operator",
+		},
+		{
+			Group:    "rbac.authorization.k8s.io",
+			Resource: "clusterrolebindings",
+			Name:     "cluster-autoscaler",
+		},
+		{
 			Resource: "namespaces",
 			Name:     DefaultWatchNamespace,
 		},
