@@ -392,6 +392,14 @@ rules:
       - get
       - list
       - watch
+  - apiGroups:
+      - discovery.k8s.io
+    resources:
+      - endpointslices
+    verbs:
+      - get
+      - list
+      - watch
 ---
 # this role should be incorporated into the default role once ProvisioningRequest is out of tech preview
 apiVersion: rbac.authorization.k8s.io/v1
