@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"runtime"
 
@@ -34,15 +35,19 @@ func main() {
 		klog.Fatalf("Failed to get config from environment: %v", err)
 	}
 
-	stopCh := signals.SetupSignalHandler()
+	// Create a cancellable context derived from the signal handler context so
+	// that the operator can initiate a graceful shutdown (e.g. when the cluster
+	// TLS profile changes and the operator needs to restart to pick it up).
+	ctx, cancel := context.WithCancel(signals.SetupSignalHandler())
+	defer cancel()
 
-	operator, err := operator.New(stopCh, config)
+	operator, err := operator.New(ctx, cancel, config)
 	if err != nil {
 		klog.Fatalf("Failed to create operator: %v", err)
 	}
 
 	klog.Info("Starting cluster-autoscaler-operator")
-	if err := operator.Start(stopCh); err != nil {
+	if err := operator.Start(ctx); err != nil {
 		klog.Fatalf("Failed to start operator: %v", err)
 	}
 }
