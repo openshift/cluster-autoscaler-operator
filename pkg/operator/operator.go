@@ -46,11 +46,13 @@ type Operator struct {
 	caReconciler        *clusterautoscaler.Reconciler
 	maReconciler        *machineautoscaler.Reconciler
 	FeatureGateAccessor featuregates.FeatureGateAccess
+
+	webhookTLSOpts []func(*tls.Config)
 }
 
 // New returns a new Operator instance with the given config and a
 // manager configured with the various controllers.
-func New(stopCh context.Context, cfg *Config) (*Operator, error) {
+func New(stopCh context.Context, cancel context.CancelFunc, cfg *Config) (*Operator, error) {
 	operator := &Operator{config: cfg}
 
 	// Get a config to talk to the apiserver.
@@ -58,6 +60,12 @@ func New(stopCh context.Context, cfg *Config) (*Operator, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	tlsProfileSpec, tlsOpts, err := util.FetchClusterTLSProfile(stopCh, clientConfig)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get cluster TLS profile: %w", err)
+	}
+	operator.webhookTLSOpts = tlsOpts
 
 	// Get defaults for leader election
 	le := util.GetLeaderElectionDefaults(clientConfig, configv1.LeaderElection{
@@ -85,11 +93,7 @@ func New(stopCh context.Context, cfg *Config) (*Operator, error) {
 		},
 		WebhookServer: &webhook.DefaultServer{
 			Options: webhook.Options{
-				TLSOpts: []func(*tls.Config){
-					func(cfg *tls.Config) {
-						cfg.MinVersion = tls.VersionTLS13
-					},
-				},
+				TLSOpts: operator.webhookTLSOpts,
 			},
 		},
 	}
@@ -130,6 +134,12 @@ func New(stopCh context.Context, cfg *Config) (*Operator, error) {
 		if err := operator.AddWebhooks(); err != nil {
 			return nil, fmt.Errorf("failed to start webhook server: %v", err)
 		}
+	}
+
+	// Watch the APIServer object for TLS profile changes and trigger a graceful shutdown
+	// if the profile is updated. The new TLS configuration will take effect upon restart
+	if err := util.SetupTLSProfileWatcher(operator.manager, tlsProfileSpec, cancel); err != nil {
+		return nil, fmt.Errorf("failed to set up TLS profile watcher: %w", err)
 	}
 
 	statusConfig := &StatusReporterConfig{
@@ -268,6 +278,7 @@ func (o *Operator) AddWebhooks() error {
 	serverOpts := webhook.Options{
 		Port:    o.config.WebhooksPort,
 		CertDir: o.config.WebhooksCertDir,
+		TLSOpts: o.webhookTLSOpts,
 	}
 	server := webhook.NewServer(serverOpts)
 
