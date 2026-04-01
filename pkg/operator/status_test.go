@@ -319,7 +319,7 @@ func TestStatusChanges(t *testing.T) {
 			label:    "progressing",
 			expected: ProgressingConditions,
 			transition: func(r *StatusReporter) error {
-				return r.progressing("ProgressingReason", "progressing message")
+				return r.progressing("ProgressingReason", "progressing message", nil)
 			},
 		},
 		{
@@ -373,6 +373,112 @@ func TestStatusChanges(t *testing.T) {
 				if !ok {
 					t.Errorf("wrong status for condition: %s", cond.Type)
 				}
+			}
+		})
+	}
+}
+
+func TestShouldSetProgressingForVersionChange(t *testing.T) {
+	testCases := []struct {
+		label          string
+		newVersion     string
+		currentVersion string
+		expectedResult bool
+		expectError    bool
+	}{
+		{
+			label:          "minor version upgrade triggers progressing",
+			newVersion:     "4.22.0-0.nightly-2026-01-07-204315",
+			currentVersion: "4.21.0-0.nightly-2025-12-01-100000",
+			expectedResult: true,
+		},
+		{
+			label:          "major version upgrade triggers progressing",
+			newVersion:     "5.0.0",
+			currentVersion: "4.22.0",
+			expectedResult: true,
+		},
+		{
+			label:          "patch-only change does not trigger progressing",
+			newVersion:     "4.21.1-0.nightly-2026-01-07-204315",
+			currentVersion: "4.21.0-0.nightly-2025-12-01-100000",
+			expectedResult: false,
+		},
+		{
+			label:          "same version does not trigger progressing",
+			newVersion:     "4.21.0",
+			currentVersion: "4.21.0",
+			expectedResult: false,
+		},
+		{
+			label:          "no current version does not trigger progressing",
+			newVersion:     "4.21.0",
+			currentVersion: "",
+			expectedResult: false,
+		},
+		{
+			label:          "handles v-prefixed new version",
+			newVersion:     "v4.22.0",
+			currentVersion: "4.21.0",
+			expectedResult: true,
+		},
+		{
+			label:          "handles v-prefixed current version",
+			newVersion:     "4.22.0",
+			currentVersion: "v4.21.0",
+			expectedResult: true,
+		},
+		{
+			label:          "invalid new version returns error",
+			newVersion:     "not-a-version",
+			currentVersion: "4.21.0",
+			expectError:    true,
+		},
+		{
+			label:          "invalid current version returns error",
+			newVersion:     "4.22.0",
+			currentVersion: "not-a-version",
+			expectError:    true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.label, func(t *testing.T) {
+			co := helpers.NewTestClusterOperator(&configv1.ClusterOperator{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "ClusterOperator",
+					APIVersion: "config.openshift.io/v1",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "cluster-autoscaler",
+				},
+			})
+
+			var configObjs []runtime.Object
+			if tc.currentVersion != "" {
+				configObjs = []runtime.Object{co.WithVersion(tc.currentVersion).Object()}
+			} else {
+				configObjs = []runtime.Object{co.Object()}
+			}
+
+			reporter := &StatusReporter{
+				client:       fakeclient.NewFakeClient(),
+				configClient: fakeconfigclient.NewSimpleClientset(configObjs...),
+				config: &StatusReporterConfig{
+					ReleaseVersion: tc.newVersion,
+				},
+			}
+
+			result, err := reporter.shouldSetProgressingForVersionChange()
+
+			if tc.expectError && err == nil {
+				t.Errorf("expected error but got nil")
+			}
+			if !tc.expectError && err != nil {
+				t.Errorf("unexpected error: %v", err)
+			}
+			if result != tc.expectedResult {
+				t.Errorf("got %t, want %t", result, tc.expectedResult)
 			}
 		})
 	}
@@ -506,7 +612,23 @@ func TestReportStatus(t *testing.T) {
 			reportStatusCalls: 1,
 		},
 		{
-			label:         "version change noop",
+			label:         "major version upgrade without operand reports progressing",
+			versionChange: true,
+			expectedBool:  false,
+			expectedErr:   nil,
+			expectedConds: ProgressingConditions,
+			clientObjs:    []runtime.Object{},
+			configObjs: []runtime.Object{
+				machineAPI.WithConditions(AvailableConditions).Object(),
+				clusterAutoscalerOperator.
+					WithConditions(AvailableConditions).
+					WithVersion("v99.0.1").
+					Object(),
+			},
+			reportStatusCalls: 1,
+		},
+		{
+			label:         "major version upgrade settles to available on second call",
 			versionChange: true,
 			expectedBool:  true,
 			expectedErr:   nil,
@@ -516,7 +638,23 @@ func TestReportStatus(t *testing.T) {
 				machineAPI.WithConditions(AvailableConditions).Object(),
 				clusterAutoscalerOperator.
 					WithConditions(AvailableConditions).
-					WithVersion("vOLD").
+					WithVersion("v99.0.1").
+					Object(),
+			},
+			reportStatusCalls: 2,
+		},
+		{
+			label:         "patch version change does not trigger progressing",
+			versionChange: true,
+			expectedBool:  true,
+			expectedErr:   nil,
+			expectedConds: AvailableConditions,
+			clientObjs:    []runtime.Object{},
+			configObjs: []runtime.Object{
+				machineAPI.WithConditions(AvailableConditions).Object(),
+				clusterAutoscalerOperator.
+					WithConditions(AvailableConditions).
+					WithVersion("v100.0.0").
 					Object(),
 			},
 			reportStatusCalls: 1,
