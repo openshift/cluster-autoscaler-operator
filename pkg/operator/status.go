@@ -3,8 +3,10 @@ package operator
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
+	"github.com/blang/semver/v4"
 	configv1 "github.com/openshift/api/config/v1"
 	osconfig "github.com/openshift/client-go/config/clientset/versioned"
 	configv1informers "github.com/openshift/client-go/config/informers/externalversions"
@@ -294,8 +296,11 @@ func (r *StatusReporter) degraded(reason, message string) error {
 }
 
 // progressing reports the operator as progressing but available, and not
-// degraded -- optionally setting a reason and message.
-func (r *StatusReporter) progressing(reason, message string) error {
+// degraded -- optionally setting a reason and message. If versions are
+// provided they are written into the status alongside the Progressing=True
+// signal; when nil, ApplyStatus will carry forward the previously reported
+// versions.
+func (r *StatusReporter) progressing(reason, message string, versions []configv1.OperandVersion) error {
 	status := configv1.ClusterOperatorStatus{
 		Conditions: []configv1.ClusterOperatorStatusCondition{
 			{
@@ -313,11 +318,50 @@ func (r *StatusReporter) progressing(reason, message string) error {
 				Status: configv1.ConditionFalse,
 			},
 		},
+		Versions: versions,
 	}
 
 	klog.Infof("Operator status progressing: %s", message)
 
 	return r.ApplyStatus(status)
+}
+
+// shouldSetProgressingForVersionChange fetches the current ClusterOperator and
+// checks whether the operator's release version represents a major or minor
+// upgrade relative to the versions currently reported in its status. Patch-only
+// changes are ignored. Returns false when no versions are currently reported
+// (initial run) or when the ClusterOperator cannot be fetched.
+func (r *StatusReporter) shouldSetProgressingForVersionChange() (bool, error) {
+	co, err := r.GetOrCreateClusterOperator()
+	if err != nil {
+		return false, fmt.Errorf("failed to get ClusterOperator: %w", err)
+	}
+
+	newParsed, err := semver.Parse(strings.TrimPrefix(r.config.ReleaseVersion, "v"))
+	if err != nil {
+		return false, fmt.Errorf("failed to parse new version %q: %w", r.config.ReleaseVersion, err)
+	}
+
+	if len(co.Status.Versions) == 0 {
+		return false, nil
+	}
+
+	for _, v := range co.Status.Versions {
+		if v.Name != "operator" {
+			continue
+		}
+
+		currentParsed, err := semver.Parse(strings.TrimPrefix(v.Version, "v"))
+		if err != nil {
+			return false, fmt.Errorf("failed to parse current version %q: %w", v.Version, err)
+		}
+
+		if newParsed.Major != currentParsed.Major || newParsed.Minor != currentParsed.Minor {
+			return true, nil
+		}
+	}
+
+	return false, nil
 }
 
 func (c *StatusReporter) processNextWorkItem() {
@@ -422,12 +466,29 @@ func (r *StatusReporter) ReportStatus() (bool, error) {
 		return false, r.degraded(ReasonCheckAutoscaler, msg)
 	}
 
-	// Reset the degraded consecutive count since we have not observed degraded.
+	if !ok {
+		r.degradedConsecutiveCount = 0
+		msg := fmt.Sprintf("updating to %s", r.config.ReleaseVersion)
+		return false, r.progressing(ReasonSyncing, msg, nil)
+	}
+
+	// Check if we should report Progressing=True due to a version upgrade.
+	// Even if CA is up-to-date or not present, the operator must signal that
+	// it is processing a version change so that CVO upgrade invariant tests
+	// see the expected Progressing=True transition.
+	versionUpgrade, versionErr := r.shouldSetProgressingForVersionChange()
+	if versionErr != nil {
+		msg := fmt.Sprintf("error checking version upgrade: %v", versionErr)
+		return false, r.degraded(ReasonCheckAutoscaler, msg)
+	}
+
 	r.degradedConsecutiveCount = 0
 
-	if !ok {
-		msg := fmt.Sprintf("updating to %s", r.config.ReleaseVersion)
-		return false, r.progressing(ReasonSyncing, msg)
+	if versionUpgrade {
+		msg := fmt.Sprintf("upgrading operator version to %s", r.config.ReleaseVersion)
+		return false, r.progressing(ReasonSyncing, msg, []configv1.OperandVersion{
+			{Name: "operator", Version: r.config.ReleaseVersion},
+		})
 	}
 
 	msg := fmt.Sprintf("at version %s", r.config.ReleaseVersion)
