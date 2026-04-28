@@ -171,6 +171,7 @@ func (o *Operator) RelatedObjects() []configv1.ObjectReference {
 	relatedNamespaces[o.config.ClusterAutoscalerNamespace] = ""
 
 	// Related objects lets openshift/must-gather collect diagnostic content
+	// Additional Machines & MachineSets are also added to the relatedObject list
 	relatedObjects := []configv1.ObjectReference{
 		{
 			Group:     v1beta1.SchemeGroupVersion.Group,
@@ -188,13 +189,13 @@ func (o *Operator) RelatedObjects() []configv1.ObjectReference {
 			Group:     "machine.openshift.io",
 			Resource:  "machinesets",
 			Name:      "",
-			Namespace: "openshift-machine-api",
+			Namespace: o.config.WatchNamespace,
 		},
 		{
 			Group:     "machine.openshift.io",
 			Resource:  "machines",
 			Name:      "",
-			Namespace: "openshift-machine-api",
+			Namespace: o.config.WatchNamespace,
 		},
 		{
 			Group:    "rbac.authorization.k8s.io",
