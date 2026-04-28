@@ -191,6 +191,12 @@ func (o *Operator) RelatedObjects() []configv1.ObjectReference {
 			Namespace: "openshift-machine-api",
 		},
 		{
+			Group:     "machine.openshift.io",
+			Resource:  "machines",
+			Name:      "",
+			Namespace: "openshift-machine-api",
+		},
+		{
 			Group:    "rbac.authorization.k8s.io",
 			Resource: "clusterroles",
 			Name:     "cluster-autoscaler-operator",
