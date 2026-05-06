@@ -70,6 +70,7 @@ const (
 	ScaleDownUnneededTimeArg         AutoscalerArg = "--scale-down-unneeded-time"
 	ScaleDownUtilizationThresholdArg AutoscalerArg = "--scale-down-utilization-threshold"
 	CordonNodeBeforeTerminatingArg   AutoscalerArg = "--cordon-node-before-terminating"
+	EnforceNodeGroupMinSizeArg       AutoscalerArg = "--enforce-node-group-min-size"
 	NewPodScaleUpDelayArg            AutoscalerArg = "--new-pod-scale-up-delay"
 	MaxNodesTotalArg                 AutoscalerArg = "--max-nodes-total"
 	MaxNodeProvisionTimeArg          AutoscalerArg = "--max-node-provision-time"
@@ -309,6 +310,15 @@ func AutoscalerArgs(ca *v1.ClusterAutoscaler, cfg *Config) []string {
 			}
 		}
 		args = append(args, ExpanderArg.Value(strings.Join(expanders, ",")))
+	}
+
+	if ca.Spec.EnforceNodeGroupMinSize != nil {
+		switch *ca.Spec.EnforceNodeGroupMinSize {
+		case v1.EnforceNodeGroupMinSizeModeEnabled:
+			args = append(args, EnforceNodeGroupMinSizeArg.Value(true))
+		case v1.EnforceNodeGroupMinSizeModeDisabled:
+			args = append(args, EnforceNodeGroupMinSizeArg.Value(false))
+		}
 	}
 
 	return args
