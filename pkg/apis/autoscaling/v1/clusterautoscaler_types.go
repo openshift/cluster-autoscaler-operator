@@ -114,6 +114,7 @@ type ClusterAutoscalerSpec struct {
 	// nodes are deemed unneeded. This is useful for maintaining a baseline capacity in node groups.
 	// Defaults to Disabled.
 	// +optional
+	// +kubebuilder:default=Disabled
 	EnforceNodeGroupMinSize *EnforceNodeGroupMinSizeMode `json:"enforceNodeGroupMinSize,omitempty"`
 }
 
