@@ -34,7 +34,7 @@ func TestCreateOrUpdateAutoscalerNetworkPolicies(t *testing.T) {
 
 	var createdResult []controllerutil.OperationResult
 	var updatedResult []controllerutil.OperationResult
-	for _ = range expected {
+	for range expected {
 		createdResult = append(createdResult, controllerutil.OperationResultCreated)
 		updatedResult = append(updatedResult, controllerutil.OperationResultUpdated)
 	}
