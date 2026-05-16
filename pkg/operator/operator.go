@@ -149,10 +149,10 @@ func New(stopCh context.Context, cancel context.CancelFunc, cfg *Config) (*Opera
 		ClusterAutoscalerName:      cfg.ClusterAutoscalerName,
 		ClusterAutoscalerNamespace: cfg.ClusterAutoscalerNamespace,
 		ReleaseVersion:             cfg.ReleaseVersion,
-		RelatedObjects:             operator.RelatedObjects(),
+		RelatedObjects:             []configv1.ObjectReference{}, // Will be populated dynamically
 	}
 
-	statusReporter, err := NewStatusReporter(operator.manager, statusConfig)
+	statusReporter, err := NewStatusReporter(operator.manager, statusConfig, operator)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create status reporter: %v", err)
 	}
