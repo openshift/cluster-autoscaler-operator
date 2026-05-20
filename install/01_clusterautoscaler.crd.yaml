@@ -61,6 +61,18 @@ spec:
                 items:
                   type: string
                 type: array
+              enforceNodeGroupMinSize:
+                default: Disabled
+                description: |-
+                  EnforceNodeGroupMinSize enables/disables the `--enforce-node-group-min-size` cluster-autoscaler feature flag.
+                  When enabled, the cluster autoscaler will enforce the minimum size of a node group,
+                  ensuring that the node group never scales below the configured minimum size even if
+                  nodes are deemed unneeded. This is useful for maintaining a baseline capacity in node groups.
+                  Defaults to Disabled.
+                enum:
+                - Enabled
+                - Disabled
+                type: string
               expanders:
                 description: |-
                   Sets the type and order of expanders to be used during scale out operations.
