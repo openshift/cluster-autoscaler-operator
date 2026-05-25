@@ -51,6 +51,12 @@ type StatusReporter struct {
 	configInformers          configv1informers.SharedInformerFactory
 	queue                    workqueue.RateLimitingInterface
 	degradedConsecutiveCount int
+	relatedObjectsGetter     RelatedObjectsGetter
+}
+
+// RelatedObjectsGetter is an interface for getting related objects dynamically
+type RelatedObjectsGetter interface {
+	RelatedObjects() []configv1.ObjectReference
 }
 
 // StatusReporterConfig represents the configuration of a given StatusReporter.
@@ -62,12 +68,13 @@ type StatusReporterConfig struct {
 }
 
 // NewStatusReporter returns a new StatusReporter instance.
-func NewStatusReporter(mgr manager.Manager, cfg *StatusReporterConfig) (*StatusReporter, error) {
+func NewStatusReporter(mgr manager.Manager, cfg *StatusReporterConfig, relatedObjectsGetter RelatedObjectsGetter) (*StatusReporter, error) {
 	var err error
 
 	reporter := &StatusReporter{
-		client: mgr.GetClient(),
-		config: cfg,
+		client:               mgr.GetClient(),
+		config:               cfg,
+		relatedObjectsGetter: relatedObjectsGetter,
 	}
 
 	// Create a client for OpenShift config objects.
@@ -146,7 +153,12 @@ func (r *StatusReporter) ApplyStatus(status configv1.ClusterOperatorStatus) erro
 	v1helpers.SetStatusCondition(&status.Conditions, upgradeable, &clock.RealClock{})
 
 	// Set the currently configured related objects.
-	status.RelatedObjects = r.config.RelatedObjects
+	// If a relatedObjectsGetter is configured, fetch them dynamically
+	if r.relatedObjectsGetter != nil {
+		status.RelatedObjects = r.relatedObjectsGetter.RelatedObjects()
+	} else {
+		status.RelatedObjects = r.config.RelatedObjects
+	}
 
 	// If no versions were set explicitly, continue reporting previous versions.
 	if status.Versions == nil {

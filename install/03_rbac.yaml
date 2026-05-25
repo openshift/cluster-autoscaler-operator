@@ -62,6 +62,15 @@ rules:
   - patch
   - update
   - watch
+- apiGroups:
+  - machine.openshift.io
+  resources:
+  - machines
+  - machinesets
+  verbs:
+  - get
+  - list
+  - watch
 
 ---
 kind: Role

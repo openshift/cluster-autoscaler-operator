@@ -19,10 +19,13 @@ import (
 	"github.com/openshift/library-go/pkg/operator/configobserver/featuregates"
 	"github.com/openshift/library-go/pkg/operator/events"
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
 	"k8s.io/utils/clock"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/metrics/server"
@@ -146,10 +149,10 @@ func New(stopCh context.Context, cancel context.CancelFunc, cfg *Config) (*Opera
 		ClusterAutoscalerName:      cfg.ClusterAutoscalerName,
 		ClusterAutoscalerNamespace: cfg.ClusterAutoscalerNamespace,
 		ReleaseVersion:             cfg.ReleaseVersion,
-		RelatedObjects:             operator.RelatedObjects(),
+		RelatedObjects:             []configv1.ObjectReference{}, // Will be populated dynamically
 	}
 
-	statusReporter, err := NewStatusReporter(operator.manager, statusConfig)
+	statusReporter, err := NewStatusReporter(operator.manager, statusConfig, operator)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create status reporter: %v", err)
 	}
@@ -209,6 +212,56 @@ func (o *Operator) RelatedObjects() []configv1.ObjectReference {
 			Resource: "clusterrolebindings",
 			Name:     "cluster-autoscaler",
 		},
+	}
+
+	// Query MachineAutoscalers to find their targets and add related MachineSets and Machines
+	ctx := context.Background()
+	maList := &v1beta1.MachineAutoscalerList{}
+	if err := o.manager.GetClient().List(ctx, maList, client.InNamespace(o.config.WatchNamespace)); err != nil {
+		klog.Errorf("Failed to list MachineAutoscalers for related objects: %v", err)
+	} else {
+		// Track which MachineSets are autoscaled by the cluster autoscaler
+		autoscaledMachineSets := make(map[string]bool)
+
+		// Add only MachineSets that have MachineAutoscalers targeting them
+		for _, ma := range maList.Items {
+			if ma.Spec.ScaleTargetRef.Kind == "MachineSet" {
+				relatedObjects = append(relatedObjects, configv1.ObjectReference{
+					Group:     "machine.openshift.io",
+					Resource:  "machinesets",
+					Name:      ma.Spec.ScaleTargetRef.Name,
+					Namespace: o.config.WatchNamespace,
+				})
+				autoscaledMachineSets[ma.Spec.ScaleTargetRef.Name] = true
+			}
+		}
+
+		// Add only Machines owned by autoscaled MachineSets
+		machineList := &metav1.PartialObjectMetadataList{}
+		machineList.SetGroupVersionKind(schema.GroupVersionKind{
+			Group:   "machine.openshift.io",
+			Version: "v1beta1",
+			Kind:    "MachineList",
+		})
+
+		if err := o.manager.GetClient().List(ctx, machineList, client.InNamespace(o.config.WatchNamespace)); err != nil {
+			klog.Errorf("Failed to list Machines for related objects: %v", err)
+		} else {
+			for _, machine := range machineList.Items {
+				// Check if this Machine is owned by an autoscaled MachineSet
+				for _, ownerRef := range machine.OwnerReferences {
+					if ownerRef.Kind == "MachineSet" && autoscaledMachineSets[ownerRef.Name] {
+						relatedObjects = append(relatedObjects, configv1.ObjectReference{
+							Group:     "machine.openshift.io",
+							Resource:  "machines",
+							Name:      machine.Name,
+							Namespace: machine.Namespace,
+						})
+						break
+					}
+				}
+			}
+		}
 	}
 
 	for namespace := range relatedNamespaces {
