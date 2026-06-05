@@ -10,10 +10,10 @@ replace k8s.io/autoscaler/cluster-autoscaler/apis => k8s.io/autoscaler/cluster-a
 require (
 	github.com/blang/semver/v4 v4.0.0
 	github.com/onsi/ginkgo/v2 v2.28.1
-	github.com/openshift/api v0.0.0-20260318185450-1f2fa3f09f4e
-	github.com/openshift/client-go v0.0.0-20260320040014-4b5fc2cdad98
+	github.com/openshift/api v0.0.0-20260521125114-09730f85d883
+	github.com/openshift/client-go v0.0.0-20260512113608-deb4dc54551a
 	github.com/openshift/controller-runtime-common v0.0.0-20260318085703-1812aed6dbd2
-	github.com/openshift/library-go v0.0.0-20260213153706-03f1709971c5
+	github.com/openshift/library-go v0.0.0-20260604143514-ba2b9a3a3499
 	github.com/openshift/machine-api-operator v0.2.1-0.20260116124544-4610a83ed692
 	github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.88.1
 	github.com/stretchr/testify v1.11.1
@@ -56,7 +56,6 @@ require (
 	github.com/go-openapi/swag/yamlutils v0.25.4 // indirect
 	github.com/go-task/slim-sprig/v3 v3.0.0 // indirect
 	github.com/gobuffalo/flect v1.0.3 // indirect
-	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/google/btree v1.1.3 // indirect
 	github.com/google/gnostic-models v0.7.1 // indirect
 	github.com/google/go-cmp v0.7.0 // indirect
@@ -107,7 +106,7 @@ require (
 	k8s.io/code-generator v0.35.1 // indirect
 	k8s.io/component-base v0.35.1 // indirect
 	k8s.io/gengo/v2 v2.0.0-20250922181213-ec3ebc5fd46b // indirect
-	k8s.io/kube-aggregator v0.34.1 // indirect
+	k8s.io/kube-aggregator v0.35.1 // indirect
 	k8s.io/kube-openapi v0.0.0-20260127142750-a19766b6e2d4 // indirect
 	sigs.k8s.io/json v0.0.0-20250730193827-2d320260d730 // indirect
 	sigs.k8s.io/kube-storage-version-migrator v0.0.6-0.20230721195810-5c8923c5ff96 // indirect

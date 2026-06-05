@@ -64,7 +64,7 @@ func New(stopCh context.Context, cancel context.CancelFunc, cfg *Config) (*Opera
 		return nil, err
 	}
 
-	tlsProfileSpec, tlsOpts, err := util.FetchClusterTLSProfile(stopCh, clientConfig)
+	tlsProfileSpec, tlsOpts, shouldHonorTLSProfile, err := util.FetchClusterTLSProfile(stopCh, clientConfig)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get cluster TLS profile: %w", err)
 	}
@@ -141,7 +141,7 @@ func New(stopCh context.Context, cancel context.CancelFunc, cfg *Config) (*Opera
 
 	// Watch the APIServer object for TLS profile changes and trigger a graceful shutdown
 	// if the profile is updated. The new TLS configuration will take effect upon restart
-	if err := util.SetupTLSProfileWatcher(operator.manager, tlsProfileSpec, cancel); err != nil {
+	if err := util.SetupTLSProfileWatcher(operator.manager, tlsProfileSpec, cancel, shouldHonorTLSProfile); err != nil {
 		return nil, fmt.Errorf("failed to set up TLS profile watcher: %w", err)
 	}
 
