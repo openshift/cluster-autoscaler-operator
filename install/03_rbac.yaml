@@ -487,4 +487,109 @@ subjects:
   - kind: ServiceAccount
     name: cluster-autoscaler
     namespace: openshift-machine-api
-
+---
+# roles related to clusterapi enablement these roles should be incorporated into the main role or an aggregated role should be configured
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  annotations:
+    feature-gate.release.openshift.io/ClusterAPIMachineManagement: "true"
+    include.release.openshift.io/hypershift: "true"
+    include.release.openshift.io/ibm-cloud-managed: "true"
+    include.release.openshift.io/self-managed-high-availability: "true"
+    include.release.openshift.io/single-node-developer: "true"
+  name: cluster-autoscaler-operator-clusterapi
+rules:
+- apiGroups:
+  - cluster.x-k8s.io
+  resources:
+  - machinedeployments
+  - machinesets
+  verbs:
+  - watch
+  - list
+  - get
+  - update
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: cluster-autoscaler-operator-clusterapi
+  annotations:
+    feature-gate.release.openshift.io/ClusterAPIMachineManagement: "true"
+    include.release.openshift.io/hypershift: "true"
+    include.release.openshift.io/ibm-cloud-managed: "true"
+    include.release.openshift.io/self-managed-high-availability: "true"
+    include.release.openshift.io/single-node-developer: "true"
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-autoscaler-operator-clusterapi
+subjects:
+  - kind: ServiceAccount
+    name: cluster-autoscaler-operator
+    namespace: openshift-machine-api
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  annotations:
+    feature-gate.release.openshift.io/ClusterAPIMachineManagement: "true"
+    include.release.openshift.io/hypershift: "true"
+    include.release.openshift.io/ibm-cloud-managed: "true"
+    include.release.openshift.io/self-managed-high-availability: "true"
+    include.release.openshift.io/single-node-developer: "true"
+  name: cluster-autoscaler-clusterapi
+rules:
+- apiGroups:
+  - cluster.x-k8s.io
+  resources:
+  - machinedeployments
+  - machinesets
+  - machines
+  verbs:
+  - watch
+  - list
+  - get
+  - update
+- apiGroups:
+  - cluster.x-k8s.io
+  resources:
+  - machinesets/scale
+  verbs:
+  - watch
+  - list
+  - get
+- apiGroups:
+  - infrastructure.cluster.x-k8s.io
+  resources:
+  - awsmachinetemplates
+  - azuremachinetemplates
+  - gcpmachinetemplates
+  - ibmpowervsmachinetemplates
+  - metal3machinetemplates
+  - openstackmachinetemplates
+  - vspheremachinetemplates
+  verbs:
+  - watch
+  - list
+  - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: cluster-autoscaler-clusterapi
+  annotations:
+    feature-gate.release.openshift.io/ClusterAPIMachineManagement: "true"
+    include.release.openshift.io/hypershift: "true"
+    include.release.openshift.io/ibm-cloud-managed: "true"
+    include.release.openshift.io/self-managed-high-availability: "true"
+    include.release.openshift.io/single-node-developer: "true"
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-autoscaler-clusterapi
+subjects:
+  - kind: ServiceAccount
+    name: cluster-autoscaler
+    namespace: openshift-machine-api

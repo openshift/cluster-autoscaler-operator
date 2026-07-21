@@ -37,12 +37,9 @@ const (
 	controllerName                 = "cluster_autoscaler_controller"
 	caServiceAccount               = "cluster-autoscaler"
 	caPriorityClassName            = "system-cluster-critical"
-	CAPIGroupEnvVar                = "CAPI_GROUP"
-	CAPIGroup                      = "machine.openshift.io"
 	CAPIScaleZeroDefaultArchEnvVar = "CAPI_SCALE_ZERO_DEFAULT_ARCH"
-	CAPIVersionEnvVar              = "CAPI_VERSION"
-	CAPIVersion                    = "v1beta1"
 	infrastructureName             = "cluster"
+	CAPIDisableEnvVar              = "OPENSHIFT_CLUSTERAPI_DISABLE"
 )
 
 // NewReconciler returns a new Reconciler.
@@ -467,14 +464,6 @@ func (r *Reconciler) AutoscalerPodSpec(ca *autoscalingv1.ClusterAutoscaler) *cor
 				},
 				Env: []corev1.EnvVar{
 					{
-						Name:  CAPIGroupEnvVar,
-						Value: CAPIGroup,
-					},
-					{
-						Name:  CAPIVersionEnvVar,
-						Value: CAPIVersion,
-					},
-					{
 						Name:  CAPIScaleZeroDefaultArchEnvVar,
 						Value: goruntime.GOARCH,
 					},
@@ -500,6 +489,16 @@ func (r *Reconciler) AutoscalerPodSpec(ca *autoscalingv1.ClusterAutoscaler) *cor
 				Operator: corev1.TolerationOpExists,
 			},
 		},
+	}
+
+	// when using the new openshift provider, we need to override the creation of the inner
+	// cluster api provider on platforms where openshift does not yet support cluster api.
+	if shouldDisableClusterAPIProviderFor(r.config) {
+		capiDisable := corev1.EnvVar{
+			Name:  CAPIDisableEnvVar,
+			Value: "true",
+		}
+		spec.Containers[0].Env = append(spec.Containers[0].Env, capiDisable)
 	}
 
 	return spec

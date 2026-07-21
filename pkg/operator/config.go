@@ -41,7 +41,7 @@ const (
 
 	// DefaultClusterAutoscalerCloudProvider is the default name for
 	// the CloudProvider beeing used.
-	DefaultClusterAutoscalerCloudProvider = "clusterapi"
+	DefaultClusterAutoscalerCloudProvider = "openshift"
 
 	// DefaultClusterAutoscalerVerbosity is the default logging
 	// verbosity level for ClusterAutoscaler deployments.

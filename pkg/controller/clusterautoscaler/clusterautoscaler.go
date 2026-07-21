@@ -7,6 +7,7 @@ import (
 
 	configv1 "github.com/openshift/api/config/v1"
 	v1 "github.com/openshift/cluster-autoscaler-operator/pkg/apis/autoscaling/v1"
+	"github.com/openshift/library-go/pkg/operator/configobserver/featuregates"
 	"k8s.io/klog/v2"
 )
 
@@ -25,6 +26,15 @@ const (
 
 	// ProvisioningRequest FeatureGate name
 	provisioningRequestFGName = "ProvisioningRequestAvailable"
+
+	// Cluster API Machine Management FeatureGate names
+	clusterapiAWSFGName       = "ClusterAPIMachineManagementAWS"
+	clusterapiAzureFGName     = "ClusterAPIMachineManagementAzure"
+	clusterapiBareMetalFGName = "ClusterAPIMachineManagementBareMetal"
+	clusterapiGCPFGName       = "ClusterAPIMachineManagementGCP"
+	clusterapiPowerVSFGName   = "ClusterAPIMachineManagementPowerVS"
+	clusterapiOpenStackFGName = "ClusterAPIMachineManagementOpenStack"
+	clusterapiVSphereFGName   = "ClusterAPIMachineManagementVSphere"
 
 	// API Content-Type for autoscaler Kubernetes clients
 	autoscalerAPIContentType = "application/json"
@@ -90,6 +100,7 @@ const (
 	MaxBulkSoftTaintCountArg         AutoscalerArg = "--max-bulk-soft-taint-count"
 	EnableProvisioningRequestsArg    AutoscalerArg = "--enable-provisioning-requests"
 	KubeAPIContentType               AutoscalerArg = "--kube-api-content-type"
+	NodeGroupAutoDiscovery           AutoscalerArg = "--node-group-auto-discovery"
 )
 
 // Constants for the command line expander flags
@@ -223,20 +234,15 @@ func AutoscalerArgs(ca *v1.ClusterAutoscaler, cfg *Config) []string {
 		KubeAPIContentType.Value(autoscalerAPIContentType),
 	}
 
-	// if we can't determine the feature gate, log and skip it
-	if cfg.FeatureGateAccessor != nil {
-		if featureGates, err := cfg.FeatureGateAccessor.CurrentFeatureGates(); err != nil {
-			klog.Errorf("unable to get feature gate accessor for autoscaler args: %v", err)
-		} else {
-			// prevent a panic from the Enabled call if possible.
-			if slices.Contains(featureGates.KnownFeatures(), provisioningRequestFGName) {
-				if featureGates.Enabled(provisioningRequestFGName) {
-					args = append(args, EnableProvisioningRequestsArg.Value(trueFlag))
-				}
-			} else {
-				klog.Info("ProvisioingRequest feature gate not found.")
-			}
-		}
+	// if Cluster API is enabled for this platform, we need to add an autodiscovery flag so that
+	// the autoscaler can discover node groups that are Cluster API authoritative.
+	if !shouldDisableClusterAPIProviderFor(*cfg) {
+		args = append(args, NodeGroupAutoDiscovery.Value("clusterapi:namespace=openshift-cluster-api"))
+	}
+
+	// if feature gate for ProvisioningRequest is enabled, turn on the flag
+	if isFeatureGateEnabled(cfg.FeatureGateAccessor, provisioningRequestFGName) {
+		args = append(args, EnableProvisioningRequestsArg.Value(trueFlag))
 	}
 
 	if ca.Spec.MaxPodGracePeriod != nil {
@@ -404,4 +410,59 @@ func ResourceArgs(rl *v1.ResourceLimits) []string {
 	}
 
 	return args
+}
+
+func isFeatureGateEnabled(accessor featuregates.FeatureGateAccess, name string) bool {
+	if accessor != nil {
+		if featureGates, err := accessor.CurrentFeatureGates(); err != nil {
+			klog.Errorf("unable to get feature gate accessor: %v", err)
+		} else {
+			// check if the feature gate is present in all the known gates, this is done to prevent a possible panic in the `Enabled` call.
+			if slices.Contains(featureGates.KnownFeatures(), configv1.FeatureGateName(name)) {
+				return featureGates.Enabled(configv1.FeatureGateName(name))
+			} else {
+				klog.Infof("%q feature gate not found.", name)
+			}
+		}
+	} else {
+		// this shouldn't happen
+		klog.Errorf("unexpected error: feature gate accessor is nil when checking for %q", name)
+	}
+
+	return false
+}
+
+// shouldDisableClusterAPIProviderFor returns true if the Cluster API provider should be disabled
+// on a given platform. Because not all OpenShift clusters will have Cluster API resources
+// available, we need to determine when Cluster API provider creation should be disabled on a platform.
+func shouldDisableClusterAPIProviderFor(cfg Config) bool {
+	var fgName string
+
+	switch cfg.platformType {
+	case configv1.AWSPlatformType:
+		fgName = clusterapiAWSFGName
+	case configv1.AzurePlatformType:
+		fgName = clusterapiAzureFGName
+	case configv1.BareMetalPlatformType:
+		fgName = clusterapiBareMetalFGName
+	case configv1.GCPPlatformType:
+		fgName = clusterapiGCPFGName
+	case configv1.OpenStackPlatformType:
+		fgName = clusterapiOpenStackFGName
+	case configv1.PowerVSPlatformType:
+		fgName = clusterapiPowerVSFGName
+	case configv1.VSpherePlatformType:
+		fgName = clusterapiVSphereFGName
+	default:
+		// if we can't determine the platform type, default to disabling Cluster API to be safe
+		fgName = ""
+	}
+
+	if len(fgName) > 0 {
+		// if the feature gate is enabled on a given platform, then we know Cluster API is enabled
+		return !isFeatureGateEnabled(cfg.FeatureGateAccessor, fgName)
+	}
+
+	// if we fall through to here it is because we can't determine the platform, the safest thing to do is disable Cluster API
+	return true
 }
