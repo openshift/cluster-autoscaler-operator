@@ -1,0 +1,8 @@
+# Docs: https://docs.coderabbit.ai/getting-started/configure-coderabbit
+
+language: en-US
+
+early_access: false
+
+reviews:
+  high_level_summary: false
