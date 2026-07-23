@@ -15,7 +15,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/tools/record"
+	"k8s.io/client-go/tools/events"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
@@ -80,7 +80,7 @@ func NewReconciler(mgr manager.Manager, config Config) *Reconciler {
 	return &Reconciler{
 		client:    mgr.GetClient(),
 		scheme:    mgr.GetScheme(),
-		recorder:  mgr.GetEventRecorderFor(controllerName),
+		recorder:  mgr.GetEventRecorder(controllerName),
 		validator: NewValidator(mgr.GetClient(), mgr.GetScheme()),
 		config:    config,
 	}
@@ -166,7 +166,7 @@ type Reconciler struct {
 	// This client, initialized using mgr.Client() above, is a split client
 	// that reads objects from the cache and writes to the apiserver
 	client    client.Client
-	recorder  record.EventRecorder
+	recorder  events.EventRecorder
 	scheme    *runtime.Scheme
 	validator *Validator
 	config    Config
@@ -217,9 +217,8 @@ func (r *Reconciler) Reconcile(_ context.Context, request reconcile.Request) (re
 
 	// Validate the MachineAutoscaler early and return if any errors are found.
 	if res := r.validator.Validate(ma); !res.IsValid() {
-		errMsg := fmt.Sprintf("MachineAutoscaler validation error: %v", res.Errors)
-		r.recorder.Event(ma, corev1.EventTypeWarning, "FailedValidation", errMsg)
-		klog.Errorf("%s: %s", request.NamespacedName, errMsg)
+		r.recorder.Eventf(ma, nil, corev1.EventTypeWarning, "FailedValidation", "Validate", "MachineAutoscaler validation error: %v", res.Errors)
+		klog.Errorf("%s: %s", request.NamespacedName, fmt.Sprintf("MachineAutoscaler validation error: %v", res.Errors))
 
 		return reconcile.Result{}, res.Errors
 	}
@@ -229,7 +228,7 @@ func (r *Reconciler) Reconcile(_ context.Context, request reconcile.Request) (re
 	target, err := r.GetTarget(targetRef)
 	if err != nil {
 		errMsg := fmt.Sprintf("Error getting target: %v", err)
-		r.recorder.Event(ma, corev1.EventTypeWarning, "FailedGetTarget", errMsg)
+		r.recorder.Eventf(ma, targetRef, corev1.EventTypeWarning, "FailedGetTarget", "GetTarget", "Error getting target: %v", err)
 		klog.Errorf("%s: %s", request.NamespacedName, errMsg)
 
 		return reconcile.Result{}, err
@@ -239,7 +238,7 @@ func (r *Reconciler) Reconcile(_ context.Context, request reconcile.Request) (re
 	ownerModifed, err := target.SetOwner(ma)
 	if err != nil {
 		errMsg := fmt.Sprintf("Error setting target owner: %v", err)
-		r.recorder.Event(ma, corev1.EventTypeWarning, "FailedSetOwner", errMsg)
+		r.recorder.Eventf(ma, target, corev1.EventTypeWarning, "FailedSetOwner", "SetOwner", "Error setting target owner: %v", err)
 		klog.Errorf("%s: %s", request.NamespacedName, errMsg)
 
 		return reconcile.Result{}, err
@@ -255,7 +254,7 @@ func (r *Reconciler) Reconcile(_ context.Context, request reconcile.Request) (re
 	if ma.Status.LastTargetRef == nil {
 		if err := r.SetLastTarget(ma, targetRef); err != nil {
 			errMsg := fmt.Sprintf("Error setting previous target: %v", err)
-			r.recorder.Event(ma, corev1.EventTypeWarning, "FailedSetLastTarget", errMsg)
+			r.recorder.Eventf(ma, targetRef, corev1.EventTypeWarning, "FailedSetLastTarget", "SetLastTarget", "Error setting previous target: %v", err)
 			klog.Errorf("%s: %s", request.NamespacedName, errMsg)
 
 			return reconcile.Result{}, err
@@ -273,14 +272,14 @@ func (r *Reconciler) Reconcile(_ context.Context, request reconcile.Request) (re
 
 	if err := r.UpdateTarget(target, min, max); err != nil {
 		errMsg := fmt.Sprintf("Error updating target: %v", err)
-		r.recorder.Event(ma, corev1.EventTypeWarning, "FailedUpdateTarget", errMsg)
+		r.recorder.Eventf(ma, target, corev1.EventTypeWarning, "FailedUpdateTarget", "UpdateTarget", "Error updating target: %v", err)
 		klog.Errorf("%s: %s", request.NamespacedName, errMsg)
 
 		return reconcile.Result{}, err
 	}
 
 	msg := fmt.Sprintf("Updated MachineAutoscaler target: %s", target.NamespacedName())
-	r.recorder.Eventf(ma, corev1.EventTypeNormal, "SuccessfulUpdate", msg)
+	r.recorder.Eventf(ma, target, corev1.EventTypeNormal, "SuccessfulUpdate", "UpdateTarget", "Updated MachineAutoscaler target: %s", target.NamespacedName())
 	klog.V(2).Infof("%s: %s", request.NamespacedName, msg)
 
 	return reconcile.Result{}, nil
@@ -335,7 +334,7 @@ func (r *Reconciler) HandleTargetChange(ma *v1beta1.MachineAutoscaler) error {
 		// previous target, we should retry.  Otherwise, it may
 		// retain autoscaling configuration.
 		errMsg := fmt.Sprintf("Error fetching previous target: %v", err)
-		r.recorder.Event(ma, corev1.EventTypeWarning, "FailedGetLastTarget", errMsg)
+		r.recorder.Eventf(ma, lastTargetRef, corev1.EventTypeWarning, "FailedGetLastTarget", "GetLastTarget", "Error fetching previous target: %v", err)
 		klog.Errorf("%s: %s", maName, errMsg)
 
 		return err
@@ -349,7 +348,7 @@ func (r *Reconciler) HandleTargetChange(ma *v1beta1.MachineAutoscaler) error {
 		// Ignore 404s, the resource has most likely been deleted.
 		if err != nil && !apierrors.IsNotFound(err) {
 			errMsg := fmt.Sprintf("Error finalizing previous target: %v", err)
-			r.recorder.Event(ma, corev1.EventTypeWarning, "FailedFinalizeTarget", errMsg)
+			r.recorder.Eventf(ma, lastTarget, corev1.EventTypeWarning, "FailedFinalizeTarget", "FinalizeTarget", "Error finalizing previous target: %v", err)
 			klog.Errorf("%s: %s", maName, errMsg)
 
 			return err
@@ -359,7 +358,7 @@ func (r *Reconciler) HandleTargetChange(ma *v1beta1.MachineAutoscaler) error {
 	// Set the previous target equal to the current target.
 	if err := r.SetLastTarget(ma, newTargetRef); err != nil {
 		errMsg := fmt.Sprintf("Error setting previous target: %v", err)
-		r.recorder.Event(ma, corev1.EventTypeWarning, "FailedSetLastTarget", errMsg)
+		r.recorder.Eventf(ma, newTargetRef, corev1.EventTypeWarning, "FailedSetLastTarget", "SetLastTarget", "Error setting previous target: %v", err)
 		klog.Errorf("%s: %s", maName, errMsg)
 
 		return err
@@ -425,7 +424,7 @@ func (r *Reconciler) UpdateTarget(target *MachineTarget, min, max int) error {
 		if target.HasGPUCapacity() {
 			warning := target.WarningForInvalidGPUAcceleratorLabel()
 			if len(warning) > 0 {
-				r.recorder.Event(target, corev1.EventTypeWarning, "InvalidOrMissingGPUAcceleratorLabel", warning)
+				r.recorder.Eventf(target, nil, corev1.EventTypeWarning, "InvalidOrMissingGPUAcceleratorLabel", "ValidateGPUAcceleratorLabel", "%s", warning)
 				klog.Warningf("%s", warning)
 			}
 		}

@@ -49,7 +49,7 @@ type StatusReporter struct {
 	configClient             osconfig.Interface
 	config                   *StatusReporterConfig
 	configInformers          configv1informers.SharedInformerFactory
-	queue                    workqueue.RateLimitingInterface
+	queue                    workqueue.TypedRateLimitingInterface[string]
 	degradedConsecutiveCount int
 	relatedObjectsGetter     RelatedObjectsGetter
 }
@@ -84,7 +84,7 @@ func NewStatusReporter(mgr manager.Manager, cfg *StatusReporterConfig, relatedOb
 	}
 
 	reporter.configInformers = configv1informers.NewSharedInformerFactory(reporter.configClient, 10*time.Minute)
-	reporter.queue = workqueue.NewRateLimitingQueueWithConfig(workqueue.DefaultControllerRateLimiter(), workqueue.RateLimitingQueueConfig{
+	reporter.queue = workqueue.NewTypedRateLimitingQueueWithConfig(workqueue.DefaultTypedControllerRateLimiter[string](), workqueue.TypedRateLimitingQueueConfig[string]{
 		Name: "status-report",
 	})
 

@@ -19,7 +19,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/tools/record"
+	"k8s.io/client-go/tools/events"
 	"k8s.io/client-go/tools/reference"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -47,7 +47,7 @@ func NewReconciler(mgr manager.Manager, config Config) *Reconciler {
 	return &Reconciler{
 		client:    mgr.GetClient(),
 		scheme:    mgr.GetScheme(),
-		recorder:  mgr.GetEventRecorderFor(controllerName),
+		recorder:  mgr.GetEventRecorder(controllerName),
 		validator: NewValidator(config.Name, mgr.GetClient(), mgr.GetScheme()),
 		config:    config,
 	}
@@ -86,7 +86,7 @@ type Reconciler struct {
 	// This client, initialized using mgr.Client() above, is a split client
 	// that reads objects from the cache and writes to the apiserver
 	client    client.Client
-	recorder  record.EventRecorder
+	recorder  events.EventRecorder
 	config    Config
 	scheme    *runtime.Scheme
 	validator *Validator
@@ -202,18 +202,16 @@ func (r *Reconciler) Reconcile(_ context.Context, request reconcile.Request) (re
 
 	// Validate the ClusterAutoscaler early and requeue if any errors are found.
 	if res := r.validator.Validate(ca); !res.IsValid() {
-		errMsg := fmt.Sprintf("ClusterAutoscaler validation error: %v", res.Errors)
-		r.recorder.Event(caRef, corev1.EventTypeWarning, "FailedValidation", errMsg)
-		klog.Error(errMsg)
+		r.recorder.Eventf(caRef, ca, corev1.EventTypeWarning, "FailedValidation", "Validate", "ClusterAutoscaler validation error: %v", res.Errors)
+		klog.Errorf("ClusterAutoscaler validation error: %v", res.Errors)
 
 		return reconcile.Result{}, res.Errors
 	}
 
 	existingDeployment, err := r.GetAutoscaler(ca)
 	if err != nil && !errors.IsNotFound(err) {
-		errMsg := fmt.Sprintf("Error getting cluster-autoscaler deployment: %v", err)
-		r.recorder.Event(caRef, corev1.EventTypeWarning, "FailedGetDeployment", errMsg)
-		klog.Error(errMsg)
+		r.recorder.Eventf(caRef, ca, corev1.EventTypeWarning, "FailedGetDeployment", "GetDeployment", "Error getting cluster-autoscaler deployment: %v", err)
+		klog.Errorf("Error getting cluster-autoscaler deployment: %v", err)
 
 		return reconcile.Result{}, err
 	}
@@ -240,18 +238,16 @@ func (r *Reconciler) Reconcile(_ context.Context, request reconcile.Request) (re
 	}
 
 	if err := r.ensureAutoscalerMonitoring(ca); err != nil {
-		errMsg := fmt.Sprintf("Error ensuring ClusterAutoscaler monitoring: %v", err)
-		r.recorder.Event(caRef, corev1.EventTypeWarning, "FailedCreate", errMsg)
-		klog.Error(errMsg)
+		r.recorder.Eventf(caRef, ca, corev1.EventTypeWarning, "FailedCreate", "EnsureMonitoring", "Error ensuring ClusterAutoscaler monitoring: %v", err)
+		klog.Errorf("Error ensuring ClusterAutoscaler monitoring: %v", err)
 
 		return reconcile.Result{}, err
 	}
 	klog.Info("Ensured ClusterAutoscaler monitoring")
 
 	if _, err := r.createOrUpdateAutoscalerNetworkPolicies(ca); err != nil {
-		errMsg := fmt.Sprintf("Error ensuring ClusterAutoscaler networkpolicies: %v", err)
-		r.recorder.Event(caRef, corev1.EventTypeWarning, "FailedCreate", errMsg)
-		klog.Error(errMsg)
+		r.recorder.Eventf(caRef, ca, corev1.EventTypeWarning, "FailedCreate", "EnsureNetworkPolicies", "Error ensuring ClusterAutoscaler networkpolicies: %v", err)
+		klog.Errorf("Error ensuring ClusterAutoscaler networkpolicies: %v", err)
 
 		return reconcile.Result{}, err
 	}
@@ -259,30 +255,28 @@ func (r *Reconciler) Reconcile(_ context.Context, request reconcile.Request) (re
 
 	if errors.IsNotFound(err) {
 		if err := r.CreateAutoscaler(ca); err != nil {
-			errMsg := fmt.Sprintf("Error creating ClusterAutoscaler deployment: %v", err)
-			r.recorder.Event(caRef, corev1.EventTypeWarning, "FailedCreate", errMsg)
-			klog.Error(errMsg)
+			r.recorder.Eventf(caRef, ca, corev1.EventTypeWarning, "FailedCreate", "CreateDeployment", "Error creating ClusterAutoscaler deployment: %v", err)
+			klog.Errorf("Error creating ClusterAutoscaler deployment: %v", err)
 
 			return reconcile.Result{}, err
 		}
 
 		msg := fmt.Sprintf("Created ClusterAutoscaler deployment: %s", r.AutoscalerName(ca))
-		r.recorder.Eventf(caRef, corev1.EventTypeNormal, "SuccessfulCreate", msg)
+		r.recorder.Eventf(caRef, ca, corev1.EventTypeNormal, "SuccessfulCreate", "CreateDeployment", "Created ClusterAutoscaler deployment: %s", r.AutoscalerName(ca))
 		klog.Info(msg)
 
 		return reconcile.Result{}, nil
 	}
 
 	if err := r.UpdateAutoscaler(ca); err != nil {
-		errMsg := fmt.Sprintf("Error updating cluster-autoscaler deployment: %v", err)
-		r.recorder.Event(caRef, corev1.EventTypeWarning, "FailedUpdate", errMsg)
-		klog.Error(errMsg)
+		r.recorder.Eventf(caRef, ca, corev1.EventTypeWarning, "FailedUpdate", "UpdateDeployment", "Error updating cluster-autoscaler deployment: %v", err)
+		klog.Errorf("Error updating cluster-autoscaler deployment: %v", err)
 
 		return reconcile.Result{}, err
 	}
 
 	msg := fmt.Sprintf("Updated ClusterAutoscaler deployment: %s", r.AutoscalerName(ca))
-	r.recorder.Eventf(caRef, corev1.EventTypeNormal, "SuccessfulUpdate", msg)
+	r.recorder.Eventf(caRef, ca, corev1.EventTypeNormal, "SuccessfulUpdate", "UpdateDeployment", "Updated ClusterAutoscaler deployment: %s", r.AutoscalerName(ca))
 	klog.Info(msg)
 
 	return reconcile.Result{}, nil

@@ -22,7 +22,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/scheme"
-	"k8s.io/client-go/tools/record"
+	"k8s.io/client-go/tools/events"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	fakeclient "sigs.k8s.io/controller-runtime/pkg/client/fake"
@@ -311,7 +311,7 @@ func newFakeReconciler(initObjects ...runtime.Object) *Reconciler {
 	return &Reconciler{
 		client:    fakeClient,
 		scheme:    scheme.Scheme,
-		recorder:  record.NewFakeRecorder(128),
+		recorder:  events.NewFakeRecorder(128),
 		config:    TestReconcilerConfig,
 		validator: NewValidator(TestReconcilerConfig.Name, fakeClient, scheme.Scheme),
 	}
