@@ -28,35 +28,6 @@ spec:
       priorityClassName: system-node-critical
       serviceAccountName: cluster-autoscaler-operator
       containers:
-      - name: kube-rbac-proxy
-        args:
-        - --secure-listen-address=0.0.0.0:9192
-        - --upstream=http://127.0.0.1:9191/
-        - --tls-cert-file=/etc/tls/private/tls.crt
-        - --tls-private-key-file=/etc/tls/private/tls.key
-        - --config-file=/etc/kube-rbac-proxy/config-file.yaml
-        - --tls-cipher-suites=TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305
-        - --logtostderr=true
-        - --v=3
-        image: quay.io/openshift/origin-kube-rbac-proxy:4.2.0
-        imagePullPolicy: IfNotPresent
-        ports:
-        - containerPort: 9192
-          name: metrics
-          protocol: TCP
-        terminationMessagePath: /dev/termination-log
-        terminationMessagePolicy: FallbackToLogsOnError
-        resources:
-          requests:
-            memory: 20Mi
-            cpu: 10m
-        volumeMounts:
-        - name: auth-proxy-config
-          mountPath: /etc/kube-rbac-proxy
-          readOnly: true
-        - name: cert
-          mountPath: /etc/tls/private
-          readOnly: true
       - name: cluster-autoscaler-operator
         image: docker.io/openshift/origin-cluster-autoscaler-operator:v4.0
         command:
@@ -85,8 +56,11 @@ spec:
         - name: WEBHOOKS_PORT
           value: "8443"
         - name: METRICS_PORT
-          value: "9191"
+          value: "9192"
         ports:
+        - containerPort: 9192
+          name: metrics
+          protocol: TCP
         - containerPort: 8443
         resources:
           requests:
@@ -106,9 +80,6 @@ spec:
             path: tls.crt
           - key: tls.key
             path: tls.key
-      - name: auth-proxy-config
-        configMap:
-          name: kube-rbac-proxy-cluster-autoscaler-operator
       nodeSelector:
         node-role.kubernetes.io/master: ""
       restartPolicy: Always

@@ -377,7 +377,7 @@ subjects:
     namespace: openshift-monitoring
 
 ---
-# Roles needed by prometheus to scrape Cluster Autoscaler Operator metrics endpoint
+# Roles needed by prometheus for service discovery
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
@@ -389,12 +389,6 @@ metadata:
     include.release.openshift.io/self-managed-high-availability: "true"
     include.release.openshift.io/single-node-developer: "true"
 rules:
-  - apiGroups:
-      - ""
-    resources:
-      - namespace/metrics
-    verbs:
-      - get
   - apiGroups:
       - ""
     resources:

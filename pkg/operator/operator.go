@@ -28,6 +28,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+	"sigs.k8s.io/controller-runtime/pkg/metrics/filters"
 	"sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 )
@@ -92,7 +93,11 @@ func New(stopCh context.Context, cancel context.CancelFunc, cfg *Config) (*Opera
 		RenewDeadline:                 &le.RenewDeadline.Duration,
 		RetryPeriod:                   &le.RetryPeriod.Duration,
 		Metrics: server.Options{
-			BindAddress: fmt.Sprintf("127.0.0.1:%d", cfg.MetricsPort),
+			SecureServing:  true,
+			BindAddress:    fmt.Sprintf(":%d", cfg.MetricsPort),
+			CertDir:        cfg.WebhooksCertDir,
+			TLSOpts:        operator.webhookTLSOpts,
+			FilterProvider: filters.WithAuthenticationAndAuthorization,
 		},
 		WebhookServer: &webhook.DefaultServer{
 			Options: webhook.Options{
