@@ -11,6 +11,7 @@ import (
 	autoscalingv1 "github.com/openshift/cluster-autoscaler-operator/pkg/apis/autoscaling/v1"
 	"github.com/openshift/cluster-autoscaler-operator/pkg/util"
 	"github.com/openshift/cluster-autoscaler-operator/test/helpers"
+	"github.com/openshift/library-go/pkg/operator/configobserver/featuregates"
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
@@ -278,6 +279,214 @@ func TestAutoscalerArgsFromSpec(t *testing.T) {
 		t.Run(tc.name, func(tt *testing.T) {
 			ca := tc.caFunc()
 			args := AutoscalerArgs(ca, &Config{CloudProvider: TestCloudProvider, Namespace: TestNamespace})
+
+			for _, e := range tc.expected {
+				if !includeString(args, e) {
+					t.Fatalf("missing expected argument: \"%s\"", e)
+				}
+			}
+
+			for _, e := range tc.expectedMissing {
+				if includesStringWithPrefix(args, e) {
+					t.Fatalf("found argument expected to be missing: \"%s\"", e)
+				}
+			}
+		})
+	}
+}
+
+func TestAutoscalerArgsStartupTaint(t *testing.T) {
+	defaultConfig := &Config{CloudProvider: TestCloudProvider, Namespace: TestNamespace}
+
+	testCases := []struct {
+		name            string
+		caFunc          func() *autoscalingv1.ClusterAutoscaler
+		argsConfig      *Config
+		expected        []string
+		expectedMissing []string
+	}{
+		{
+			name:       "all default arguments",
+			caFunc:     NewClusterAutoscaler,
+			argsConfig: defaultConfig,
+			expected: []string{
+				"--logtostderr",
+				"--record-duplicated-events",
+				"--v=0",
+				// TODO elmiko, enable this once ProvisioningRequest is not behind a feature gate
+				// "--enable-provisioning-requests=true",
+				fmt.Sprintf("--cores-total=%d:%d", CoresMin, CoresMax),
+				fmt.Sprintf("--cloud-provider=%s", TestCloudProvider),
+				fmt.Sprintf("--expendable-pods-priority-cutoff=%d", PodPriorityThreshold),
+				fmt.Sprintf("--leader-elect-lease-duration=%s", leaderElectLeaseDuration),
+				fmt.Sprintf("--leader-elect-renew-deadline=%s", leaderElectRenewDeadline),
+				fmt.Sprintf("--leader-elect-retry-period=%s", leaderElectRetryPeriod),
+				fmt.Sprintf("--max-graceful-termination-sec=%d", MaxPodGracePeriod),
+				fmt.Sprintf("--max-nodes-total=%d", MaxNodesTotal),
+				fmt.Sprintf("--namespace=%s", TestNamespace),
+				fmt.Sprintf("--scale-down-delay-after-add=%s", ScaleDownDelayAfterAdd),
+				fmt.Sprintf("--scale-down-unneeded-time=%s", ScaleDownUnneededTime),
+				fmt.Sprintf("--scale-down-utilization-threshold=%s", ScaleDownUtilizationThreshold),
+				fmt.Sprintf("--new-pod-scale-up-delay=%s", NewPodScaleUpDelay),
+				fmt.Sprintf("--kube-api-content-type=%s", autoscalerAPIContentType),
+			},
+			expectedMissing: []string{
+				"--scale-down-delay-after-delete",
+				"--scale-down-delay-after-failure",
+				"--max-node-provision-time",
+				"--balance-similar-node-groups",
+				"--ignore-daemonsets-utilization",
+				"--skip-nodes-with-local-storage",
+				"--balancing-ignore-label",
+			},
+		},
+		{
+			name:       "set boolean options as true",
+			argsConfig: defaultConfig,
+			caFunc: func() *autoscalingv1.ClusterAutoscaler {
+				ca := NewClusterAutoscaler()
+				ca.Spec.BalanceSimilarNodeGroups = ptr.To(true)
+				ca.Spec.IgnoreDaemonsetsUtilization = ptr.To(true)
+				ca.Spec.SkipNodesWithLocalStorage = ptr.To(true)
+				return ca
+			},
+			expected: []string{
+				fmt.Sprintf("--balance-similar-node-groups=true"),
+				fmt.Sprintf("--ignore-daemonsets-utilization=true"),
+				fmt.Sprintf("--skip-nodes-with-local-storage=true"),
+			},
+		},
+		{
+			name:       "set boolean options as false",
+			argsConfig: defaultConfig,
+			caFunc: func() *autoscalingv1.ClusterAutoscaler {
+				ca := NewClusterAutoscaler()
+				ca.Spec.BalanceSimilarNodeGroups = ptr.To(false)
+				ca.Spec.IgnoreDaemonsetsUtilization = ptr.To(false)
+				ca.Spec.SkipNodesWithLocalStorage = ptr.To(false)
+				return ca
+			},
+			expected: []string{
+				fmt.Sprintf("--balance-similar-node-groups=false"),
+				fmt.Sprintf("--ignore-daemonsets-utilization=false"),
+				fmt.Sprintf("--skip-nodes-with-local-storage=false"),
+			},
+		},
+		{
+			name:       "set MaxNodeProvisionTime",
+			argsConfig: defaultConfig,
+			caFunc: func() *autoscalingv1.ClusterAutoscaler {
+				ca := NewClusterAutoscaler()
+				ca.Spec.MaxNodeProvisionTime = MaxNodeProvisionTime
+				return ca
+			},
+			expected: []string{
+				fmt.Sprintf("--max-node-provision-time=%s", MaxNodeProvisionTime),
+			},
+		},
+		{
+			name:       "set BalancingIgnoredLabels",
+			argsConfig: defaultConfig,
+			caFunc: func() *autoscalingv1.ClusterAutoscaler {
+				ca := NewClusterAutoscaler()
+				ca.Spec.BalanceSimilarNodeGroups = ptr.To(true)
+				ca.Spec.BalancingIgnoredLabels = []string{"test/ignoredLabel", "test/anotherIgnoredLabel"}
+				return ca
+			},
+			expected: []string{
+				fmt.Sprintf("--balance-similar-node-groups=true"),
+				fmt.Sprintf("--balancing-ignore-label=test/ignoredLabel"),
+				fmt.Sprintf("--balancing-ignore-label=test/anotherIgnoredLabel"),
+			},
+		},
+		{
+			name:       "set Expanders",
+			argsConfig: defaultConfig,
+			caFunc: func() *autoscalingv1.ClusterAutoscaler {
+				ca := NewClusterAutoscaler()
+				ca.Spec.Expanders = []autoscalingv1.ExpanderString{
+					autoscalingv1.PriorityExpander,
+					autoscalingv1.LeastWasteExpander,
+					autoscalingv1.RandomExpander,
+				}
+				return ca
+			},
+			expected: []string{
+				fmt.Sprintf("--expander=priority,least-waste,random"),
+			},
+		},
+		{
+			name:       "set CordonNodeBeforeTerminating to Enabled",
+			argsConfig: defaultConfig,
+			caFunc: func() *autoscalingv1.ClusterAutoscaler {
+				ca := NewClusterAutoscaler()
+				mode := autoscalingv1.CordonNodeBeforeTerminatingModeEnabled
+				ca.Spec.ScaleDown.CordonNodeBeforeTerminating = &mode
+				return ca
+			},
+			expected: []string{
+				"--cordon-node-before-terminating=true",
+			},
+		},
+		{
+			name:       "set CordonNodeBeforeTerminating to Disabled",
+			argsConfig: defaultConfig,
+			caFunc: func() *autoscalingv1.ClusterAutoscaler {
+				ca := NewClusterAutoscaler()
+				mode := autoscalingv1.CordonNodeBeforeTerminatingModeDisabled
+				ca.Spec.ScaleDown.CordonNodeBeforeTerminating = &mode
+				return ca
+			},
+			expected: []string{
+				"--cordon-node-before-terminating=false",
+			},
+		},
+		{
+			name: "set StartupTaints using featureGates",
+			argsConfig: &Config{CloudProvider: TestCloudProvider, Namespace: TestNamespace, FeatureGateAccessor: featuregates.NewHardcodedFeatureGateAccess(
+				[]configv1.FeatureGateName{startupTaintsFGName},
+				[]configv1.FeatureGateName{},
+			)},
+			caFunc: func() *autoscalingv1.ClusterAutoscaler {
+				ca := NewClusterAutoscaler()
+				ca.Spec.StartupTaints = []string{"startup-taint.cluster-autoscaler.kubernetes.io", "startup-taint.cluster-autoscaler.kubernetes.io.test-1"}
+				return ca
+			},
+			expected: []string{
+				"--startup-taint=startup-taint.cluster-autoscaler.kubernetes.io", "--startup-taint=startup-taint.cluster-autoscaler.kubernetes.io.test-1",
+			},
+		},
+		{
+			name: "empty StartupTaints using featureGates",
+			argsConfig: &Config{CloudProvider: TestCloudProvider, Namespace: TestNamespace, FeatureGateAccessor: featuregates.NewHardcodedFeatureGateAccess(
+				[]configv1.FeatureGateName{startupTaintsFGName},
+				[]configv1.FeatureGateName{},
+			)},
+			caFunc: func() *autoscalingv1.ClusterAutoscaler {
+				ca := NewClusterAutoscaler()
+				ca.Spec.StartupTaints = []string{}
+				return ca
+			},
+			expected: []string{},
+		},
+		// TODO lucasAndFlores, remove this case once the ProvisioningRequest is not behind a featureGate
+		{
+			name: "set ProvisioningRequest using featureGates",
+			argsConfig: &Config{CloudProvider: TestCloudProvider, Namespace: TestNamespace, FeatureGateAccessor: featuregates.NewHardcodedFeatureGateAccess(
+				[]configv1.FeatureGateName{provisioningRequestFGName},
+				[]configv1.FeatureGateName{},
+			)},
+			caFunc: NewClusterAutoscaler,
+			expected: []string{
+				"--enable-provisioning-requests=true",
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(tt *testing.T) {
+			ca := tc.caFunc()
+			args := AutoscalerArgs(ca, tc.argsConfig)
 
 			for _, e := range tc.expected {
 				if !includeString(args, e) {
