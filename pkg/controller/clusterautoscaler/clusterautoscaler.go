@@ -79,6 +79,7 @@ const (
 	ScaleUpFromZeroDefaultArch       AutoscalerArg = "--scale-up-from-zero-default-arch"
 	ExpanderArg                      AutoscalerArg = "--expander"
 	MaxBulkSoftTaintCountArg         AutoscalerArg = "--max-bulk-soft-taint-count"
+	StartupTaint                     AutoscalerArg = "--startup-taint"
 )
 
 // Constants for the command line expander flags
@@ -208,6 +209,12 @@ func AutoscalerArgs(ca *v1.ClusterAutoscaler, cfg *Config) []string {
 		LeaderElectRenewDeadlineArg.Value(leaderElectRenewDeadline),
 		LeaderElectRetryPeriodArg.Value(leaderElectRetryPeriod),
 		MaxBulkSoftTaintCountArg.Value(maxBulkSoftTaintCount),
+	}
+
+	if len(ca.Spec.StartupTaints) != 0 {
+		for _, taint := range ca.Spec.StartupTaints {
+			args = append(args, StartupTaint.Value(taint))
+		}
 	}
 
 	if ca.Spec.MaxPodGracePeriod != nil {

@@ -184,9 +184,9 @@ func TestAutoscalerArgsFromSpec(t *testing.T) {
 				return ca
 			},
 			expected: []string{
-				fmt.Sprintf("--balance-similar-node-groups=true"),
-				fmt.Sprintf("--ignore-daemonsets-utilization=true"),
-				fmt.Sprintf("--skip-nodes-with-local-storage=true"),
+				"--balance-similar-node-groups=true",
+				"--ignore-daemonsets-utilization=true",
+				"--skip-nodes-with-local-storage=true",
 			},
 		},
 		{
@@ -199,9 +199,9 @@ func TestAutoscalerArgsFromSpec(t *testing.T) {
 				return ca
 			},
 			expected: []string{
-				fmt.Sprintf("--balance-similar-node-groups=false"),
-				fmt.Sprintf("--ignore-daemonsets-utilization=false"),
-				fmt.Sprintf("--skip-nodes-with-local-storage=false"),
+				"--balance-similar-node-groups=false",
+				"--ignore-daemonsets-utilization=false",
+				"--skip-nodes-with-local-storage=false",
 			},
 		},
 		{
@@ -224,9 +224,9 @@ func TestAutoscalerArgsFromSpec(t *testing.T) {
 				return ca
 			},
 			expected: []string{
-				fmt.Sprintf("--balance-similar-node-groups=true"),
-				fmt.Sprintf("--balancing-ignore-label=test/ignoredLabel"),
-				fmt.Sprintf("--balancing-ignore-label=test/anotherIgnoredLabel"),
+				"--balance-similar-node-groups=true",
+				"--balancing-ignore-label=test/ignoredLabel",
+				"--balancing-ignore-label=test/anotherIgnoredLabel",
 			},
 		},
 		{
@@ -241,8 +241,28 @@ func TestAutoscalerArgsFromSpec(t *testing.T) {
 				return ca
 			},
 			expected: []string{
-				fmt.Sprintf("--expander=priority,least-waste,random"),
+				"--expander=priority,least-waste,random",
 			},
+		},
+		{
+			name: "set StartupTaints",
+			caFunc: func() *autoscalingv1.ClusterAutoscaler {
+				ca := NewClusterAutoscaler()
+				ca.Spec.StartupTaints = []string{"startup-taint.cluster-autoscaler.kubernetes.io", "startup-taint.cluster-autoscaler.kubernetes.io.test-1"}
+				return ca
+			},
+			expected: []string{
+				"--startup-taint=startup-taint.cluster-autoscaler.kubernetes.io", "--startup-taint=startup-taint.cluster-autoscaler.kubernetes.io.test-1",
+			},
+		},
+		{
+			name: "empty StartupTaints",
+			caFunc: func() *autoscalingv1.ClusterAutoscaler {
+				ca := NewClusterAutoscaler()
+				ca.Spec.StartupTaints = []string{}
+				return ca
+			},
+			expected: []string{},
 		},
 	}
 
