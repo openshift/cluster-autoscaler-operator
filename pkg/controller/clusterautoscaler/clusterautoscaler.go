@@ -27,9 +27,6 @@ const (
 	// ProvisioningRequest FeatureGate name
 	provisioningRequestFGName = "ProvisioningRequestAvailable"
 
-	// StartupTaints
-	startupTaintsFGName = "StartupTaints"
-
 	// Cluster API Machine Management FeatureGate names
 	clusterapiAWSFGName       = "ClusterAPIMachineManagementAWS"
 	clusterapiAzureFGName     = "ClusterAPIMachineManagementAzure"
@@ -249,12 +246,9 @@ func AutoscalerArgs(ca *v1.ClusterAutoscaler, cfg *Config) []string {
 		args = append(args, EnableProvisioningRequestsArg.Value(trueFlag))
 	}
 
-	// if feature gate for StartupTaints is enabled, add to the arguments
-	if isFeatureGateEnabled(cfg.FeatureGateAccessor, startupTaintsFGName) {
-		if len(ca.Spec.StartupTaints) != 0 {
-			for _, taint := range ca.Spec.StartupTaints {
-				args = append(args, StartupTaint.Value(taint))
-			}
+	if len(ca.Spec.StartupTaints) != 0 {
+		for _, taint := range ca.Spec.StartupTaints {
+			args = append(args, StartupTaint.Value(taint))
 		}
 	}
 
