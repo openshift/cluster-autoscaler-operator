@@ -47,9 +47,9 @@ func mustParse(v string) semver.Version {
 			// still having an issue making a clean version, use a known value
 			// this shouldn't happen in practice
 			return semver.MustParse(errorVersion)
-		} else {
-			return appendedVersion
 		}
+
+		return appendedVersion
 	} else {
 		return version
 	}
