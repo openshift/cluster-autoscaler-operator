@@ -11,6 +11,7 @@ import (
 	autoscalingv1 "github.com/openshift/cluster-autoscaler-operator/pkg/apis/autoscaling/v1"
 	"github.com/openshift/cluster-autoscaler-operator/pkg/util"
 	"github.com/openshift/cluster-autoscaler-operator/test/helpers"
+	"github.com/openshift/library-go/pkg/operator/configobserver/featuregates"
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
@@ -188,9 +189,9 @@ func TestAutoscalerArgsFromSpec(t *testing.T) {
 				return ca
 			},
 			expected: []string{
-				fmt.Sprintf("--balance-similar-node-groups=true"),
-				fmt.Sprintf("--ignore-daemonsets-utilization=true"),
-				fmt.Sprintf("--skip-nodes-with-local-storage=true"),
+				"--balance-similar-node-groups=true",
+				"--ignore-daemonsets-utilization=true",
+				"--skip-nodes-with-local-storage=true",
 			},
 		},
 		{
@@ -203,9 +204,9 @@ func TestAutoscalerArgsFromSpec(t *testing.T) {
 				return ca
 			},
 			expected: []string{
-				fmt.Sprintf("--balance-similar-node-groups=false"),
-				fmt.Sprintf("--ignore-daemonsets-utilization=false"),
-				fmt.Sprintf("--skip-nodes-with-local-storage=false"),
+				"--balance-similar-node-groups=false",
+				"--ignore-daemonsets-utilization=false",
+				"--skip-nodes-with-local-storage=false",
 			},
 		},
 		{
@@ -228,9 +229,9 @@ func TestAutoscalerArgsFromSpec(t *testing.T) {
 				return ca
 			},
 			expected: []string{
-				fmt.Sprintf("--balance-similar-node-groups=true"),
-				fmt.Sprintf("--balancing-ignore-label=test/ignoredLabel"),
-				fmt.Sprintf("--balancing-ignore-label=test/anotherIgnoredLabel"),
+				"--balance-similar-node-groups=true",
+				"--balancing-ignore-label=test/ignoredLabel",
+				"--balancing-ignore-label=test/anotherIgnoredLabel",
 			},
 		},
 		{
@@ -245,7 +246,7 @@ func TestAutoscalerArgsFromSpec(t *testing.T) {
 				return ca
 			},
 			expected: []string{
-				fmt.Sprintf("--expander=priority,least-waste,random"),
+				"--expander=priority,least-waste,random",
 			},
 		},
 		{
@@ -272,12 +273,74 @@ func TestAutoscalerArgsFromSpec(t *testing.T) {
 				"--cordon-node-before-terminating=false",
 			},
 		},
+		{
+			name: "set StartupTaints",
+			caFunc: func() *autoscalingv1.ClusterAutoscaler {
+				ca := NewClusterAutoscaler()
+				ca.Spec.StartupTaints = []string{"startup-taint.cluster-autoscaler.kubernetes.io", "startup-taint.cluster-autoscaler.kubernetes.io.test-1"}
+				return ca
+			},
+			expected: []string{
+				"--startup-taint=startup-taint.cluster-autoscaler.kubernetes.io", "--startup-taint=startup-taint.cluster-autoscaler.kubernetes.io.test-1",
+			},
+		},
+		{
+			name: "empty StartupTaints",
+			caFunc: func() *autoscalingv1.ClusterAutoscaler {
+				ca := NewClusterAutoscaler()
+				ca.Spec.StartupTaints = []string{}
+				return ca
+			},
+			expected: []string{},
+		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(tt *testing.T) {
 			ca := tc.caFunc()
 			args := AutoscalerArgs(ca, &Config{CloudProvider: TestCloudProvider, Namespace: TestNamespace})
+
+			for _, e := range tc.expected {
+				if !includeString(args, e) {
+					t.Fatalf("missing expected argument: \"%s\"", e)
+				}
+			}
+
+			for _, e := range tc.expectedMissing {
+				if includesStringWithPrefix(args, e) {
+					t.Fatalf("found argument expected to be missing: \"%s\"", e)
+				}
+			}
+		})
+	}
+}
+
+func TestAutoscalerArgsFeatureGate(t *testing.T) {
+	testCases := []struct {
+		name            string
+		caFunc          func() *autoscalingv1.ClusterAutoscaler
+		argsConfig      *Config
+		expected        []string
+		expectedMissing []string
+	}{
+		// TODO lucasAndFlores, remove this case once the ProvisioningRequest is not behind a featureGate
+		{
+			name: "set ProvisioningRequest",
+			argsConfig: &Config{CloudProvider: TestCloudProvider, Namespace: TestNamespace, FeatureGateAccessor: featuregates.NewHardcodedFeatureGateAccess(
+				[]configv1.FeatureGateName{provisioningRequestFGName},
+				[]configv1.FeatureGateName{},
+			)},
+			caFunc: NewClusterAutoscaler,
+			expected: []string{
+				"--enable-provisioning-requests=true",
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(tt *testing.T) {
+			ca := tc.caFunc()
+			args := AutoscalerArgs(ca, tc.argsConfig)
 
 			for _, e := range tc.expected {
 				if !includeString(args, e) {

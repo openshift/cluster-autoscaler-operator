@@ -259,6 +259,15 @@ spec:
                   with pods with local storage, e.g. EmptyDir or HostPath. true by
                   default at autoscaler
                 type: boolean
+              startupTaints:
+                description: |-
+                  StartupTaints contains values that indicate the keys of taints that will be on a node that is still starting up.
+                  The cluster autoscaler treats nodes with these taints as unready during scale-up, expecting them to become ready shortly.
+                  Each taint must contain only the key.
+                items:
+                  type: string
+                type: array
+                x-kubernetes-list-type: set
             type: object
           status:
             description: Most recently observed status of ClusterAutoscaler resource

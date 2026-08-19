@@ -101,6 +101,7 @@ const (
 	EnableProvisioningRequestsArg    AutoscalerArg = "--enable-provisioning-requests"
 	KubeAPIContentType               AutoscalerArg = "--kube-api-content-type"
 	NodeGroupAutoDiscovery           AutoscalerArg = "--node-group-auto-discovery"
+	StartupTaint                     AutoscalerArg = "--startup-taint"
 )
 
 // Constants for the command line expander flags
@@ -243,6 +244,12 @@ func AutoscalerArgs(ca *v1.ClusterAutoscaler, cfg *Config) []string {
 	// if feature gate for ProvisioningRequest is enabled, turn on the flag
 	if isFeatureGateEnabled(cfg.FeatureGateAccessor, provisioningRequestFGName) {
 		args = append(args, EnableProvisioningRequestsArg.Value(trueFlag))
+	}
+
+	if len(ca.Spec.StartupTaints) != 0 {
+		for _, taint := range ca.Spec.StartupTaints {
+			args = append(args, StartupTaint.Value(taint))
+		}
 	}
 
 	if ca.Spec.MaxPodGracePeriod != nil {

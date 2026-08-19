@@ -116,6 +116,13 @@ type ClusterAutoscalerSpec struct {
 	// +optional
 	// +kubebuilder:default=Disabled
 	EnforceNodeGroupMinSize *EnforceNodeGroupMinSizeMode `json:"enforceNodeGroupMinSize,omitempty"`
+
+	// StartupTaints contains values that indicate the keys of taints that will be on a node that is still starting up.
+	// The cluster autoscaler treats nodes with these taints as unready during scale-up, expecting them to become ready shortly.
+	// Each taint must contain only the key.
+	// +listType=set
+	// +optional
+	StartupTaints []string `json:"startupTaints,omitempty"`
 }
 
 // ClusterAutoscalerStatus defines the observed state of ClusterAutoscaler
