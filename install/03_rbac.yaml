@@ -587,3 +587,83 @@ subjects:
   - kind: ServiceAccount
     name: cluster-autoscaler
     namespace: openshift-machine-api
+---
+# this role should be incorporated into the default role once CapacityBuffer is out of tech preview
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  annotations:
+    feature-gate.release.openshift.io/CapacityBufferAvailable: "true"
+    release.openshift.io/feature-set: DevPreviewNoUpgrade
+    include.release.openshift.io/hypershift: "true"
+    include.release.openshift.io/ibm-cloud-managed: "true"
+    include.release.openshift.io/self-managed-high-availability: "true"
+    include.release.openshift.io/single-node-developer: "true"
+  name: cluster-autoscaler-operator-cap-buf
+rules:
+- apiGroups: ["autoscaling.x-k8s.io"]
+  resources: ["capacitybuffers", "capacitybuffers/status"]
+  verbs: ["create", "delete", "get", "list", "patch", "update", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: cluster-autoscaler-operator-cap-buf
+  annotations:
+    feature-gate.release.openshift.io/CapacityBufferAvailable: "true"
+    release.openshift.io/feature-set: DevPreviewNoUpgrade
+    include.release.openshift.io/hypershift: "true"
+    include.release.openshift.io/ibm-cloud-managed: "true"
+    include.release.openshift.io/self-managed-high-availability: "true"
+    include.release.openshift.io/single-node-developer: "true"
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-autoscaler-operator-cap-buf
+subjects:
+  - kind: ServiceAccount
+    name: cluster-autoscaler-operator
+    namespace: openshift-machine-api
+---
+# this role should be incorporated into the default role once CapacityBuffer is out of tech preview
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  annotations:
+    feature-gate.release.openshift.io/CapacityBufferAvailable: "true"
+    release.openshift.io/feature-set: DevPreviewNoUpgrade
+    include.release.openshift.io/hypershift: "true"
+    include.release.openshift.io/ibm-cloud-managed: "true"
+    include.release.openshift.io/self-managed-high-availability: "true"
+    include.release.openshift.io/single-node-developer: "true"
+  name: cluster-autoscaler-cap-buf
+rules:
+- apiGroups: ["autoscaling.x-k8s.io"]
+  resources: ["capacitybuffers", "capacitybuffers/status"]
+  verbs: ["create", "delete", "get", "list", "patch", "update", "watch"]
+- apiGroups: [""]
+  resources: ["pods", "podtemplates", "resourcequotas", "replicationcontrollers"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+- apiGroups: ["apps"]
+  resources: ["deployments", "statefulsets", "replicasets"]
+  verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: cluster-autoscaler-cap-buf
+  annotations:
+    feature-gate.release.openshift.io/CapacityBufferAvailable: "true"
+    release.openshift.io/feature-set: DevPreviewNoUpgrade
+    include.release.openshift.io/hypershift: "true"
+    include.release.openshift.io/ibm-cloud-managed: "true"
+    include.release.openshift.io/self-managed-high-availability: "true"
+    include.release.openshift.io/single-node-developer: "true"
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-autoscaler-cap-buf
+subjects:
+  - kind: ServiceAccount
+    name: cluster-autoscaler
+    namespace: openshift-machine-api
