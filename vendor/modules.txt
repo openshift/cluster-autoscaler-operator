@@ -898,8 +898,10 @@ k8s.io/apiserver/pkg/warning
 k8s.io/apiserver/plugin/pkg/authenticator/token/webhook
 k8s.io/apiserver/plugin/pkg/authorizer/webhook
 k8s.io/apiserver/plugin/pkg/authorizer/webhook/metrics
-# k8s.io/autoscaler/cluster-autoscaler/apis v0.0.0-00010101000000-000000000000 => k8s.io/autoscaler/cluster-autoscaler/apis v0.0.0-20250124163921-a221e41f4be0
-## explicit; go 1.23.0
+# k8s.io/autoscaler/cluster-autoscaler/apis v0.0.0-00010101000000-000000000000 => k8s.io/autoscaler/cluster-autoscaler/apis v0.0.0-20260820090312-ce048aaf0fd3
+## explicit; go 1.26.0
+k8s.io/autoscaler/cluster-autoscaler/apis/capacitybuffer/autoscaling.x-k8s.io/v1alpha1
+k8s.io/autoscaler/cluster-autoscaler/apis/capacitybuffer/autoscaling.x-k8s.io/v1beta1
 k8s.io/autoscaler/cluster-autoscaler/apis/provisioningrequest/autoscaling.x-k8s.io/v1
 # k8s.io/client-go v0.36.2
 ## explicit; go 1.26.0
@@ -1364,7 +1366,7 @@ sigs.k8s.io/controller-runtime/tools/setup-envtest/store
 sigs.k8s.io/controller-runtime/tools/setup-envtest/version
 sigs.k8s.io/controller-runtime/tools/setup-envtest/versions
 sigs.k8s.io/controller-runtime/tools/setup-envtest/workflows
-# sigs.k8s.io/controller-tools v0.20.0
+# sigs.k8s.io/controller-tools v0.20.1
 ## explicit; go 1.25.0
 sigs.k8s.io/controller-tools/cmd/controller-gen
 sigs.k8s.io/controller-tools/pkg/applyconfiguration
@@ -1406,4 +1408,4 @@ sigs.k8s.io/structured-merge-diff/v6/value
 # sigs.k8s.io/yaml v1.6.0
 ## explicit; go 1.22
 sigs.k8s.io/yaml
-# k8s.io/autoscaler/cluster-autoscaler/apis => k8s.io/autoscaler/cluster-autoscaler/apis v0.0.0-20250124163921-a221e41f4be0
+# k8s.io/autoscaler/cluster-autoscaler/apis => k8s.io/autoscaler/cluster-autoscaler/apis v0.0.0-20260820090312-ce048aaf0fd3
