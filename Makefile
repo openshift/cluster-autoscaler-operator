@@ -2,7 +2,15 @@ DBG         ?= 0
 PROJECT     ?= cluster-autoscaler-operator
 ORG_PATH    ?= github.com/openshift
 REPO_PATH   ?= $(ORG_PATH)/$(PROJECT)
-VERSION     ?= $(shell git describe --always --dirty --abbrev=7)
+# if VERSION is defined use that, otherwise make sure we have a semver-like version (added in response to OCPBUGS-111092)
+ifeq ($(origin VERSION), undefined)
+	tmpVersion = $(shell git describe --always --dirty --abbrev=7)
+	ifeq ($(shell echo $(tmpVersion) | grep "^v\{0,1\}[0-9]\+\.[0-9]\+\.[0-9]\+"; echo $$?), 0)
+		VERSION = $(tmpVersion)
+	else
+		VERSION = v0.0.0-$(tmpVersion)
+	endif
+endif
 LD_FLAGS    ?= -X $(REPO_PATH)/pkg/version.Raw=$(VERSION)
 BUILD_DEST  ?= bin/cluster-autoscaler-operator
 MUTABLE_TAG ?= latest
