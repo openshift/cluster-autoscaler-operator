@@ -154,6 +154,10 @@ func TestAutoscalerArgsFromSpec(t *testing.T) {
 				"--v=0",
 				// TODO elmiko, enable this once ProvisioningRequest is not behind a feature gate
 				// "--enable-provisioning-requests=true",
+				// TODO enable this once CapacityBuffer is not behind a feature gate
+				// "--capacity-buffer-controller-enabled=true",
+				// TODO enable this once CapacityBuffer is not behind a feature gate
+				// "--capacity-buffer-pod-injection-enabled=true",
 				fmt.Sprintf("--cores-total=%d:%d", CoresMin, CoresMax),
 				fmt.Sprintf("--cloud-provider=%s", TestCloudProvider),
 				fmt.Sprintf("--expendable-pods-priority-cutoff=%d", PodPriorityThreshold),
@@ -177,6 +181,8 @@ func TestAutoscalerArgsFromSpec(t *testing.T) {
 				"--ignore-daemonsets-utilization",
 				"--skip-nodes-with-local-storage",
 				"--balancing-ignore-label",
+				"--capacity-buffer-controller-enabled",
+				"--capacity-buffer-pod-injection-enabled",
 			},
 		},
 		{
@@ -333,6 +339,19 @@ func TestAutoscalerArgsFeatureGate(t *testing.T) {
 			caFunc: NewClusterAutoscaler,
 			expected: []string{
 				"--enable-provisioning-requests=true",
+			},
+		},
+		// TODO remove this case once CapacityBuffer is not behind a featureGate
+		{
+			name: "set CapacityBuffer",
+			argsConfig: &Config{CloudProvider: TestCloudProvider, Namespace: TestNamespace, FeatureGateAccessor: featuregates.NewHardcodedFeatureGateAccess(
+				[]configv1.FeatureGateName{capacityBufferFGName},
+				[]configv1.FeatureGateName{},
+			)},
+			caFunc: NewClusterAutoscaler,
+			expected: []string{
+				"--capacity-buffer-controller-enabled=true",
+				"--capacity-buffer-pod-injection-enabled=true",
 			},
 		},
 	}

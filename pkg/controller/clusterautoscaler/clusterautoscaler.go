@@ -27,6 +27,9 @@ const (
 	// ProvisioningRequest FeatureGate name
 	provisioningRequestFGName = "ProvisioningRequestAvailable"
 
+	// CapacityBuffer FeatureGate name
+	capacityBufferFGName = "CapacityBufferAvailable"
+
 	// Cluster API Machine Management FeatureGate names
 	clusterapiAWSFGName       = "ClusterAPIMachineManagementAWS"
 	clusterapiAzureFGName     = "ClusterAPIMachineManagementAzure"
@@ -98,9 +101,11 @@ const (
 	ScaleUpFromZeroDefaultArch       AutoscalerArg = "--scale-up-from-zero-default-arch"
 	ExpanderArg                      AutoscalerArg = "--expander"
 	MaxBulkSoftTaintCountArg         AutoscalerArg = "--max-bulk-soft-taint-count"
-	EnableProvisioningRequestsArg    AutoscalerArg = "--enable-provisioning-requests"
-	KubeAPIContentType               AutoscalerArg = "--kube-api-content-type"
-	NodeGroupAutoDiscovery           AutoscalerArg = "--node-group-auto-discovery"
+	EnableProvisioningRequestsArg       AutoscalerArg = "--enable-provisioning-requests"
+	EnableCapacityBufferControllerArg   AutoscalerArg = "--capacity-buffer-controller-enabled"
+	EnableCapacityBufferPodInjectionArg AutoscalerArg = "--capacity-buffer-pod-injection-enabled"
+	KubeAPIContentType                  AutoscalerArg = "--kube-api-content-type"
+	NodeGroupAutoDiscovery              AutoscalerArg = "--node-group-auto-discovery"
 	StartupTaint                     AutoscalerArg = "--startup-taint"
 )
 
@@ -244,6 +249,14 @@ func AutoscalerArgs(ca *v1.ClusterAutoscaler, cfg *Config) []string {
 	// if feature gate for ProvisioningRequest is enabled, turn on the flag
 	if isFeatureGateEnabled(cfg.FeatureGateAccessor, provisioningRequestFGName) {
 		args = append(args, EnableProvisioningRequestsArg.Value(trueFlag))
+	}
+
+	// if feature gate for CapacityBuffer is enabled, turn on the controller and pod injection flags
+	if isFeatureGateEnabled(cfg.FeatureGateAccessor, capacityBufferFGName) {
+		args = append(args,
+			EnableCapacityBufferControllerArg.Value(trueFlag),
+			EnableCapacityBufferPodInjectionArg.Value(trueFlag),
+		)
 	}
 
 	if len(ca.Spec.StartupTaints) != 0 {
