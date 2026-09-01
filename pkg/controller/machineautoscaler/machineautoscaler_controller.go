@@ -5,12 +5,16 @@ import (
 	"errors"
 	"fmt"
 
+	machinev1 "github.com/openshift/api/machine/v1beta1"
 	"github.com/openshift/cluster-autoscaler-operator/pkg/apis/autoscaling/v1beta1"
+	"github.com/openshift/cluster-autoscaler-operator/pkg/controller/clusterautoscaler"
 	"github.com/openshift/cluster-autoscaler-operator/pkg/util"
+	"github.com/openshift/library-go/pkg/operator/configobserver/featuregates"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -38,6 +42,20 @@ const (
 	maxSizeAnnotation = "machine.openshift.io/cluster-api-autoscaler-node-group-max-size"
 
 	controllerName = "machine_autoscaler_controller"
+
+	// ClusterAPIMachineManagement FeatureGate name
+	clusterAPIMachineManagement = "ClusterAPIMachineManagement"
+
+	machineAutoscalerReadyReason            = "MachineAutoscalerReady"
+	machineAutoscalerNATargetScaleRefReason = "MachineAutoscalerNonAuthoritativeTargetScaleRef"
+
+	machineAutoscalerReadyMessage                      = "MachineAutoscaler ready for autoscaling"
+	machineAutoscalerNATargetScaleRefMessage           = "targetScaleRef is not the authoritative resource"
+	machineAutoscalerInvalidAuthoritativeTypeMessage   = "invalid authoritativeAPI in targetScaleRef"
+	machineAutoscalerAuthoritativeTypeNotExistsMessage = "authoritativeAPI does not exist in targetScaleRef"
+	machineAutoscalerMigratingAuthoritativeTypeMessage = "authoritativeAPI is migrating, try again in a few seconds"
+
+	machineAutoscalerReadyType = "Ready"
 )
 
 var (
@@ -52,14 +70,21 @@ var (
 	// ErrNoSupportedTargets is the error returned during initialization if none
 	// of the supported MachineAutoscaler targets are registered with the API.
 	ErrNoSupportedTargets = errors.New("no supported target types available")
+
+	ErrAuthoritativeTypeNotExist = errors.New("authoritativeAPI does not exist")
+
+	ErrAuthoritativeTypeInvalid = errors.New("invalid authoritativeAPI type")
+
+	ErrAuthoritativeTypeUnsupported = errors.New("unsupported authoritativeAPI type")
+	ErrMigratingAuthoritativeType   = errors.New("authoritative type is migrating")
+
+	clusterAPIGVK = schema.GroupVersionKind{
+		Group: "cluster.x-k8s.io", Version: "v1beta2", Kind: "MachineSet",
+	}
 )
 
 // DefaultSupportedTargetGVKs returns the default list of GroupVersionKinds
 // supported as targets for a MachineAutocaler instance.
-// TODO (elmiko) add more types if/when the CAO will support other types, for
-// example:
-// {Group: "cluster.x-k8s.io", Version: "v1beta1", Kind: "MachineDeployment"},
-// see the TestRemoveSupportedGVK test for more examples.
 func DefaultSupportedTargetGVKs() []schema.GroupVersionKind {
 	return []schema.GroupVersionKind{
 		{Group: "machine.openshift.io", Version: "v1beta1", Kind: "MachineSet"},
@@ -73,17 +98,25 @@ type Config struct {
 
 	// The list of supported GroupVersionKinds for a reconciler.
 	SupportedTargetGVKs []schema.GroupVersionKind
+
+	FeatureGateAccessor featuregates.FeatureGateAccess
 }
 
 // NewReconciler returns a new Reconciler.
 func NewReconciler(mgr manager.Manager, config Config) *Reconciler {
-	return &Reconciler{
+	r := &Reconciler{
 		client:    mgr.GetClient(),
 		scheme:    mgr.GetScheme(),
 		recorder:  mgr.GetEventRecorder(controllerName),
 		validator: NewValidator(mgr.GetClient(), mgr.GetScheme()),
 		config:    config,
 	}
+
+	if clusterautoscaler.IsFeatureGateEnabled(config.FeatureGateAccessor, clusterAPIMachineManagement) {
+		r.isClusterAPIIntegrationEnabled = true
+	}
+
+	return r
 }
 
 // AddToManager adds a new Controller to mgr with r as the reconcile.Reconciler
@@ -99,6 +132,16 @@ func (r *Reconciler) AddToManager(mgr manager.Manager) error {
 	err = c.Watch(source.Kind(mgr.GetCache(), &v1beta1.MachineAutoscaler{}, &handler.TypedEnqueueRequestForObject[*v1beta1.MachineAutoscaler]{}))
 	if err != nil {
 		return err
+	}
+
+	if r.isClusterAPIIntegrationEnabled {
+		r.authoritativeAPIToGVK = map[machinev1.MachineAuthority]schema.GroupVersionKind{
+			machinev1.MachineAuthorityMachineAPI: r.config.SupportedTargetGVKs[0],
+			machinev1.MachineAuthorityClusterAPI: clusterAPIGVK,
+		}
+
+		// if the feature gate is enabled, we should append the clusterAPIGVK to be watched and checked
+		r.config.SupportedTargetGVKs = append(r.config.SupportedTargetGVKs, clusterAPIGVK)
 	}
 
 	missingGVKs, err := getMissingGVKs(mgr.GetRESTMapper(), r.SupportedGVKs())
@@ -165,11 +208,13 @@ var _ reconcile.Reconciler = &Reconciler{}
 type Reconciler struct {
 	// This client, initialized using mgr.Client() above, is a split client
 	// that reads objects from the cache and writes to the apiserver
-	client    client.Client
-	recorder  events.EventRecorder
-	scheme    *runtime.Scheme
-	validator *Validator
-	config    Config
+	client                         client.Client
+	recorder                       events.EventRecorder
+	scheme                         *runtime.Scheme
+	validator                      *Validator
+	config                         Config
+	isClusterAPIIntegrationEnabled bool
+	authoritativeAPIToGVK          map[machinev1.MachineAuthority]schema.GroupVersionKind
 }
 
 // Reconcile reads that state of the cluster for a MachineAutoscaler object and
@@ -232,6 +277,26 @@ func (r *Reconciler) Reconcile(_ context.Context, request reconcile.Request) (re
 		klog.Errorf("%s: %s", request.NamespacedName, errMsg)
 
 		return reconcile.Result{}, err
+	}
+
+	if r.isClusterAPIIntegrationEnabled {
+		err = validateAuthoritativeAPI(r.authoritativeAPIToGVK, targetRef, target)
+
+		if err != nil {
+			condition := createConditionFromValidationError(err)
+			err := r.updateMachineAutoscalerConditions(ma, condition)
+			if err != nil {
+				klog.Errorf("Error updating machine autoscaler conditions: %v", err)
+				return reconcile.Result{}, err
+			}
+		}
+
+		condition := createCondition(metav1.ConditionTrue, machineAutoscalerReadyType, machineAutoscalerReadyReason, machineAutoscalerReadyMessage)
+		err = r.updateMachineAutoscalerConditions(ma, condition)
+		if err != nil {
+			klog.Errorf("Error updating machine autoscaler conditions: %v", err)
+			return reconcile.Result{}, err
+		}
 	}
 
 	// Set the MachineAutoscaler as the owner of the target.
@@ -351,6 +416,34 @@ func (r *Reconciler) HandleTargetChange(ma *v1beta1.MachineAutoscaler) error {
 			r.recorder.Eventf(ma, lastTarget, corev1.EventTypeWarning, "FailedFinalizeTarget", "FinalizeTarget", "Error finalizing previous target: %v", err)
 			klog.Errorf("%s: %s", maName, errMsg)
 
+			return err
+		}
+	}
+
+	if r.isClusterAPIIntegrationEnabled {
+		newTarget, err := r.GetTarget(newTargetRef)
+		if err != nil {
+			errMsg := fmt.Sprintf("Error getting new target: %v", err)
+			r.recorder.Eventf(ma, newTargetRef, corev1.EventTypeWarning, "FailedGetNewTarget", "GetNewTarget", "Error fetching new target: %v", err)
+			klog.Errorf("%s: %s", maName, errMsg)
+			return err
+		}
+
+		err = validateAuthoritativeAPI(r.authoritativeAPIToGVK, newTargetRef, newTarget)
+
+		if err != nil {
+			condition := createConditionFromValidationError(err)
+			err := r.updateMachineAutoscalerConditions(ma, condition)
+			if err != nil {
+				klog.Errorf("Error updating machine autoscaler conditions: %v", err)
+				return err
+			}
+		}
+
+		condition := createCondition(metav1.ConditionTrue, machineAutoscalerReadyType, machineAutoscalerReadyReason, machineAutoscalerReadyMessage)
+		err = r.updateMachineAutoscalerConditions(ma, condition)
+		if err != nil {
+			klog.Errorf("Error updating machine autoscaler conditions: %v", err)
 			return err
 		}
 	}
@@ -553,6 +646,13 @@ func (r *Reconciler) ValidateReference(obj *corev1.ObjectReference) (bool, error
 	return true, nil
 }
 
+func (r *Reconciler) updateMachineAutoscalerConditions(ma *v1beta1.MachineAutoscaler, condition metav1.Condition) error {
+	updatedConditions := createOrUpdateMaCondition(ma.Status.Conditions, condition)
+
+	ma.Status.Conditions = updatedConditions
+	return r.client.Status().Update(context.TODO(), ma)
+}
+
 // targetOwnerRequest is used with handler.EnqueueRequestsFromMapFunc to enqueue
 // reconcile requests for the owning MachineAutoscaler of a watched target.
 func targetOwnerRequest[T client.Object](_ context.Context, a T) []reconcile.Request {
@@ -584,4 +684,54 @@ func objectReference(ref v1beta1.CrossVersionObjectReference) *corev1.ObjectRefe
 	obj.Name = ref.Name
 
 	return obj
+}
+
+func validateAuthoritativeAPI(authoritativeAPIToGVK map[machinev1.MachineAuthority]schema.GroupVersionKind, ref *corev1.ObjectReference, target *MachineTarget) error {
+	val, exists, err := unstructured.NestedString(target.Object, "spec", "authoritativeAPI")
+
+	if err != nil {
+		klog.Errorf("Error getting authoritativeAPI from target.Object: %v", err)
+		return err
+	}
+
+	if !exists {
+		return ErrAuthoritativeTypeNotExist
+	}
+
+	authoritativeAPI := machinev1.MachineAuthority(val)
+
+	if authoritativeAPI == "" {
+		return ErrAuthoritativeTypeInvalid
+	}
+
+	if authoritativeAPI == machinev1.MachineAuthorityMigrating {
+		return ErrMigratingAuthoritativeType
+	}
+
+	gvk, exists := authoritativeAPIToGVK[authoritativeAPI]
+
+	if !exists {
+		return ErrAuthoritativeTypeInvalid
+	}
+
+	if ref.GroupVersionKind() != gvk {
+		return ErrAuthoritativeTypeUnsupported
+	}
+
+	return nil
+}
+
+func createConditionFromValidationError(err error) metav1.Condition {
+	switch {
+	case errors.Is(err, ErrAuthoritativeTypeNotExist):
+		return createCondition(metav1.ConditionFalse, machineAutoscalerReadyType, machineAutoscalerNATargetScaleRefReason, machineAutoscalerAuthoritativeTypeNotExistsMessage)
+	case errors.Is(err, ErrAuthoritativeTypeInvalid):
+		return createCondition(metav1.ConditionFalse, machineAutoscalerReadyType, machineAutoscalerNATargetScaleRefReason, machineAutoscalerInvalidAuthoritativeTypeMessage)
+	case errors.Is(err, ErrAuthoritativeTypeUnsupported):
+		return createCondition(metav1.ConditionFalse, machineAutoscalerReadyType, machineAutoscalerNATargetScaleRefReason, machineAutoscalerNATargetScaleRefMessage)
+	case errors.Is(err, ErrMigratingAuthoritativeType):
+		return createCondition(metav1.ConditionFalse, machineAutoscalerReadyType, machineAutoscalerNATargetScaleRefReason, machineAutoscalerMigratingAuthoritativeTypeMessage)
+	default:
+		return createCondition(metav1.ConditionFalse, machineAutoscalerReadyType, machineAutoscalerNATargetScaleRefReason, machineAutoscalerInvalidAuthoritativeTypeMessage)
+	}
 }
