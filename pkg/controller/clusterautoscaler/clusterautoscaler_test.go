@@ -17,6 +17,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -561,6 +562,97 @@ func TestUpdateAnnotations(t *testing.T) {
 			got := tc.object.GetAnnotations()
 			if !equality.Semantic.DeepEqual(got, expected) {
 				t.Errorf("got %v, want %v", got, expected)
+			}
+		})
+	}
+}
+
+func TestCARequests(t *testing.T) {
+	testCases := []struct {
+		label       string
+		annotations map[string]string
+		expectedcpu resource.Quantity
+		expectedmem resource.Quantity
+	}{
+		{
+			label:       "default values",
+			expectedcpu: resource.MustParse(defaultCACPURequest),
+			expectedmem: resource.MustParse(defaultCAMemoryRequest),
+		},
+		{
+			label: "cpu overridden in annotations",
+			annotations: map[string]string{
+				clusterAutoscalerCPUAnnotation: "1500m",
+			},
+			expectedcpu: resource.MustParse("1500m"),
+			expectedmem: resource.MustParse(defaultCAMemoryRequest),
+		},
+		{
+			label: "memory overridden in annotations",
+			annotations: map[string]string{
+				clusterAutoscalerMemoryAnnotation: "1Gi",
+			},
+			expectedcpu: resource.MustParse(defaultCACPURequest),
+			expectedmem: resource.MustParse("1Gi"),
+		},
+		{
+			label: "cpu and memory overridden in annotations",
+			annotations: map[string]string{
+				clusterAutoscalerCPUAnnotation:    "1500m",
+				clusterAutoscalerMemoryAnnotation: "1Gi",
+			},
+			expectedcpu: resource.MustParse("1500m"),
+			expectedmem: resource.MustParse("1Gi"),
+		},
+		{
+			label: "bad cpu annotations results in default",
+			annotations: map[string]string{
+				clusterAutoscalerCPUAnnotation: "mmmmm",
+			},
+			expectedcpu: resource.MustParse(defaultCACPURequest),
+			expectedmem: resource.MustParse(defaultCAMemoryRequest),
+		},
+		{
+			label: "bad memory annotations results in default",
+			annotations: map[string]string{
+				clusterAutoscalerMemoryAnnotation: "mmmmm",
+			},
+			expectedcpu: resource.MustParse(defaultCACPURequest),
+			expectedmem: resource.MustParse(defaultCAMemoryRequest),
+		},
+		{
+			label: "bad cpu, good memory annotations results in default and custom",
+			annotations: map[string]string{
+				clusterAutoscalerCPUAnnotation:    "mmmmm",
+				clusterAutoscalerMemoryAnnotation: "1Gi",
+			},
+			expectedcpu: resource.MustParse(defaultCACPURequest),
+			expectedmem: resource.MustParse("1Gi"),
+		},
+		{
+			label: "bad memory, good cpu annotations results in default and custom",
+			annotations: map[string]string{
+				clusterAutoscalerCPUAnnotation:    "1500m",
+				clusterAutoscalerMemoryAnnotation: "mmmmm",
+			},
+			expectedcpu: resource.MustParse("1500m"),
+			expectedmem: resource.MustParse(defaultCAMemoryRequest),
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.label, func(t *testing.T) {
+			ca := NewClusterAutoscaler()
+			ca.SetAnnotations(tc.annotations)
+
+			observed := getCACPURequest(ca)
+			if observed != tc.expectedcpu {
+				t.Errorf("expected %v, observed %v", tc.expectedcpu, observed)
+			}
+
+			observed = getCAMemoryRequest(ca)
+			if observed != tc.expectedmem {
+				t.Errorf("expected %v, observed %v", tc.expectedmem, observed)
 			}
 		})
 	}

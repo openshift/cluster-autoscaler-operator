@@ -5,7 +5,9 @@ import (
 	"strings"
 
 	configv1 "github.com/openshift/api/config/v1"
+	autoscalingv1 "github.com/openshift/cluster-autoscaler-operator/pkg/apis/autoscaling/v1"
 	v1 "github.com/openshift/cluster-autoscaler-operator/pkg/apis/autoscaling/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/klog/v2"
 )
 
@@ -21,6 +23,12 @@ const (
 	// added to remediate a bad interaction between the bulk delete logic and the cluster-api provider,
 	// for more information see https://issues.redhat.com/browse/OCPBUGS-42132
 	maxBulkSoftTaintCount = "0"
+
+	// Constants related to the resource requests for the cluster autoscaler deployment.
+	defaultCACPURequest               = "10m"
+	defaultCAMemoryRequest            = "20Mi"
+	clusterAutoscalerCPUAnnotation    = "openshift.io/cluster-autoscaler-cpu-request"
+	clusterAutoscalerMemoryAnnotation = "openshift.io/cluster-autoscaler-memory-request"
 )
 
 // AutoscalerArg represents a command line argument to the cluster-autoscaler
@@ -342,4 +350,32 @@ func ResourceArgs(rl *v1.ResourceLimits) []string {
 	}
 
 	return args
+}
+
+// Experimental functions for handling annotation overrides of cluster autoscaler resource requests.
+
+func getCACPURequest(ca *autoscalingv1.ClusterAutoscaler) resource.Quantity {
+	annotations := ca.GetAnnotations()
+	if value, found := annotations[clusterAutoscalerCPUAnnotation]; found {
+		newvalue, err := resource.ParseQuantity(value)
+		if err == nil {
+			return newvalue
+		}
+		klog.Errorf("Unable to parse CPU requests from annotation, falling back to default value(%q): %v", err, defaultCACPURequest)
+	}
+
+	return resource.MustParse(defaultCACPURequest)
+}
+
+func getCAMemoryRequest(ca *autoscalingv1.ClusterAutoscaler) resource.Quantity {
+	annotations := ca.GetAnnotations()
+	if value, found := annotations[clusterAutoscalerMemoryAnnotation]; found {
+		newvalue, err := resource.ParseQuantity(value)
+		if err == nil {
+			return newvalue
+		}
+		klog.Errorf("Unable to parse memory requests from annotation, falling back to default value(%q): %v", err, defaultCAMemoryRequest)
+	}
+
+	return resource.MustParse(defaultCAMemoryRequest)
 }
