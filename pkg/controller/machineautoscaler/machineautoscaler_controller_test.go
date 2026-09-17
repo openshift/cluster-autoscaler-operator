@@ -2,14 +2,20 @@ package machineautoscaler
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"reflect"
 	"strconv"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
+	machinev1 "github.com/openshift/api/machine/v1beta1"
 	"github.com/openshift/cluster-autoscaler-operator/pkg/apis"
 	autoscalingv1beta1 "github.com/openshift/cluster-autoscaler-operator/pkg/apis/autoscaling/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -20,20 +26,32 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
-const TestNamespace = "test"
+const (
+	TestNamespace     = "test"
+	machineAPIVersion = "machine.openshift.io/v1beta1"
+	clusterAPIVersion = "cluster.x-k8s.io/v1beta2"
+	machineSetKind    = "MachineSet"
+)
 
 func init() {
 	apis.AddToScheme(scheme.Scheme)
 }
 
-// Return a MachineTarget targeting a MachineSet with the given name.
-func newMachineTarget(name string) *MachineTarget {
+// Return a MachineTarget targeting a MachineSet with the given name and API version.
+// If authoritativeAPI is provided, it is set in status.authoritativeAPI.
+func newMachineTarget(namespace, name, apiVersion string, authoritativeAPI ...string) *MachineTarget {
 	u := &unstructured.Unstructured{}
 
-	u.SetAPIVersion("machine.openshift.io/v1beta1")
-	u.SetKind("MachineSet")
+	u.SetAPIVersion(apiVersion)
+	u.SetKind(machineSetKind)
 	u.SetName(name)
-	u.SetNamespace(TestNamespace)
+	u.SetNamespace(namespace)
+
+	if len(authoritativeAPI) > 0 {
+		u.Object["status"] = map[string]interface{}{
+			"authoritativeAPI": authoritativeAPI[0],
+		}
+	}
 
 	target, err := MachineTargetFromObject(u)
 	if err != nil {
@@ -53,7 +71,19 @@ func setTarget(ma *autoscalingv1beta1.MachineAutoscaler, mt *MachineTarget) {
 }
 
 // newFakeReconciler returns a new reconcile.Reconciler with a fake client.
-func newFakeReconciler(cfg Config, initObjects ...runtime.Object) *Reconciler {
+func newFakeReconciler(cfg Config, isClusterAPIIntegrationEnabled bool, initObjects ...runtime.Object) *Reconciler {
+	authoritativeAPIToGVK := map[machinev1.MachineAuthority]schema.GroupVersionKind{
+		machinev1.MachineAuthorityMachineAPI: machineAPIGVK,
+	}
+	gvkToWatchedNamespace := map[schema.GroupVersionKind]string{
+		machineAPIGVK: machineAPINamespace,
+	}
+
+	if isClusterAPIIntegrationEnabled {
+		authoritativeAPIToGVK[machinev1.MachineAuthorityClusterAPI] = clusterAPIGVK
+		gvkToWatchedNamespace[clusterAPIGVK] = clusterAPINamespace
+	}
+
 	fakeClient := fakeclient.
 		NewClientBuilder().
 		WithScheme(scheme.Scheme).
@@ -61,11 +91,23 @@ func newFakeReconciler(cfg Config, initObjects ...runtime.Object) *Reconciler {
 		WithStatusSubresource(&autoscalingv1beta1.MachineAutoscaler{}).
 		Build()
 	return &Reconciler{
-		client:   fakeClient,
-		scheme:   scheme.Scheme,
-		recorder: events.NewFakeRecorder(128),
-		config:   cfg,
+		client:                         fakeClient,
+		scheme:                         scheme.Scheme,
+		recorder:                       events.NewFakeRecorder(128),
+		isClusterAPIIntegrationEnabled: isClusterAPIIntegrationEnabled,
+		authoritativeAPIToGVK:          authoritativeAPIToGVK,
+		gvkToWatchedNamespace:          gvkToWatchedNamespace,
+		config:                         cfg,
 	}
+}
+
+func conditionsWithoutTransitionTime(conditions []metav1.Condition) []metav1.Condition {
+	result := make([]metav1.Condition, len(conditions))
+	for i, c := range conditions {
+		c.LastTransitionTime = metav1.Time{}
+		result[i] = c
+	}
+	return result
 }
 
 func TestRemoveSupportedGVK(t *testing.T) {
@@ -83,27 +125,30 @@ func TestRemoveSupportedGVK(t *testing.T) {
 			},
 			after: []schema.GroupVersionKind{},
 		},
-		/*
-			        TODO (elmiko) in the future if the CAO will support more than one type of CRD, this
-			        test should be rewritten for those new types. I am leaving the old test here as an example.
-
-					{
-						label:  "remove multiple",
-						before: DefaultSupportedTargetGVKs(),
-						remove: []schema.GroupVersionKind{
-							{Group: "cluster.x-k8s.io", Version: "v1beta1", Kind: "MachineDeployment"},
-							{Group: "machine.openshift.io", Version: "v1beta1", Kind: "MachineSet"},
-						},
-						after: []schema.GroupVersionKind{
-							{Group: "cluster.x-k8s.io", Version: "v1beta1", Kind: "MachineSet"},
-						},
-					},
-		*/
 		{
 			label:  "remove none",
 			before: DefaultSupportedTargetGVKs(),
 			remove: []schema.GroupVersionKind{},
 			after:  DefaultSupportedTargetGVKs(),
+		},
+		{
+			label:  "remove one with clusterAPIGVK",
+			before: append(DefaultSupportedTargetGVKs(), clusterAPIGVK),
+			remove: []schema.GroupVersionKind{
+				{Group: "machine.openshift.io", Version: "v1beta1", Kind: "MachineSet"},
+			},
+			after: []schema.GroupVersionKind{
+				{Group: "cluster.x-k8s.io", Version: "v1beta2", Kind: "MachineSet"},
+			},
+		},
+		{
+			label:  "remove multiple with clusterAPIGVK",
+			before: append(DefaultSupportedTargetGVKs(), clusterAPIGVK),
+			remove: []schema.GroupVersionKind{
+				{Group: "cluster.x-k8s.io", Version: "v1beta2", Kind: "MachineSet"},
+				{Group: "machine.openshift.io", Version: "v1beta1", Kind: "MachineSet"},
+			},
+			after: []schema.GroupVersionKind{},
 		},
 	}
 
@@ -112,7 +157,7 @@ func TestRemoveSupportedGVK(t *testing.T) {
 			r := newFakeReconciler(Config{
 				Namespace:           TestNamespace,
 				SupportedTargetGVKs: tt.before,
-			})
+			}, false)
 
 			for _, gvk := range tt.remove {
 				r.RemoveSupportedGVK(gvk)
@@ -155,7 +200,7 @@ func TestValidateReference(t *testing.T) {
 			expect: true,
 			ref: &corev1.ObjectReference{
 				Name:       "test",
-				Kind:       "MachineSet",
+				Kind:       machineSetKind,
 				APIVersion: "machine.openshift.io/v1beta1",
 			},
 		},
@@ -164,7 +209,7 @@ func TestValidateReference(t *testing.T) {
 	r := newFakeReconciler(Config{
 		Namespace:           TestNamespace,
 		SupportedTargetGVKs: DefaultSupportedTargetGVKs(),
-	})
+	}, false)
 
 	for _, tt := range validateReferenceTests {
 		t.Run(tt.label, func(t *testing.T) {
@@ -181,52 +226,135 @@ func TestValidateReference(t *testing.T) {
 	}
 }
 
-func TestHandleTargetChange(t *testing.T) {
-	// A target which will not be fetchable via the API.
-	missingTarget := newMachineTarget("missing-target")
-
-	var testCases = []struct {
-		label     string
-		newTarget *MachineTarget
-		oldTarget *MachineTarget
+func TestGetTarget(t *testing.T) {
+	testCases := []struct {
+		label                          string
+		ref                            corev1.ObjectReference
+		target                         *MachineTarget
+		isClusterAPIIntegrationEnabled bool
+		wantNamespace                  string
+		wantErr                        bool
 	}{
 		{
-			// MachineAutoscaler with no previous target should have the
-			// annotations added to the newly set target.
-			label:     "no previous target",
-			newTarget: newMachineTarget("no-previous-target"),
-			oldTarget: nil,
+			label: "gets MachineAPI target from watched namespace",
+			ref: corev1.ObjectReference{
+				APIVersion: machineAPIVersion,
+				Kind:       machineSetKind,
+				Name:       "machine-api-target",
+			},
+			target:        newMachineTarget(machineAPINamespace, "machine-api-target", machineAPIVersion),
+			wantNamespace: machineAPINamespace,
 		},
 		{
-			// MachineAutoscaler with missing previous target should have the
-			// annotations added to the newly set target.
-			label:     "bad previous target",
-			newTarget: newMachineTarget("no-previous-target"),
-			oldTarget: missingTarget,
+			label: "gets ClusterAPI target from watched namespace",
+			ref: corev1.ObjectReference{
+				APIVersion: clusterAPIVersion,
+				Kind:       machineSetKind,
+				Name:       "cluster-api-target",
+			},
+			target:                         newMachineTarget(clusterAPINamespace, "cluster-api-target", clusterAPIVersion),
+			isClusterAPIIntegrationEnabled: true,
+			wantNamespace:                  clusterAPINamespace,
 		},
 		{
-			// MachineAutoscaler with a previous target, and a new target which
-			// is missing, should still remove annotations on previous target.
-			label:     "bad new target",
-			newTarget: missingTarget,
-			oldTarget: newMachineTarget("previous-target"),
-		},
-		{
-			// MachineAutoscaler with both previous and new targets found.
-			label:     "good targets",
-			newTarget: newMachineTarget("new-target"),
-			oldTarget: newMachineTarget("previous-target"),
+			label: "supported GVK has no watched namespace",
+			ref: corev1.ObjectReference{
+				APIVersion: clusterAPIVersion,
+				Kind:       machineSetKind,
+				Name:       "cluster-api-target",
+			},
+			wantErr: true,
 		},
 	}
 
 	cfg := Config{
 		Namespace:           TestNamespace,
-		SupportedTargetGVKs: DefaultSupportedTargetGVKs(),
+		SupportedTargetGVKs: append(DefaultSupportedTargetGVKs(), clusterAPIGVK),
 	}
 
 	for _, tt := range testCases {
 		t.Run(tt.label, func(t *testing.T) {
-			ma := NewMachineAutoscaler()
+			var objects []runtime.Object
+			if tt.target != nil {
+				objects = append(objects, tt.target)
+			}
+
+			r := newFakeReconciler(cfg, tt.isClusterAPIIntegrationEnabled, objects...)
+			target, err := r.GetTarget(&tt.ref)
+
+			if tt.wantErr {
+				assert.Error(t, err)
+				return
+			}
+
+			if !assert.NoError(t, err) {
+				return
+			}
+
+			assert.Equal(t, tt.wantNamespace, target.GetNamespace())
+			assert.Equal(t, tt.ref.Name, target.GetName())
+			assert.Equal(t, tt.ref.GroupVersionKind(), target.GroupVersionKind())
+		})
+	}
+}
+
+func TestHandleTargetChange(t *testing.T) {
+	// A target which will not be fetchable via the API.
+	missingTarget := newMachineTarget(machineAPINamespace, "missing-target", machineAPIVersion, "MachineAPI")
+
+	var testCases = []struct {
+		label                          string
+		newTarget                      *MachineTarget
+		oldTarget                      *MachineTarget
+		isClusterAPIIntegrationEnabled bool
+		maNamespace                    string
+	}{
+		{
+			label:       "no previous target",
+			newTarget:   newMachineTarget(machineAPINamespace, "no-previous-target", machineAPIVersion, "MachineAPI"),
+			maNamespace: machineAPINamespace,
+		},
+		{
+			label:       "missing previous target",
+			newTarget:   newMachineTarget(machineAPINamespace, "no-previous-target", machineAPIVersion, "MachineAPI"),
+			oldTarget:   missingTarget,
+			maNamespace: machineAPINamespace,
+		},
+		{
+			label:       "missing new target",
+			newTarget:   missingTarget,
+			oldTarget:   newMachineTarget(machineAPINamespace, "previous-target", machineAPIVersion, "MachineAPI"),
+			maNamespace: machineAPINamespace,
+		},
+		{
+			label:       "existing targets",
+			newTarget:   newMachineTarget(machineAPINamespace, "new-target", machineAPIVersion, "MachineAPI"),
+			oldTarget:   newMachineTarget(machineAPINamespace, "previous-target", machineAPIVersion, "MachineAPI"),
+			maNamespace: machineAPINamespace,
+		},
+		{
+			label:                          "target changed from MachineAPI to ClusterAPI",
+			newTarget:                      newMachineTarget(clusterAPINamespace, "new-target", clusterAPIVersion, "ClusterAPI"),
+			oldTarget:                      newMachineTarget(machineAPINamespace, "previous-target", machineAPIVersion, "MachineAPI"),
+			isClusterAPIIntegrationEnabled: true,
+			maNamespace:                    machineAPINamespace,
+		},
+		{
+			label:                          "no previous target with authoritativeAPI enabled",
+			newTarget:                      newMachineTarget(clusterAPINamespace, "no-previous-target", clusterAPIVersion, "ClusterAPI"),
+			isClusterAPIIntegrationEnabled: true,
+			maNamespace:                    machineAPINamespace,
+		},
+	}
+
+	cfg := Config{
+		Namespace:           TestNamespace,
+		SupportedTargetGVKs: append(DefaultSupportedTargetGVKs(), clusterAPIGVK),
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.label, func(t *testing.T) {
+			ma := NewMachineAutoscaler(tt.maNamespace)
 
 			maName := types.NamespacedName{
 				Namespace: ma.Namespace,
@@ -245,7 +373,7 @@ func TestHandleTargetChange(t *testing.T) {
 				objects = append(objects, tt.newTarget)
 			}
 
-			r := newFakeReconciler(cfg, objects...)
+			r := newFakeReconciler(cfg, tt.isClusterAPIIntegrationEnabled, objects...)
 
 			// If there's a previous target, first reconcile the
 			// MachineAutoscaler with it set.
@@ -320,6 +448,213 @@ func TestHandleTargetChange(t *testing.T) {
 					t.Errorf("got %v, want %v", got, expected)
 				}
 			}
+		})
+	}
+}
+
+func TestValidateAuthoritativeAPI(t *testing.T) {
+	authoritativeAPIToGVK := map[machinev1.MachineAuthority]schema.GroupVersionKind{
+		machinev1.MachineAuthorityMachineAPI: {Group: "machine.openshift.io", Version: "v1beta1", Kind: "MachineSet"},
+		machinev1.MachineAuthorityClusterAPI: clusterAPIGVK,
+	}
+
+	testCases := map[string]struct {
+		maTargetRef *corev1.ObjectReference
+		machineSet  *MachineTarget
+		err         error
+	}{
+		"MachineAPI valid authoritativeAPI": {
+			maTargetRef: &corev1.ObjectReference{
+				APIVersion: machineAPIVersion,
+				Kind:       machineSetKind,
+			},
+			machineSet: newMachineTarget(machineAPINamespace, "test", machineAPIVersion, "MachineAPI"),
+		},
+		"ClusterAPI valid authoritativeAPI": {
+			maTargetRef: &corev1.ObjectReference{
+				APIVersion: clusterAPIVersion,
+				Kind:       machineSetKind,
+			},
+			machineSet: newMachineTarget(clusterAPINamespace, "test", clusterAPIVersion, "ClusterAPI"),
+		},
+		"authoritativeAPI field does not exist": {
+			maTargetRef: &corev1.ObjectReference{
+				APIVersion: machineAPIVersion,
+				Kind:       machineSetKind,
+			},
+			machineSet: newMachineTarget(machineAPINamespace, "test", machineAPIVersion),
+			err:        ErrAuthoritativeTypeNotExist,
+		},
+		"authoritativeAPI is empty string": {
+			maTargetRef: &corev1.ObjectReference{
+				APIVersion: machineAPIVersion,
+				Kind:       machineSetKind,
+			},
+			machineSet: newMachineTarget(machineAPINamespace, "test", machineAPIVersion, ""),
+			err:        ErrAuthoritativeTypeInvalid,
+		},
+		"authoritativeAPI is Migrating": {
+			maTargetRef: &corev1.ObjectReference{
+				APIVersion: machineAPIVersion,
+				Kind:       machineSetKind,
+			},
+			machineSet: newMachineTarget(machineAPINamespace, "test", machineAPIVersion, "Migrating"),
+			err:        ErrMigratingAuthoritativeType,
+		},
+		"authoritativeAPI is unknown value": {
+			maTargetRef: &corev1.ObjectReference{
+				APIVersion: machineAPIVersion,
+				Kind:       machineSetKind,
+			},
+			machineSet: newMachineTarget(machineAPINamespace, "test", machineAPIVersion, "test"),
+			err:        ErrAuthoritativeTypeInvalid,
+		},
+		"MachineAPI authoritativeAPI but targetRef is ClusterAPI": {
+			maTargetRef: &corev1.ObjectReference{
+				APIVersion: clusterAPIVersion,
+				Kind:       machineSetKind,
+			},
+			machineSet: newMachineTarget(clusterAPINamespace, "test", clusterAPIVersion, "MachineAPI"),
+			err:        ErrAuthoritativeTypeUnsupported,
+		},
+		"ClusterAPI authoritativeAPI but targetRef is MachineAPI": {
+			maTargetRef: &corev1.ObjectReference{
+				APIVersion: machineAPIVersion,
+				Kind:       machineSetKind,
+			},
+			machineSet: newMachineTarget(machineAPINamespace, "test", machineAPIVersion, "ClusterAPI"),
+			err:        ErrAuthoritativeTypeUnsupported,
+		},
+	}
+
+	for name, testCase := range testCases {
+		t.Run(name, func(t *testing.T) {
+			err := validateAuthoritativeAPI(authoritativeAPIToGVK, testCase.maTargetRef, testCase.machineSet)
+			if !errors.Is(err, testCase.err) {
+				t.Errorf("unexpected error. got %v, want %v", err, testCase.err)
+			}
+		})
+	}
+}
+
+func TestCreateConditionFromValidationError(t *testing.T) {
+	testCases := map[string]struct {
+		err             error
+		expectedMessage string
+	}{
+		"ErrAuthoritativeTypeNotExist": {
+			err:             ErrAuthoritativeTypeNotExist,
+			expectedMessage: machineAutoscalerAuthoritativeTypeNotExistsMessage,
+		},
+		"ErrAuthoritativeTypeInvalid": {
+			err:             ErrAuthoritativeTypeInvalid,
+			expectedMessage: machineAutoscalerInvalidAuthoritativeTypeMessage,
+		},
+		"ErrAuthoritativeTypeUnsupported": {
+			err:             ErrAuthoritativeTypeUnsupported,
+			expectedMessage: machineAutoscalerNATargetScaleRefMessage,
+		},
+		"ErrMigratingAuthoritativeType": {
+			err:             ErrMigratingAuthoritativeType,
+			expectedMessage: machineAutoscalerMigratingAuthoritativeTypeMessage,
+		},
+		"wrapped ErrAuthoritativeTypeNotExist": {
+			err:             fmt.Errorf("wrap: %w", ErrAuthoritativeTypeNotExist),
+			expectedMessage: machineAutoscalerAuthoritativeTypeNotExistsMessage,
+		},
+		"unknown error falls back to default": {
+			err:             errors.New("something unexpected"),
+			expectedMessage: machineAutoscalerInvalidAuthoritativeTypeMessage,
+		},
+	}
+
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			got := createConditionFromValidationError(tc.err)
+
+			assert.Equal(t, metav1.ConditionFalse, got.Status)
+			assert.Equal(t, machineAutoscalerReadyType, got.Type)
+			assert.Equal(t, machineAutoscalerNATargetScaleRefReason, got.Reason)
+			assert.Equal(t, tc.expectedMessage, got.Message)
+		})
+	}
+}
+
+func TestUpdateMachineAutoscalerConditions(t *testing.T) {
+	testCases := map[string]struct {
+		initialConditions  []metav1.Condition
+		newCondition       metav1.Condition
+		expectedConditions []metav1.Condition
+	}{
+		"add condition to empty list": {
+			initialConditions: nil,
+			newCondition: metav1.Condition{
+				Type:    machineAutoscalerReadyType,
+				Status:  metav1.ConditionTrue,
+				Reason:  machineAutoscalerReadyReason,
+				Message: machineAutoscalerReadyMessage,
+			},
+			expectedConditions: []metav1.Condition{
+				{
+					Type:    machineAutoscalerReadyType,
+					Status:  metav1.ConditionTrue,
+					Reason:  machineAutoscalerReadyReason,
+					Message: machineAutoscalerReadyMessage,
+				},
+			},
+		},
+		"add a condition with the same Type updates it": {
+			initialConditions: []metav1.Condition{
+				{
+					Type:    machineAutoscalerReadyType,
+					Status:  metav1.ConditionTrue,
+					Reason:  machineAutoscalerReadyReason,
+					Message: machineAutoscalerReadyMessage,
+				},
+			},
+			newCondition: metav1.Condition{
+				Type:    machineAutoscalerReadyType,
+				Status:  metav1.ConditionFalse,
+				Reason:  machineAutoscalerNATargetScaleRefReason,
+				Message: machineAutoscalerNATargetScaleRefMessage,
+			},
+			expectedConditions: []metav1.Condition{
+				{
+					Type:    machineAutoscalerReadyType,
+					Status:  metav1.ConditionFalse,
+					Reason:  machineAutoscalerNATargetScaleRefReason,
+					Message: machineAutoscalerNATargetScaleRefMessage,
+				},
+			},
+		},
+	}
+
+	cfg := Config{
+		Namespace:           TestNamespace,
+		SupportedTargetGVKs: append(DefaultSupportedTargetGVKs(), clusterAPIGVK),
+	}
+
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			ma := NewMachineAutoscaler(TestNamespace)
+			r := newFakeReconciler(cfg, false, ma)
+
+			ma.Status.Conditions = tc.initialConditions
+			if err := r.client.Status().Update(context.TODO(), ma); err != nil {
+				t.Fatalf("Error setting initial conditions: %v", err)
+			}
+
+			if err := r.updateMachineAutoscalerConditions(ma, tc.newCondition); err != nil {
+				t.Fatalf("Error updating conditions: %v", err)
+			}
+
+			updatedMA := &autoscalingv1beta1.MachineAutoscaler{}
+			if err := r.client.Get(context.TODO(), types.NamespacedName{Namespace: ma.Namespace, Name: ma.Name}, updatedMA); err != nil {
+				t.Fatalf("Error fetching updated MachineAutoscaler: %v", err)
+			}
+
+			assert.Len(t, updatedMA.Status.Conditions, len(tc.expectedConditions))
+			assert.ElementsMatch(t, tc.expectedConditions, conditionsWithoutTransitionTime(updatedMA.Status.Conditions))
 		})
 	}
 }

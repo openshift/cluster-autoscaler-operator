@@ -242,7 +242,7 @@ func AutoscalerArgs(ca *v1.ClusterAutoscaler, cfg *Config) []string {
 	}
 
 	// if feature gate for ProvisioningRequest is enabled, turn on the flag
-	if isFeatureGateEnabled(cfg.FeatureGateAccessor, provisioningRequestFGName) {
+	if IsFeatureGateEnabled(cfg.FeatureGateAccessor, provisioningRequestFGName) {
 		args = append(args, EnableProvisioningRequestsArg.Value(trueFlag))
 	}
 
@@ -419,7 +419,7 @@ func ResourceArgs(rl *v1.ResourceLimits) []string {
 	return args
 }
 
-func isFeatureGateEnabled(accessor featuregates.FeatureGateAccess, name string) bool {
+func IsFeatureGateEnabled(accessor featuregates.FeatureGateAccess, name string) bool {
 	if accessor != nil {
 		if featureGates, err := accessor.CurrentFeatureGates(); err != nil {
 			klog.Errorf("unable to get feature gate accessor: %v", err)
@@ -467,7 +467,7 @@ func shouldDisableClusterAPIProviderFor(cfg Config) bool {
 
 	if len(fgName) > 0 {
 		// if the feature gate is enabled on a given platform, then we know Cluster API is enabled
-		return !isFeatureGateEnabled(cfg.FeatureGateAccessor, fgName)
+		return !IsFeatureGateEnabled(cfg.FeatureGateAccessor, fgName)
 	}
 
 	// if we fall through to here it is because we can't determine the platform, the safest thing to do is disable Cluster API
