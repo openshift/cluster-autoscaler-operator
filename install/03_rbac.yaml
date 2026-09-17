@@ -506,10 +506,9 @@ rules:
   - update
 ---
 apiVersion: rbac.authorization.k8s.io/v1
-kind: RoleBinding
+kind: ClusterRoleBinding
 metadata:
   name: cluster-autoscaler-operator-clusterapi
-  namespace: openshift-cluster-api
   annotations:
     feature-gate.release.openshift.io/ClusterAPIMachineManagement: "true"
     include.release.openshift.io/hypershift: "true"
@@ -571,10 +570,9 @@ rules:
   - get
 ---
 apiVersion: rbac.authorization.k8s.io/v1
-kind: RoleBinding
+kind: ClusterRoleBinding
 metadata:
   name: cluster-autoscaler-clusterapi
-  namespace: openshift-cluster-api
   annotations:
     feature-gate.release.openshift.io/ClusterAPIMachineManagement: "true"
     include.release.openshift.io/hypershift: "true"

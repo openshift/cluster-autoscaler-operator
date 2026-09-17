@@ -15,6 +15,7 @@ import (
 	autoscalingv1beta1 "github.com/openshift/cluster-autoscaler-operator/pkg/apis/autoscaling/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -306,44 +307,59 @@ func TestHandleTargetChange(t *testing.T) {
 		label                          string
 		newTarget                      *MachineTarget
 		oldTarget                      *MachineTarget
+		mirrorTarget                   *MachineTarget
 		isClusterAPIIntegrationEnabled bool
-		maNamespace                    string
 	}{
 		{
-			label:       "no previous target",
-			newTarget:   newMachineTarget(machineAPINamespace, "no-previous-target", machineAPIVersion, "MachineAPI"),
-			maNamespace: machineAPINamespace,
+			label:     "no previous target",
+			newTarget: newMachineTarget(machineAPINamespace, "no-previous-target", machineAPIVersion, "MachineAPI"),
 		},
 		{
-			label:       "missing previous target",
-			newTarget:   newMachineTarget(machineAPINamespace, "no-previous-target", machineAPIVersion, "MachineAPI"),
-			oldTarget:   missingTarget,
-			maNamespace: machineAPINamespace,
+			label:     "missing previous target",
+			newTarget: newMachineTarget(machineAPINamespace, "no-previous-target", machineAPIVersion, "MachineAPI"),
+			oldTarget: missingTarget,
 		},
 		{
-			label:       "missing new target",
-			newTarget:   missingTarget,
-			oldTarget:   newMachineTarget(machineAPINamespace, "previous-target", machineAPIVersion, "MachineAPI"),
-			maNamespace: machineAPINamespace,
+			label:     "missing new target",
+			newTarget: missingTarget,
+			oldTarget: newMachineTarget(machineAPINamespace, "previous-target", machineAPIVersion, "MachineAPI"),
 		},
 		{
-			label:       "existing targets",
-			newTarget:   newMachineTarget(machineAPINamespace, "new-target", machineAPIVersion, "MachineAPI"),
-			oldTarget:   newMachineTarget(machineAPINamespace, "previous-target", machineAPIVersion, "MachineAPI"),
-			maNamespace: machineAPINamespace,
+			label:     "existing targets",
+			newTarget: newMachineTarget(machineAPINamespace, "new-target", machineAPIVersion, "MachineAPI"),
+			oldTarget: newMachineTarget(machineAPINamespace, "previous-target", machineAPIVersion, "MachineAPI"),
 		},
 		{
 			label:                          "target changed from MachineAPI to ClusterAPI",
 			newTarget:                      newMachineTarget(clusterAPINamespace, "new-target", clusterAPIVersion, "ClusterAPI"),
 			oldTarget:                      newMachineTarget(machineAPINamespace, "previous-target", machineAPIVersion, "MachineAPI"),
+			mirrorTarget:                   newMachineTarget(machineAPINamespace, "new-target", machineAPIVersion, "ClusterAPI"),
 			isClusterAPIIntegrationEnabled: true,
-			maNamespace:                    machineAPINamespace,
+		},
+		{
+			label:                          "target changed from MachineAPI to ClusterAPI without a mirror",
+			newTarget:                      newMachineTarget(clusterAPINamespace, "new-target", clusterAPIVersion),
+			oldTarget:                      newMachineTarget(machineAPINamespace, "previous-target", machineAPIVersion, "MachineAPI"),
+			isClusterAPIIntegrationEnabled: true,
 		},
 		{
 			label:                          "no previous target with authoritativeAPI enabled",
 			newTarget:                      newMachineTarget(clusterAPINamespace, "no-previous-target", clusterAPIVersion, "ClusterAPI"),
+			mirrorTarget:                   newMachineTarget(machineAPINamespace, "no-previous-target", machineAPIVersion, "ClusterAPI"),
 			isClusterAPIIntegrationEnabled: true,
-			maNamespace:                    machineAPINamespace,
+		},
+		{
+			label:                          "target changed from ClusterAPI to MachineAPI",
+			newTarget:                      newMachineTarget(machineAPINamespace, "new-target", machineAPIVersion, "MachineAPI"),
+			oldTarget:                      newMachineTarget(clusterAPINamespace, "previous-target", clusterAPIVersion, "ClusterAPI"),
+			mirrorTarget:                   newMachineTarget(machineAPINamespace, "previous-target", machineAPIVersion, "ClusterAPI"),
+			isClusterAPIIntegrationEnabled: true,
+		},
+		{
+			label:                          "MachineAPI to MachineAPI with ClusterAPI enabled",
+			newTarget:                      newMachineTarget(machineAPINamespace, "new-target", machineAPIVersion, "MachineAPI"),
+			oldTarget:                      newMachineTarget(machineAPINamespace, "previous-target", machineAPIVersion, "MachineAPI"),
+			isClusterAPIIntegrationEnabled: true,
 		},
 	}
 
@@ -354,7 +370,7 @@ func TestHandleTargetChange(t *testing.T) {
 
 	for _, tt := range testCases {
 		t.Run(tt.label, func(t *testing.T) {
-			ma := NewMachineAutoscaler(tt.maNamespace)
+			ma := NewMachineAutoscaler(machineAPINamespace)
 
 			maName := types.NamespacedName{
 				Namespace: ma.Namespace,
@@ -371,6 +387,10 @@ func TestHandleTargetChange(t *testing.T) {
 			// Only add the new target if it's not meant to be missing.
 			if tt.newTarget != nil && tt.newTarget != missingTarget {
 				objects = append(objects, tt.newTarget)
+			}
+
+			if tt.mirrorTarget != nil {
+				objects = append(objects, tt.mirrorTarget)
 			}
 
 			r := newFakeReconciler(cfg, tt.isClusterAPIIntegrationEnabled, objects...)
@@ -540,30 +560,42 @@ func TestValidateAuthoritativeAPI(t *testing.T) {
 func TestCreateConditionFromValidationError(t *testing.T) {
 	testCases := map[string]struct {
 		err             error
+		expectedReason  string
 		expectedMessage string
 	}{
 		"ErrAuthoritativeTypeNotExist": {
 			err:             ErrAuthoritativeTypeNotExist,
+			expectedReason:  machineAutoscalerNATargetScaleRefReason,
 			expectedMessage: machineAutoscalerAuthoritativeTypeNotExistsMessage,
 		},
 		"ErrAuthoritativeTypeInvalid": {
 			err:             ErrAuthoritativeTypeInvalid,
+			expectedReason:  machineAutoscalerNATargetScaleRefReason,
 			expectedMessage: machineAutoscalerInvalidAuthoritativeTypeMessage,
 		},
 		"ErrAuthoritativeTypeUnsupported": {
 			err:             ErrAuthoritativeTypeUnsupported,
+			expectedReason:  machineAutoscalerNATargetScaleRefReason,
 			expectedMessage: machineAutoscalerNATargetScaleRefMessage,
 		},
 		"ErrMigratingAuthoritativeType": {
 			err:             ErrMigratingAuthoritativeType,
+			expectedReason:  machineAutoscalerNATargetScaleRefReason,
 			expectedMessage: machineAutoscalerMigratingAuthoritativeTypeMessage,
 		},
 		"wrapped ErrAuthoritativeTypeNotExist": {
 			err:             fmt.Errorf("wrap: %w", ErrAuthoritativeTypeNotExist),
+			expectedReason:  machineAutoscalerNATargetScaleRefReason,
 			expectedMessage: machineAutoscalerAuthoritativeTypeNotExistsMessage,
+		},
+		"scaleTargetRef not found": {
+			err:             apierrors.NewNotFound(schema.GroupResource{Group: "machine.openshift.io", Resource: "machinesets"}, "test-machineset"),
+			expectedReason:  machineAutoscalerScaleTargetRefNotFoundReason,
+			expectedMessage: machineAutoscalerScaleTargetRefNotFoundMessage,
 		},
 		"unknown error falls back to default": {
 			err:             errors.New("something unexpected"),
+			expectedReason:  machineAutoscalerNATargetScaleRefReason,
 			expectedMessage: machineAutoscalerInvalidAuthoritativeTypeMessage,
 		},
 	}
@@ -574,7 +606,7 @@ func TestCreateConditionFromValidationError(t *testing.T) {
 
 			assert.Equal(t, metav1.ConditionFalse, got.Status)
 			assert.Equal(t, machineAutoscalerReadyType, got.Type)
-			assert.Equal(t, machineAutoscalerNATargetScaleRefReason, got.Reason)
+			assert.Equal(t, tc.expectedReason, got.Reason)
 			assert.Equal(t, tc.expectedMessage, got.Message)
 		})
 	}
