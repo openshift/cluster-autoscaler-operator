@@ -2,10 +2,13 @@ package clusterautoscaler
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	configv1 "github.com/openshift/api/config/v1"
+	autoscalingv1 "github.com/openshift/cluster-autoscaler-operator/pkg/apis/autoscaling/v1"
 	v1 "github.com/openshift/cluster-autoscaler-operator/pkg/apis/autoscaling/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/klog/v2"
 )
 
@@ -21,6 +24,16 @@ const (
 	// added to remediate a bad interaction between the bulk delete logic and the cluster-api provider,
 	// for more information see https://issues.redhat.com/browse/OCPBUGS-42132
 	maxBulkSoftTaintCount = "0"
+
+	// Constants related to the resource requests for the cluster autoscaler deployment.
+	defaultCACPURequest               = "10m"
+	defaultCAMemoryRequest            = "20Mi"
+	clusterAutoscalerCPUAnnotation    = "openshift.io/cluster-autoscaler-cpu-request"
+	clusterAutoscalerMemoryAnnotation = "openshift.io/cluster-autoscaler-memory-request"
+
+	// Constants related to the qps and burst settings for the cluster autoscaler.
+	clusterAutoscalerBurstAnnotation = "openshift.io/cluster-autoscaler-kube-client-burst"
+	clusterAutoscalerQPSAnnotation   = "openshift.io/cluster-autoscaler-kube-client-qps"
 )
 
 // AutoscalerArg represents a command line argument to the cluster-autoscaler
@@ -78,6 +91,8 @@ const (
 	ScaleUpFromZeroDefaultArch       AutoscalerArg = "--scale-up-from-zero-default-arch"
 	ExpanderArg                      AutoscalerArg = "--expander"
 	MaxBulkSoftTaintCountArg         AutoscalerArg = "--max-bulk-soft-taint-count"
+	KubeClientBurst                  AutoscalerArg = "--kube-client-burst"
+	KubeClientQPS                    AutoscalerArg = "--kube-client-qps"
 )
 
 // Constants for the command line expander flags
@@ -207,6 +222,16 @@ func AutoscalerArgs(ca *v1.ClusterAutoscaler, cfg *Config) []string {
 		LeaderElectRenewDeadlineArg.Value(leaderElectRenewDeadline),
 		LeaderElectRetryPeriodArg.Value(leaderElectRetryPeriod),
 		MaxBulkSoftTaintCountArg.Value(maxBulkSoftTaintCount),
+	}
+
+	if burst, found := getCABurstOverride(ca); found {
+		v := KubeClientBurst.Value(burst)
+		args = append(args, v)
+	}
+
+	if qps, found := getCAQPSOverride(ca); found {
+		v := KubeClientQPS.Value(qps)
+		args = append(args, v)
 	}
 
 	if ca.Spec.MaxPodGracePeriod != nil {
@@ -342,4 +367,60 @@ func ResourceArgs(rl *v1.ResourceLimits) []string {
 	}
 
 	return args
+}
+
+// Experimental functions for handling annotation overrides of cluster autoscaler resource requests.
+
+func getCACPURequest(ca *autoscalingv1.ClusterAutoscaler) resource.Quantity {
+	annotations := ca.GetAnnotations()
+	if value, found := annotations[clusterAutoscalerCPUAnnotation]; found {
+		newvalue, err := resource.ParseQuantity(value)
+		if err == nil {
+			return newvalue
+		}
+		klog.Errorf("Unable to parse CPU requests from annotation, falling back to default value(%q): %v", defaultCACPURequest, err)
+	}
+
+	return resource.MustParse(defaultCACPURequest)
+}
+
+func getCAMemoryRequest(ca *autoscalingv1.ClusterAutoscaler) resource.Quantity {
+	annotations := ca.GetAnnotations()
+	if value, found := annotations[clusterAutoscalerMemoryAnnotation]; found {
+		newvalue, err := resource.ParseQuantity(value)
+		if err == nil {
+			return newvalue
+		}
+		klog.Errorf("Unable to parse memory requests from annotation, falling back to default value(%q): %v", defaultCAMemoryRequest, err)
+	}
+
+	return resource.MustParse(defaultCAMemoryRequest)
+}
+
+// Experimental functions for handling annotation overrides of cluster autoscaler kube client options.
+
+func getCABurstOverride(ca *autoscalingv1.ClusterAutoscaler) (int, bool) {
+	annotations := ca.GetAnnotations()
+	if value, found := annotations[clusterAutoscalerBurstAnnotation]; found {
+		newvalue, err := strconv.Atoi(value)
+		if err == nil {
+			return newvalue, true
+		}
+		klog.Errorf("Unable to parse kube client burst annotation: %v", err)
+	}
+
+	return 0, false
+}
+
+func getCAQPSOverride(ca *autoscalingv1.ClusterAutoscaler) (float64, bool) {
+	annotations := ca.GetAnnotations()
+	if value, found := annotations[clusterAutoscalerQPSAnnotation]; found {
+		newvalue, err := strconv.ParseFloat(value, 64)
+		if err == nil {
+			return newvalue, true
+		}
+		klog.Errorf("Unable to parse kube client qps annotation: %v", err)
+	}
+
+	return 0, false
 }

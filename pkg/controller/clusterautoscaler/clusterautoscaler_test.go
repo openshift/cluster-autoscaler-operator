@@ -17,6 +17,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -237,6 +238,22 @@ func TestAutoscalerArgsFromSpec(t *testing.T) {
 			},
 			expected: []string{
 				fmt.Sprintf("--expander=priority,least-waste,random"),
+			},
+		},
+		{
+			name: "set Burst and QPS override annotations",
+			caFunc: func() *autoscalingv1.ClusterAutoscaler {
+				ca := NewClusterAutoscaler()
+				a := map[string]string{
+					clusterAutoscalerBurstAnnotation: "100",
+					clusterAutoscalerQPSAnnotation:   "50",
+				}
+				ca.SetAnnotations(a)
+				return ca
+			},
+			expected: []string{
+				fmt.Sprintf("--kube-client-burst=100"),
+				fmt.Sprintf("--kube-client-qps=50"),
 			},
 		},
 	}
@@ -561,6 +578,201 @@ func TestUpdateAnnotations(t *testing.T) {
 			got := tc.object.GetAnnotations()
 			if !equality.Semantic.DeepEqual(got, expected) {
 				t.Errorf("got %v, want %v", got, expected)
+			}
+		})
+	}
+}
+
+func TestCARequests(t *testing.T) {
+	testCases := []struct {
+		label       string
+		annotations map[string]string
+		expectedcpu resource.Quantity
+		expectedmem resource.Quantity
+	}{
+		{
+			label:       "default values",
+			expectedcpu: resource.MustParse(defaultCACPURequest),
+			expectedmem: resource.MustParse(defaultCAMemoryRequest),
+		},
+		{
+			label: "cpu overridden in annotations",
+			annotations: map[string]string{
+				clusterAutoscalerCPUAnnotation: "1500m",
+			},
+			expectedcpu: resource.MustParse("1500m"),
+			expectedmem: resource.MustParse(defaultCAMemoryRequest),
+		},
+		{
+			label: "memory overridden in annotations",
+			annotations: map[string]string{
+				clusterAutoscalerMemoryAnnotation: "1Gi",
+			},
+			expectedcpu: resource.MustParse(defaultCACPURequest),
+			expectedmem: resource.MustParse("1Gi"),
+		},
+		{
+			label: "cpu and memory overridden in annotations",
+			annotations: map[string]string{
+				clusterAutoscalerCPUAnnotation:    "1500m",
+				clusterAutoscalerMemoryAnnotation: "1Gi",
+			},
+			expectedcpu: resource.MustParse("1500m"),
+			expectedmem: resource.MustParse("1Gi"),
+		},
+		{
+			label: "bad cpu annotations results in default",
+			annotations: map[string]string{
+				clusterAutoscalerCPUAnnotation: "mmmmm",
+			},
+			expectedcpu: resource.MustParse(defaultCACPURequest),
+			expectedmem: resource.MustParse(defaultCAMemoryRequest),
+		},
+		{
+			label: "bad memory annotations results in default",
+			annotations: map[string]string{
+				clusterAutoscalerMemoryAnnotation: "mmmmm",
+			},
+			expectedcpu: resource.MustParse(defaultCACPURequest),
+			expectedmem: resource.MustParse(defaultCAMemoryRequest),
+		},
+		{
+			label: "bad cpu, good memory annotations results in default and custom",
+			annotations: map[string]string{
+				clusterAutoscalerCPUAnnotation:    "mmmmm",
+				clusterAutoscalerMemoryAnnotation: "1Gi",
+			},
+			expectedcpu: resource.MustParse(defaultCACPURequest),
+			expectedmem: resource.MustParse("1Gi"),
+		},
+		{
+			label: "bad memory, good cpu annotations results in default and custom",
+			annotations: map[string]string{
+				clusterAutoscalerCPUAnnotation:    "1500m",
+				clusterAutoscalerMemoryAnnotation: "mmmmm",
+			},
+			expectedcpu: resource.MustParse("1500m"),
+			expectedmem: resource.MustParse(defaultCAMemoryRequest),
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.label, func(t *testing.T) {
+			ca := NewClusterAutoscaler()
+			ca.SetAnnotations(tc.annotations)
+
+			observed := getCACPURequest(ca)
+			if observed != tc.expectedcpu {
+				t.Errorf("expected %v, observed %v", tc.expectedcpu, observed)
+			}
+
+			observed = getCAMemoryRequest(ca)
+			if observed != tc.expectedmem {
+				t.Errorf("expected %v, observed %v", tc.expectedmem, observed)
+			}
+		})
+	}
+}
+
+func TestCABurstOverride(t *testing.T) {
+	testCases := []struct {
+		label         string
+		annotations   map[string]string
+		expectedFound bool
+		expectedValue int
+	}{
+		{
+			label:         "no value set",
+			expectedFound: false,
+		},
+		{
+			label: "burst is set to 100, value is found",
+			annotations: map[string]string{
+				clusterAutoscalerBurstAnnotation: "100",
+			},
+			expectedFound: true,
+			expectedValue: 100,
+		},
+		{
+			label: "burst is set to AAA, found is false",
+			annotations: map[string]string{
+				clusterAutoscalerBurstAnnotation: "AAA",
+			},
+			expectedFound: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.label, func(t *testing.T) {
+			ca := NewClusterAutoscaler()
+			if tc.annotations != nil {
+				ca.SetAnnotations(tc.annotations)
+			}
+
+			observedValue, observedFound := getCABurstOverride(ca)
+			if tc.expectedFound {
+				if !observedFound {
+					t.Errorf("expected observed found to be false but it was true")
+				}
+				if observedValue != tc.expectedValue {
+					t.Errorf("expected %v, observed %v", tc.expectedValue, observedValue)
+				}
+			} else {
+				if observedFound {
+					t.Errorf("expected observed found to be true but it was false")
+				}
+			}
+		})
+	}
+}
+
+func TestCAQPSOverride(t *testing.T) {
+	testCases := []struct {
+		label         string
+		annotations   map[string]string
+		expectedFound bool
+		expectedValue float64
+	}{
+		{
+			label:         "no value set",
+			expectedFound: false,
+		},
+		{
+			label: "qps is set to 50, value is found",
+			annotations: map[string]string{
+				clusterAutoscalerQPSAnnotation: "50",
+			},
+			expectedFound: true,
+			expectedValue: 50,
+		},
+		{
+			label: "qps is set to AAA, found is false",
+			annotations: map[string]string{
+				clusterAutoscalerQPSAnnotation: "AAA",
+			},
+			expectedFound: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.label, func(t *testing.T) {
+			ca := NewClusterAutoscaler()
+			if tc.annotations != nil {
+				ca.SetAnnotations(tc.annotations)
+			}
+
+			observedValue, observedFound := getCAQPSOverride(ca)
+			if tc.expectedFound {
+				if !observedFound {
+					t.Errorf("expected observed found to be false but it was true")
+				}
+				if observedValue != tc.expectedValue {
+					t.Errorf("expected %v, observed %v", tc.expectedValue, observedValue)
+				}
+			} else {
+				if observedFound {
+					t.Errorf("expected observed found to be true but it was false")
+				}
 			}
 		})
 	}
