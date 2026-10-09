@@ -14,7 +14,7 @@ const (
 	TestMaxReplicas = 8
 )
 
-func NewMachineAutoscaler() *autoscalingv1beta1.MachineAutoscaler {
+func NewMachineAutoscaler(namespace string) *autoscalingv1beta1.MachineAutoscaler {
 	return &autoscalingv1beta1.MachineAutoscaler{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "MachineAutoscaler",
@@ -22,7 +22,7 @@ func NewMachineAutoscaler() *autoscalingv1beta1.MachineAutoscaler {
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test",
-			Namespace: TestNamespace,
+			Namespace: namespace,
 		},
 		Spec: autoscalingv1beta1.MachineAutoscalerSpec{
 			MinReplicas: TestMinReplicas,
@@ -39,7 +39,7 @@ func NewMachineAutoscaler() *autoscalingv1beta1.MachineAutoscaler {
 func TestValidate(t *testing.T) {
 	client := fakeclient.NewClientBuilder().Build()
 	validator := NewValidator(client, scheme.Scheme)
-	ma := NewMachineAutoscaler()
+	ma := NewMachineAutoscaler(TestNamespace)
 
 	testCases := []struct {
 		label      string

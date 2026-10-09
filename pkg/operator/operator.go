@@ -303,6 +303,7 @@ func (o *Operator) AddControllers() error {
 	ma := machineautoscaler.NewReconciler(o.manager, machineautoscaler.Config{
 		Namespace:           o.config.ClusterAutoscalerNamespace,
 		SupportedTargetGVKs: machineautoscaler.DefaultSupportedTargetGVKs(),
+		FeatureGateAccessor: o.FeatureGateAccessor,
 	})
 
 	if err := ma.AddToManager(o.manager); err != nil {
