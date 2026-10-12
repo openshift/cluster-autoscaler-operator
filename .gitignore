@@ -73,8 +73,8 @@ anaconda-mode/
 Session.vim
 # temporary
 .netrwhist
-# auto-generated tag files
-tags
+# auto-generated tag files (root only, not vendor)
+/tags
 ### VisualStudioCode ###
 .vscode/*
 .history
