@@ -539,6 +539,7 @@ rules:
   - cluster.x-k8s.io
   resources:
   - machinedeployments
+  - machinepools
   - machinesets
   - machines
   verbs:
